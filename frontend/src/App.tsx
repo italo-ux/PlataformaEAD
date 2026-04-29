@@ -1,16 +1,11 @@
-import Navbar from "./components/navbar.tsx";
-
-
+import Navbar from "./components/Navbar/navbar.tsx";
+import LoginForm from "./components/login/loginForm.tsx";
 function App() {
   return (
     <>
       <Navbar />
-      <div className="px-4 py-2">{
-        
-        
-        
-        
-        }</div>
+      <LoginForm />
+
     </>
   );
 }

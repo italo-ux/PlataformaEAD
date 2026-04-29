@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef } from "react";
-import logo from "../assets/navbar/logo.png";
+import { useState, useRef } from "react";
+import logo from "../../assets/navbar/logo.png";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEnvelope, faChevronDown } from "@fortawesome/free-solid-svg-icons";
+import Navlinks from "./NavLinks.tsx";
+import ButtonTransparent from "../Buttons/ButtonTransparent.tsx";
 
 function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
@@ -25,28 +27,13 @@ function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
       {/* Links centralizados */}
       <ul className="nav-links flex items-center space-x-8 ml-25">
         <li>
-          <a
-            href="#"
-            className="text-blue-500 text-lg font-semibold border-b-2 "
-          >
-            HOME
-          </a>
+          <Navlinks>HOME</Navlinks>
         </li>
         <li>
-          <a
-            href="#"
-            className="text-blue-500 text-lg font-semibold border-b-2  "
-          >
-            QUEM SOMOS
-          </a>
+          <Navlinks>QUEM SOMOS</Navlinks>
         </li>
         <li>
-          <a
-            href="#"
-            className="text-blue-500 text-lg font-semibold border-b-2  "
-          >
-            CURSOS
-          </a>
+          <Navlinks>CURSOS</Navlinks>
         </li>
         <li className="relative" ref={feedbackRef}>
           <button
@@ -102,19 +89,19 @@ function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
 
       {/* Botão Contato */}
       <div className="flex space-x-2">
-        <button className="bg-transparent border border-blue-500 text-lg text-blue-500 px-7 py-2   rounded-md hover:bg-blue-500 hover:text-white transition flex items-center space-x-2 ">
-          <span>Contato</span>
-          <FontAwesomeIcon icon={faEnvelope} />
-        </button>
+        <ButtonTransparent>
+          <FontAwesomeIcon icon={faEnvelope} className="mr-2" />
+          Contato
+        </ButtonTransparent>
         {/*meu desempenho*/}
         {isLoggedIn ? (
-          <button className="bg-transparent border border-blue-500 text-lg text-blue-500 px-7 py-2   rounded-md hover:bg-blue-500 hover:text-white transition flex items-center  ">
+          <ButtonTransparent>
             <span>Meu Desempenho</span>
-          </button>
+          </ButtonTransparent>
         ) : (
-          <button className="bg-transparent border border-blue-500 text-lg text-blue-500 px-7 py-2    rounded-md hover:bg-blue-500 hover:text-white transition flex items-center ">
+          <ButtonTransparent>
             <span>Login</span>
-          </button>
+          </ButtonTransparent>
         )}
       </div>
     </nav>
