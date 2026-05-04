@@ -1,11 +1,11 @@
 import Navbar from "./components/Navbar/navbar.tsx";
-import LoginForm from "./components/login/loginForm.tsx";
+import LoginForm from "./components/login/LoginForm.tsx"; // Mude "loginForm" para "LoginForm"
+
 function App() {
   return (
     <>
-      <Navbar />
+      <Navbar isLoggedIn={false} /> {/* Adicione a prop isLoggedIn */}
       <LoginForm />
-
     </>
   );
 }
