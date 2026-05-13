@@ -1,12 +1,41 @@
+import { useState } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar/navbar.tsx";
-import LoginForm from "./components/login/LoginForm.tsx"; // Mude "loginForm" para "LoginForm"
+import LoginForm from "./components/forms/LoginForm.tsx";
+import RegisterForm from "./components/forms/RegisterForm.tsx";
+import Footer from "./components/Footer/Footer.tsx";
+import CourseView from "./pages/CourseView.tsx";
+import UserHome from "./pages/userHome";
+import { mockUser } from "./data/userMock.ts";
+
+function AuthPage() {
+  const [isLogin, setIsLogin] = useState(true);
+
+  return (
+    <>
+      <Navbar user={null} />
+      {isLogin ? (
+        <LoginForm onSwitchToRegister={() => setIsLogin(false)} />
+      ) : (
+        <RegisterForm onSwitchToLogin={() => setIsLogin(true)} />
+      )}
+      <Footer />
+    </>
+  );
+}
 
 function App() {
   return (
-    <>
-      <Navbar isLoggedIn={false} /> {/* Adicione a prop isLoggedIn */}
-      <LoginForm />
-    </>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/register" element={<AuthPage />} />
+        <Route path="/login" element={<AuthPage />} />
+        <Route path="/" element={<AuthPage />} />
+        <Route path="/home" element={<UserHome />} />
+        <Route path="/course" element={<CourseView />} />
+        <Route path="/courses" element={<UserHome />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
