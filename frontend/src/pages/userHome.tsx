@@ -6,6 +6,8 @@ import Navbar from "../components/Navbar/navbar";
 import { mockUser } from "../data/userMock";
 
 export default function UserHome() {
+  void CourseHeader;
+
   const navigate = useNavigate();
 
   // Mockados cursos disponíveis para o usuário

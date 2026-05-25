@@ -1,9 +1,12 @@
 
-function NavLink({ children }: { children: React.ReactNode }) {
+import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
+
+function NavLink({ children, to }: { children: ReactNode; to: string }) {
   return (
-    <a className="text-blue-500 text-lg font-semibold border-b-2">
+    <Link to={to} className="text-blue-500 text-lg font-semibold border-b-2">
       {children}
-    </a>
+    </Link>
   );
 }
 export default NavLink;
