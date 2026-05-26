@@ -7,7 +7,7 @@ import {
   faEyeSlash,
 } from "@fortawesome/free-solid-svg-icons";
 import SmilingRobot from "../../assets/login/smilingRobot.png";
-import { createUser } from "../../services/userService";
+import { loginUser } from "../../services/userService";
 
 interface LoginFormProps {
   onSwitchToRegister: () => void;
@@ -30,7 +30,7 @@ function LoginForm({ onSwitchToRegister }: LoginFormProps) {
     setError("");
 
     try {
-      const response = await createUser({ email, password });
+      const response = await loginUser({ email, password });
       console.log("Login bem-sucedido:", response);
     } catch (err) {
       setError("Erro ao fazer login. Tente novamente.");

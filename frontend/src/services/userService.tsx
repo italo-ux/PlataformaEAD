@@ -17,4 +17,17 @@ export async function createUser(userData: any) {
         console.error('Error creating user:', error);
         throw error;
     }
+};
+
+//login falso sem backend - alice
+export async function loginUser(userData: any) {
+    console.log("loginUser foi chamado", userData); // 👈 ADICIONA ISSO
+  const { email, password } = userData;
+
+
+  if (email === "admin@email.com" && password === "123456") {
+    return { message: "Login sucesso", token: "fake-token-123" };
+  }
+
+  throw new Error("Email ou senha inválidos");
 }
