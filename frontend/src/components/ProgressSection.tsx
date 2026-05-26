@@ -7,29 +7,25 @@ interface ProgressSectionProps {
 export default function ProgressSection({
   progress,
   completedLessons,
-  totalLessons
+  totalLessons,
 }: ProgressSectionProps) {
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-      {/* Title with Progress Percentage */}
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-bold text-gray-900">Seu Progresso</h3>
-        <span className="text-2xl font-bold text-blue-600">{progress}%</span>
+    <div className="pt-2">
+      <div className="mb-1 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-gray-700">Seu Progresso</h3>
+        <span className="text-sm font-semibold text-gray-900">{progress}%</span>
       </div>
 
-      {/* Progress Bar */}
-      <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden mb-4">
+      <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-gray-200">
         <div
-          className="bg-gradient-to-r from-blue-600 to-blue-400 h-full transition-all duration-500 ease-out"
+          className="h-full rounded-full bg-blue-600 transition-all duration-500 ease-out"
           style={{ width: `${progress}%` }}
-        ></div>
+        />
       </div>
 
-      {/* Progress Text */}
-      <p className="text-gray-700 text-sm font-medium">
-        <span className="text-blue-600 font-bold">{completedLessons}</span> de{" "}
-        <span className="text-blue-600 font-bold">{totalLessons}</span> aulas
-        concluídas
+      <p className="text-xs font-medium text-gray-600">
+        <span className="text-blue-600">{completedLessons}</span> de{" "}
+        {totalLessons} aulas concluídas
       </p>
     </div>
   );

@@ -12,47 +12,43 @@ export default function LessonSidebar({
   title,
   lessons,
   currentLessonId,
-  onSelectLesson
+  onSelectLesson,
 }: LessonSidebarProps) {
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col h-fit max-h-96 overflow-y-auto">
-      <h3 className="text-lg font-bold text-gray-900 mb-4">{title}</h3>
+    <div className="flex h-[258px] flex-col overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm">
+      <h3 className="px-4 pb-2 pt-4 text-sm font-black text-gray-900">
+        {title}
+      </h3>
 
-      {/* Lessons List */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1 overflow-y-auto px-4 pb-4">
         {lessons.map((lesson, index) => (
           <button
             key={lesson.id}
             onClick={() => onSelectLesson?.(lesson)}
-            className={`flex items-start gap-3 p-3 rounded-lg transition text-left ${
+            className={`flex items-start gap-2 rounded-md border p-2 text-left transition ${
               currentLessonId === lesson.id
-                ? "bg-blue-50 border border-blue-200"
-                : "hover:bg-gray-50 border border-transparent"
+                ? "border-blue-200 bg-blue-50"
+                : "border-transparent hover:bg-gray-50"
             }`}
           >
-            {/* Status Icon */}
-            <div className="mt-1 flex-shrink-0">
+            <div className="mt-0.5 shrink-0">
               {lesson.completed ? (
-                <CheckCircle
-                  size={20}
-                  className="text-green-500 fill-green-50"
-                />
+                <CheckCircle size={16} className="fill-green-50 text-green-500" />
               ) : (
                 <Circle
-                  size={20}
-                  className={`text-gray-300 ${
+                  size={16}
+                  className={
                     currentLessonId === lesson.id
                       ? "text-blue-400"
                       : "text-gray-300"
-                  }`}
+                  }
                 />
               )}
             </div>
 
-            {/* Lesson Info */}
-            <div className="flex-1 min-w-0">
+            <div className="min-w-0 flex-1">
               <p
-                className={`font-medium text-sm truncate ${
+                className={`truncate text-xs font-medium ${
                   currentLessonId === lesson.id
                     ? "text-blue-600"
                     : "text-gray-900"
@@ -60,11 +56,12 @@ export default function LessonSidebar({
               >
                 {lesson.title}
               </p>
-              <p className="text-xs text-gray-500 mt-1">{lesson.duration}</p>
+              <p className="mt-1 text-[10px] text-gray-500">
+                {lesson.duration}
+              </p>
             </div>
 
-            {/* Lesson Number */}
-            <span className="text-xs font-bold text-gray-400 flex-shrink-0">
+            <span className="shrink-0 text-[10px] font-bold text-gray-400">
               {index + 1}
             </span>
           </button>

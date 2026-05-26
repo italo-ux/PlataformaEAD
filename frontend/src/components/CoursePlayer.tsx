@@ -1,8 +1,10 @@
-import { Play, ArrowLeft } from "lucide-react";
+import { ArrowLeft, Play } from "lucide-react";
 
 interface CoursePlayerProps {
   title: string;
   currentLesson: string;
+  lessonContent: string;
+  lessonDuration: string;
   image: string;
   onBack?: () => void;
 }
@@ -10,59 +12,53 @@ interface CoursePlayerProps {
 export default function CoursePlayer({
   title,
   currentLesson,
+  lessonContent,
+  lessonDuration,
   image,
-  onBack
+  onBack,
 }: CoursePlayerProps) {
   return (
     <div className="flex flex-col gap-4">
-      {/* Back Button */}
       <button
         onClick={onBack}
-        className="flex items-center gap-2 text-gray-700 hover:text-blue-600 font-medium transition w-fit"
+        className="flex w-fit items-center gap-2 text-xs font-medium text-gray-700 transition hover:text-blue-600"
       >
-        <ArrowLeft size={20} />
+        <ArrowLeft size={14} />
         Voltar para cursos
       </button>
 
-      {/* Video Player Area */}
-      <div className="relative w-full bg-black rounded-2xl overflow-hidden aspect-video shadow-lg">
-        {/* Thumbnail Image */}
-        <img
-          src={image}
-          alt={title}
-          className="w-full h-full object-cover"
-        />
+      <div className="relative w-full overflow-hidden rounded-md bg-black shadow-sm">
+        <div className="aspect-[16/8.2] min-h-[240px]">
+          <img src={image} alt={title} className="h-full w-full object-cover" />
+        </div>
 
-        {/* Dark Overlay */}
-        <div className="absolute inset-0 bg-black/40"></div>
+        <div className="absolute inset-0 bg-black/40" />
 
-        {/* Play Button */}
-        <button className="absolute inset-0 flex items-center justify-center hover:bg-black/20 transition group">
-          <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center group-hover:bg-blue-700 transition transform group-hover:scale-110">
-            <Play size={40} className="text-white fill-white ml-1" />
+        <button
+          className="absolute inset-0 flex items-center justify-center transition hover:bg-black/20 group"
+          aria-label={`Reproduzir aula ${currentLesson}`}
+        >
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 transition group-hover:scale-105 group-hover:bg-blue-700">
+            <Play size={30} className="ml-1 fill-white text-white" />
           </div>
         </button>
 
-        {/* Current Lesson Info - Bottom Left */}
-        <div className="absolute bottom-6 left-6 text-white">
-          <p className="text-sm opacity-90 font-medium">Aula atual</p>
-          <p className="text-xl font-bold">{currentLesson}</p>
+        <div className="absolute bottom-5 left-5 max-w-[75%] text-white">
+          <p className="text-xs font-bold">Aula atual</p>
+          <p className="text-lg font-black leading-tight">{currentLesson}</p>
+          <p className="mt-1 text-xs font-semibold text-blue-100">
+            {lessonDuration}
+          </p>
         </div>
 
-        {/* Course Title - Top Right */}
-        <div className="absolute top-6 right-6 bg-white/95 backdrop-blur px-4 py-2 rounded-lg max-w-xs">
-          <p className="text-gray-900 font-bold text-sm">{title}</p>
+        <div className="absolute right-5 top-5 max-w-xs rounded-md bg-white/95 px-4 py-2 backdrop-blur">
+          <p className="text-xs font-black text-gray-900">{title}</p>
         </div>
       </div>
 
-      {/* Navigation Buttons */}
-      <div className="flex gap-3 mt-2">
-        <button className="flex-1 sm:flex-none px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition font-medium flex items-center justify-center gap-2">
-          ← Item anterior
-        </button>
-        <button className="flex-1 sm:flex-none px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium flex items-center justify-center gap-2">
-          Próximo item →
-        </button>
+      <div className="rounded-md border border-gray-200 bg-white p-4 shadow-sm">
+        <h2 className="text-sm font-black text-gray-900">Conteudo da aula</h2>
+        <p className="mt-2 text-sm leading-6 text-gray-600">{lessonContent}</p>
       </div>
     </div>
   );
