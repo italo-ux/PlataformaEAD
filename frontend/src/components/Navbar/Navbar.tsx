@@ -24,10 +24,6 @@ function Navbar({ user }: { user: null | User }) {
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const isLoggedIn = Boolean(user);
 
-  const toggleFeedback = () => {
-    setIsFeedbackOpen((current) => !current);
-  };
-
   const closeFeedback = () => {
     setIsFeedbackOpen(false);
   };
@@ -43,16 +39,17 @@ function Navbar({ user }: { user: null | User }) {
           <Navlinks to="/home">HOME</Navlinks>
         </li>
         <li>
-          <Navlinks to="/home#quem-somos">QUEM SOMOS</Navlinks>
+          <Navlinks to="/quem-somos">QUEM SOMOS</Navlinks>
         </li>
         <li>
-          <Navlinks to="/home#cursos">CURSOS</Navlinks>
+          <Navlinks to="/courses">CURSOS</Navlinks>
         </li>
         <li className="relative">
           <button
             type="button"
-            onClick={toggleFeedback}
-            className="flex items-center text-blue-500 text-lg focus:outline-none font-semibold border-b-2"
+            onClick={() => setIsFeedbackOpen((current) => !current)}
+            className="flex items-center text-blue-500 text-lg focus:outline-none font-semibold border-b-2 transition hover:text-blue-700"
+            aria-expanded={isFeedbackOpen}
           >
             FEEDBACKS
             <FontAwesomeIcon
@@ -65,6 +62,13 @@ function Navbar({ user }: { user: null | User }) {
 
           {isFeedbackOpen && (
             <div className="absolute top-full mt-2 bg-white border border-gray-200 rounded-md shadow-lg py-2 w-56 z-50">
+              <Link
+                to="/feedback"
+                onClick={closeFeedback}
+                className="block px-4 py-2 text-gray-700 hover:bg-blue-50 transition"
+              >
+                Pagina de feedback
+              </Link>
               <Link
                 to="/home#quem-somos"
                 onClick={closeFeedback}
