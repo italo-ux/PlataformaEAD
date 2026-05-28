@@ -3,7 +3,7 @@ import parceirosImage from "../../assets/footer/image 4.png";
 
 function Footer() {
   return (
-    <footer className="bg-[#3B4660] text-white">
+    <footer id="contato" className="bg-[#3B4660] text-white">
       <div className="mx-auto max-w-7xl px-6 py-12">
         <div className="grid gap-10 lg:grid-cols-[1.7fr_1fr] lg:items-start">
           <div className="space-y-8">
@@ -18,21 +18,11 @@ function Footer() {
             <div className="space-y-3 text-sm text-slate-300">
               <p className="font-semibold text-white">Links Úteis</p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <a href="#" className="hover:text-white transition-colors">
-                  Portal Barueri
-                </a>
-                <a href="#" className="hover:text-white transition-colors">
-                  Portal CIT
-                </a>
-                <a href="#" className="hover:text-white transition-colors">
-                  Inovação Barueri
-                </a>
-                <a href="#" className="hover:text-white transition-colors">
-                  TV Inovação Barueri
-                </a>
-                <a href="#" className="hover:text-white transition-colors">
-                  Contact Us
-                </a>
+                <span>Portal Barueri</span>
+                <span>Portal CIT</span>
+                <span>Inovacao Barueri</span>
+                <span>TV Inovacao Barueri</span>
+                <span>Contact Us</span>
               </div>
             </div>
 

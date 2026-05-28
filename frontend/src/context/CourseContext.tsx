@@ -1,28 +1,12 @@
-import { createContext, useState, useContext, type ReactNode } from 'react';
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  avatar?: string;
-}
-
-interface CourseContextType {
-  currentCourseId: number | null;
-  setCurrentCourseId: (id: number) => void;
-  user: User | null;
-  setUser: (user: User | null) => void;
-  isAuthenticated: boolean;
-  logout: () => void;
-}
-
-const CourseContext = createContext<CourseContextType | undefined>(undefined);
+import { useState, type ReactNode } from "react";
+import {
+  CourseContext,
+  type CourseContextUser,
+} from "./CourseContextValue";
 
 export function CourseProvider({ children }: { children: ReactNode }) {
   const [currentCourseId, setCurrentCourseId] = useState<number | null>(1);
-  const [user, setUser] = useState<User | null>(null);
-
-  const isAuthenticated = user !== null;
+  const [user, setUser] = useState<CourseContextUser | null>(null);
 
   const logout = () => {
     setUser(null);
@@ -36,19 +20,11 @@ export function CourseProvider({ children }: { children: ReactNode }) {
         setCurrentCourseId,
         user,
         setUser,
-        isAuthenticated,
-        logout
+        isAuthenticated: user !== null,
+        logout,
       }}
     >
       {children}
     </CourseContext.Provider>
   );
-}
-
-export function useCourseContext() {
-  const context = useContext(CourseContext);
-  if (context === undefined) {
-    throw new Error('useCourseContext deve ser usado dentro de CourseProvider');
-  }
-  return context;
 }

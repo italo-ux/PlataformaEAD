@@ -1,165 +1,339 @@
 import { useNavigate } from "react-router-dom";
-import CourseHeader from "../components/CourseHeader";
 import Footer from "../components/Footer/Footer";
-import { Play } from "lucide-react";
-import Navbar from "../components/Navbar/navbar";
-import { mockUser } from "../data/userMock";
+import Navbar from "../components/Navbar/Navbar";
+import { mockCourses } from "../data/courseData";
+import { getAuthenticatedUser } from "../services/userService";
+import {
+  ArrowRight,
+  BadgeCheck,
+  BookOpen,
+  Box,
+  Clock3,
+  Gamepad2,
+  GraduationCap,
+  Headset,
+  Play,
+  Sparkles,
+  Trophy,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
+
+const courseIcons: Record<number, LucideIcon> = {
+  1: Gamepad2,
+  2: BookOpen,
+  3: Sparkles,
+  4: GraduationCap,
+};
+
+const highlights = [
+  { label: "Cursos ativos", value: "40+", icon: BookOpen },
+  { label: "Alunos na plataforma", value: "2.5k", icon: Users },
+  { label: "Certificados emitidos", value: "980", icon: Trophy },
+];
+
+const metaverseFeatures = [
+  "Salas virtuais para aulas imersivas",
+  "Laboratorios 3D para simulacoes praticas",
+  "Projetos colaborativos com avatares",
+];
 
 export default function UserHome() {
-  void CourseHeader;
-
   const navigate = useNavigate();
+  const user = getAuthenticatedUser();
 
-  // Mockados cursos disponíveis para o usuário
-  const availableCourses = [
-    {
-      id: 1,
-      title: "Curso de Game Development",
-      description:
-        "Aprenda a criar jogos 2D e 3D sem necessidade de escrever código complexo.",
-      image:
-        "https://images.unsplash.com/photo-1535655519926-e3400ca199e7?w=400&h=300&fit=crop",
-      progress: 70,
-      instructor: "João Silva"
-    },
-    {
-      id: 2,
-      title: "Web Development Avançado",
-      description: "Domine React, TypeScript e arquitetura modern de aplicações.",
-      image:
-        "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&h=300&fit=crop",
-      progress: 45,
-      instructor: "Maria Santos"
-    },
-    {
-      id: 3,
-      title: "UX/UI Design",
-      description: "Crie interfaces incríveis e experiências de usuário memoráveis.",
-      image:
-        "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=400&h=300&fit=crop",
-      progress: 0,
-      instructor: "Carlos Lima"
-    },
-    {
-      id: 4,
-      title: "Data Science com Python",
-      description:
-        "Análise de dados, machine learning e visualização com Python.",
-      image:
-        "https://images.unsplash.com/photo-1526374965328-7f5ae4e8b08f?w=400&h=300&fit=crop",
-      progress: 30,
-      instructor: "Ana Silva"
-    }
-  ];
+  const handleStartCourse = (courseId: number) => {
+    navigate(`/courses/${courseId}`);
+  };
 
-  const handleStartCourse = (_courseId: number) => {
-    navigate(`/course`);
+  const scrollToCourses = () => {
+    document.getElementById("cursos")?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <Navbar user={mockUser} />
+    <div className="min-h-screen bg-[#f6f9ff] text-slate-950">
+      <Navbar user={user} />
 
-      {/* Main Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Welcome Section */}
-        <div className="mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Bem-vindo à Plataforma EAD!
-          </h1>
-          <p className="text-gray-600 text-lg">
-            Escolha um curso e comece sua jornada de aprendizado
-          </p>
-        </div>
+      <main className="overflow-hidden">
+        <section className="relative bg-gradient-to-br from-white via-blue-50 to-cyan-50">
+          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white to-transparent" />
+          <div className="mx-auto grid max-w-7xl gap-12 px-4 py-14 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:px-8 lg:py-20">
+            <div className="relative z-10 max-w-2xl">
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white px-4 py-2 text-sm font-semibold text-blue-700 shadow-sm">
+                <Sparkles size={16} />
+                Plataforma EAD Inovacao Barueri
+              </div>
+              <h1 className="text-4xl font-black leading-tight text-[#25304a] sm:text-5xl lg:text-6xl">
+                Aprenda tecnologia com trilhas praticas e acompanhamento real.
+              </h1>
+              <p className="mt-5 max-w-xl text-lg leading-8 text-slate-600">
+                Continue seus cursos, acompanhe seu desempenho e desenvolva
+                habilidades para criar projetos digitais, jogos, interfaces e
+                experiencias imersivas.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <button
+                  onClick={() => handleStartCourse(1)}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+                >
+                  Continuar aprendendo
+                  <ArrowRight size={20} />
+                </button>
+                <button
+                  onClick={scrollToCourses}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-6 py-3 font-bold text-blue-700 transition hover:border-blue-300 hover:bg-blue-50"
+                >
+                  Ver trilhas
+                  <BookOpen size={20} />
+                </button>
+              </div>
+            </div>
 
-        {/* Courses Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {availableCourses.map((course) => (
+            <div className="relative">
+              <div className="rounded-[2rem] border border-white bg-white/80 p-4 shadow-2xl shadow-blue-900/10 backdrop-blur">
+                <div className="overflow-hidden rounded-[1.5rem] bg-[#25304a]">
+                  <img
+                    src="https://images.unsplash.com/photo-1581090464777-f3220bbe1b8b?w=900&h=640&fit=crop"
+                    alt="Estudantes explorando tecnologia em aula"
+                    className="h-80 w-full object-cover opacity-90 sm:h-96"
+                  />
+                </div>
+                <div className="-mt-14 ml-5 mr-5 rounded-2xl bg-white p-5 shadow-xl">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-500">
+                        Proxima aula
+                      </p>
+                      <p className="mt-1 font-bold text-[#25304a]">
+                        {mockCourses[0].lessons[7].title}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleStartCourse(1)}
+                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition hover:bg-blue-700"
+                      aria-label="Iniciar aula"
+                    >
+                      <Play size={20} className="fill-white" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+          <div className="grid gap-4 md:grid-cols-3">
+            {highlights.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div
+                  key={item.label}
+                  className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm"
+                >
+                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                    <Icon size={22} />
+                  </div>
+                  <p className="text-3xl font-black text-[#25304a]">
+                    {item.value}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-slate-500">
+                    {item.label}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section
+          id="cursos"
+          className="mx-auto max-w-7xl scroll-mt-24 px-4 pb-14 sm:px-6 lg:px-8"
+        >
+          <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wide text-blue-600">
+                Meus cursos
+              </p>
+              <h2 className="mt-2 text-3xl font-black text-[#25304a]">
+                Continue de onde parou
+              </h2>
+            </div>
             <button
-              key={course.id}
-              onClick={() => handleStartCourse(course.id)}
-              className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition group"
+              onClick={scrollToCourses}
+              className="inline-flex items-center gap-2 font-bold text-blue-700 transition hover:text-blue-900"
             >
-              {/* Course Image Container */}
-              <div className="relative h-40 overflow-hidden bg-gray-200">
-                <img
-                  src={course.image}
-                  alt={course.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition"
-                />
+              Ver todos
+              <ArrowRight size={18} />
+            </button>
+          </div>
 
-                {/* Progress Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
-                  <div className="w-full">
-                    <p className="text-white text-xs font-semibold mb-2">
-                      {course.progress}% concluído
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+            {mockCourses.map((course) => {
+              const Icon = courseIcons[course.id] ?? BookOpen;
+              return (
+                <article
+                  key={course.id}
+                  onClick={() => handleStartCourse(course.id)}
+                  className="group cursor-pointer overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-900/10"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      handleStartCourse(course.id);
+                    }
+                  }}
+                >
+                  <div className="relative h-44 overflow-hidden bg-slate-200">
+                    <img
+                      src={course.image}
+                      alt={course.title}
+                      className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-950/10 to-transparent" />
+                    <div className="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-xl bg-white/95 text-blue-600 shadow">
+                      <Icon size={20} />
+                    </div>
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <div className="mb-2 flex items-center justify-between text-xs font-bold text-white">
+                        <span>{course.progress}% concluido</span>
+                        <span>{course.totalLessons} aulas</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-white/30">
+                        <div
+                          className="h-full rounded-full bg-white"
+                          style={{ width: `${course.progress}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-5">
+                    <h3 className="line-clamp-2 text-lg font-black text-[#25304a] transition group-hover:text-blue-700">
+                      {course.title}
+                    </h3>
+                    <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">
+                      {course.description}
                     </p>
-                    <div className="w-full bg-white/30 rounded-full h-1.5">
-                      <div
-                        className="bg-white h-full rounded-full transition"
-                        style={{ width: `${course.progress}%` }}
-                      ></div>
+                    <div className="mt-5 flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold text-slate-500">
+                        Instrutor:{" "}
+                        <span className="text-slate-700">
+                          {course.instructor.name}
+                        </span>
+                      </p>
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white transition group-hover:bg-blue-700">
+                        <Play size={16} className="fill-white" />
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
+        <section id="quem-somos" className="scroll-mt-24 bg-white py-16">
+          <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:px-8">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wide text-blue-600">
+                Experiencia completa
+              </p>
+              <h2 className="mt-2 text-3xl font-black text-[#25304a]">
+                Uma plataforma feita para aprender fazendo
+              </h2>
+              <p className="mt-4 leading-7 text-slate-600">
+                A home organiza seu progresso, destaca novas trilhas e aproxima
+                cada aluno de projetos reais com feedback, certificacao e
+                conteudos atualizados.
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {[
+                { title: "Aulas curtas", icon: Clock3 },
+                { title: "Certificacao", icon: BadgeCheck },
+                { title: "Suporte guiado", icon: Headset },
+              ].map((feature) => {
+                const Icon = feature.icon;
+                return (
+                  <div
+                    key={feature.title}
+                    className="rounded-2xl border border-blue-100 bg-blue-50/60 p-5"
+                  >
+                    <Icon className="text-blue-600" size={24} />
+                    <p className="mt-4 font-black text-[#25304a]">
+                      {feature.title}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-[#25304a] px-4 py-16 text-white sm:px-6 lg:px-8">
+          <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1fr_1fr] lg:items-center">
+            <div>
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-bold text-cyan-100">
+                <Box size={16} />
+                Nova jornada imersiva
+              </div>
+              <h2 className="text-3xl font-black leading-tight sm:text-4xl">
+                Metaverso educacional para transformar teoria em pratica.
+              </h2>
+              <p className="mt-5 max-w-xl leading-8 text-blue-100">
+                A proxima etapa da plataforma conecta cursos, oficinas e
+                experiencias virtuais em ambientes 3D. O aluno aprende
+                explorando, testando e colaborando em cenarios digitais.
+              </p>
+              <div className="mt-8 grid gap-3">
+                {metaverseFeatures.map((feature) => (
+                  <div key={feature} className="flex items-center gap-3">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-cyan-400 text-[#25304a]">
+                      <BadgeCheck size={16} />
+                    </span>
+                    <span className="font-semibold text-white">{feature}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="relative min-h-[360px] rounded-[2rem] border border-white/15 bg-white/10 p-5 shadow-2xl shadow-black/20">
+              <div className="absolute inset-5 rounded-[1.5rem] bg-gradient-to-br from-cyan-400/20 via-blue-500/20 to-violet-500/20" />
+              <div className="relative grid h-full min-h-[320px] place-items-center rounded-[1.5rem] border border-white/10 bg-[#111a31]/80 p-6">
+                <div className="grid w-full max-w-md gap-4">
+                  <div className="rounded-2xl border border-cyan-300/30 bg-white/10 p-5 backdrop-blur">
+                    <p className="text-sm font-bold text-cyan-100">
+                      Ambiente 3D
+                    </p>
+                    <p className="mt-2 text-2xl font-black">
+                      Laboratorio Virtual
+                    </p>
+                    <div className="mt-5 h-3 rounded-full bg-white/15">
+                      <div className="h-full w-3/4 rounded-full bg-cyan-300" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="rounded-2xl bg-cyan-300 p-5 text-[#25304a]">
+                      <Users size={24} />
+                      <p className="mt-4 text-2xl font-black">12</p>
+                      <p className="text-sm font-bold">alunos online</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/15 bg-white/10 p-5">
+                      <Gamepad2 size={24} className="text-cyan-200" />
+                      <p className="mt-4 text-2xl font-black">3D</p>
+                      <p className="text-sm font-bold text-blue-100">
+                        desafios praticos
+                      </p>
                     </div>
                   </div>
                 </div>
-
-                {/* Play Button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleStartCourse(course.id);
-                  }}
-                  className="absolute inset-0 flex items-center justify-center group-hover:bg-black/20 transition opacity-0 group-hover:opacity-100"
-                >
-                  <div className="w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center hover:bg-blue-700 transition">
-                    <Play size={24} className="text-white fill-white ml-0.5" />
-                  </div>
-                </button>
               </div>
-
-              {/* Course Info */}
-              <div className="p-4 text-left">
-                <h3 className="font-bold text-gray-900 mb-1 line-clamp-2 group-hover:text-blue-600 transition">
-                  {course.title}
-                </h3>
-                <p className="text-gray-600 text-sm line-clamp-2 mb-3">
-                  {course.description}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Instrutor: <span className="font-medium">{course.instructor}</span>
-                </p>
-              </div>
-
-              {/* CTA Button */}
-              <div className="px-4 pb-4">
-                <div className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 transition text-center group-hover:bg-blue-700">
-                  {course.progress > 0 ? "Continuar" : "Começar"}
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        {/* Featured Section */}
-        <div className="mt-16">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            Novos cursos disponíveis
-          </h2>
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
-            <h3 className="text-3xl font-bold mb-2">Aprenda com os melhores</h3>
-            <p className="mb-6 text-blue-100">
-              Novos cursos são adicionados semanalmente. Cadastre-se para receber
-              notificações sobre cursos que mais te interessam.
-            </p>
-            <button className="px-6 py-3 bg-white text-blue-600 rounded-lg font-bold hover:bg-blue-50 transition">
-              Ver todos os cursos
-            </button>
+            </div>
           </div>
-        </div>
+        </section>
       </main>
 
-      {/* Footer */}
       <Footer />
     </div>
   );

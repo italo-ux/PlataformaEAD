@@ -2,7 +2,7 @@
 import type { LucideIcon } from "lucide-react";
 import { BookOpenCheck, GraduationCap, UsersRound } from "lucide-react";
 //Importação de components
-import Navbar from "../components/Navbar/navbar";
+import Navbar from "../components/Navbar/Navbar";
 import Footer from "../components/Footer/Footer";
 //Importação dos dados simulados
 import { mockUser } from "../data/userMock";

@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 
 //Importação de components
-import Navbar from "../components/Navbar/navbar";
+import Navbar from "../components/Navbar/Navbar";
 import Footer from "../components/Footer/Footer";
 
 //Importação dos dados do usuário(simulação)

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import type { Course } from '../data/courseData';
-import { courseData } from '../data/courseData';
+import { useEffect, useState } from "react";
+import type { Course } from "../data/courseData";
+import courseService from "../services/courseService";
 
 interface UseCourseReturn {
   course: Course | null;
@@ -10,93 +10,84 @@ interface UseCourseReturn {
   completeLesson: (lessonId: number) => Promise<void>;
 }
 
-/**
- * Hook customizado para gerenciar dados do curso
- * 
- * Exemplo de uso:
- * ```
- * const { course, loading, error } = useCourse(1);
- * ```
- * 
- * IMPORTANTE: Substitua a implementação mockada pelas chamadas de API real
- */
+// Reads from the mock course service for now. Replace courseService internals
+// with real API calls when the backend contract is ready.
 export function useCourse(courseId: number): UseCourseReturn {
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchCourse = async () => {
       try {
         setLoading(true);
-        
-        // TODO: Substituir por chamada de API real
-        // const response = await fetch(`/api/courses/${courseId}`);
-        // if (!response.ok) throw new Error('Curso não encontrado');
-        // const data: Course = await response.json();
-        
-        // Mock data (remover em produção)
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setCourse(courseData);
-        setError(null);
+        const data = await courseService.getCourse(courseId);
+
+        if (isMounted) {
+          setCourse(data);
+          setError(null);
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao buscar curso');
-        setCourse(null);
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : "Erro ao buscar curso");
+          setCourse(null);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchCourse();
+
+    return () => {
+      isMounted = false;
+    };
   }, [courseId]);
 
   const updateProgress = async (lessonsCompleted: number) => {
-    try {
-      // TODO: Implementar chamada para API de atualização de progresso
-      // const response = await fetch(`/api/progress/${courseId}`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ lessonsCompleted })
-      // });
-      
-      // Mock update
-      if (course) {
-        setCourse({
-          ...course,
-          completedLessons: lessonsCompleted,
-          progress: Math.round((lessonsCompleted / course.totalLessons) * 100)
-        });
-      }
-    } catch (err) {
-      console.error('Erro ao atualizar progresso:', err);
+    if (!course) {
+      return;
     }
+
+    const normalizedCompleted = Math.min(
+      Math.max(lessonsCompleted, 0),
+      course.totalLessons,
+    );
+    const progress = Math.round(
+      (normalizedCompleted / course.totalLessons) * 100,
+    );
+
+    await courseService.updateCourseProgress(course.id, progress);
+    setCourse({
+      ...course,
+      completedLessons: normalizedCompleted,
+      progress,
+    });
   };
 
   const completeLesson = async (lessonId: number) => {
-    try {
-      // TODO: Implementar chamada para API de conclusão de aula
-      // const response = await fetch(`/api/lessons/${lessonId}/complete`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' }
-      // });
-      
-      // Mock completion
-      if (course) {
-        const updatedLessons = course.lessons.map(lesson =>
-          lesson.id === lessonId ? { ...lesson, completed: true } : lesson
-        );
-        const completedCount = updatedLessons.filter(l => l.completed).length;
-        
-        setCourse({
-          ...course,
-          lessons: updatedLessons,
-          completedLessons: completedCount,
-          progress: Math.round((completedCount / course.totalLessons) * 100)
-        });
-      }
-    } catch (err) {
-      console.error('Erro ao marcar aula como concluída:', err);
+    if (!course) {
+      return;
     }
+
+    await courseService.completeLesson(course.id, lessonId);
+
+    const updatedLessons = course.lessons.map((lesson) =>
+      lesson.id === lessonId ? { ...lesson, completed: true } : lesson,
+    );
+    const completedCount = updatedLessons.filter((lesson) => lesson.completed)
+      .length;
+
+    setCourse({
+      ...course,
+      lessons: updatedLessons,
+      completedLessons: completedCount,
+      progress: Math.round((completedCount / course.totalLessons) * 100),
+    });
   };
 
   return {
@@ -104,6 +95,6 @@ export function useCourse(courseId: number): UseCourseReturn {
     loading,
     error,
     updateProgress,
-    completeLesson
+    completeLesson,
   };
 }
