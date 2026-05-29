@@ -416,8 +416,8 @@ export const mockLearningTrails: LearningTrail[] = [
       "Formacao para ampliar acesso, autonomia e fluencia digital em ferramentas, interfaces e dados.",
     capa:
       "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200&h=680&fit=crop",
-    accentColor: "#2563eb",
-    courseIds: [2, 3, 4],
+    accentColor: "#e6a100",
+    courseIds: [1, 2, 3, 4],
   },
   {
     id: "trilha-escola-de-games",
@@ -427,8 +427,8 @@ export const mockLearningTrails: LearningTrail[] = [
       "Aprendizagem pratica para criar jogos digitais, prototipos interativos e experiencias imersivas.",
     capa:
       "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=1200&h=680&fit=crop",
-    accentColor: "#0ea5e9",
-    courseIds: [1],
+    accentColor: "#8b1fd1",
+    courseIds: [1, 2, 3, 4],
   },
   {
     id: "trilha-projeto-inova-elas-empreendedorismo",
@@ -438,8 +438,8 @@ export const mockLearningTrails: LearningTrail[] = [
       "Jornada para fortalecer ideias, comunicacao digital, prototipos e tomada de decisao para empreender.",
     capa:
       "https://images.unsplash.com/photo-1556761175-b413da4baf72?w=1200&h=680&fit=crop",
-    accentColor: "#7c3aed",
-    courseIds: [3, 4],
+    accentColor: "#e50046",
+    courseIds: [1, 2, 3, 4],
   },
   {
     id: "trilha-talentos-estagiarios-prefeitura",
@@ -449,8 +449,8 @@ export const mockLearningTrails: LearningTrail[] = [
       "Formacao para estagiarios desenvolverem competencias digitais, analiticas e de produto no servico publico.",
     capa:
       "https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=680&fit=crop",
-    accentColor: "#d99b16",
-    courseIds: [2, 4],
+    accentColor: "#22a915",
+    courseIds: [1, 2, 3, 4],
   },
   {
     id: "trilha-techgov",
@@ -460,8 +460,8 @@ export const mockLearningTrails: LearningTrail[] = [
       "Capacitacao em tecnologia aplicada ao governo, dados, plataformas digitais e melhoria de processos publicos.",
     capa:
       "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=1200&h=680&fit=crop",
-    accentColor: "#0f9f6e",
-    courseIds: [2, 4],
+    accentColor: "#0a7a8f",
+    courseIds: [1, 2, 3, 4],
   },
   {
     id: "trilha-expansao-ead-secretarias",
@@ -471,8 +471,8 @@ export const mockLearningTrails: LearningTrail[] = [
       "Apoio a secretarias na ampliacao do EAD com organizacao de conteudo, trilhas e experiencias digitais.",
     capa:
       "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&h=680&fit=crop",
-    accentColor: "#0891b2",
-    courseIds: [2, 3],
+    accentColor: "#0a8ea3",
+    courseIds: [1, 2, 3, 4],
   },
 ];
 
