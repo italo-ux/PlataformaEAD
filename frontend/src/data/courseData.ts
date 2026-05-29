@@ -1,5 +1,5 @@
-// Frontend-only course mocks. Replace these helpers with API calls when the
-// backend course endpoints are ready.
+// Mocks de cursos usados apenas no frontend. Quando os endpoints do backend
+// estiverem prontos, troque estes helpers por chamadas reais de API.
 export interface Lesson {
   id: number;
   title: string;
@@ -25,6 +25,33 @@ export interface Course {
   about: string;
   instructor: Instructor;
   lessons: Lesson[];
+}
+
+export interface LearningTrail {
+  id: string;
+  slug: string;
+  nome: string;
+  descricao: string;
+  capa: string;
+  accentColor: string;
+  courseIds: number[];
+}
+
+export interface LearningTrailWithCourses extends LearningTrail {
+  courses: Course[];
+  progress: number;
+  completedLessons: number;
+  totalLessons: number;
+  completedCourses: number;
+}
+
+export interface CreateMockCourseInput {
+  title: string;
+  description: string;
+  image?: string;
+  about: string;
+  instructor: Instructor;
+  lessonTitles: string[];
 }
 
 export const mockCourses: Course[] = [
@@ -131,7 +158,7 @@ export const mockCourses: Course[] = [
   },
   {
     id: 2,
-    title: "Web Development Avancado",
+    title: "Web Development",
     description:
       "Domine React, TypeScript e arquitetura moderna para aplicacoes escalaveis.",
     image:
@@ -305,7 +332,7 @@ export const mockCourses: Course[] = [
       "Uma introducao pratica a ciencia de dados usando Python, leitura de bases, limpeza, graficos e modelos simples para apoiar decisoes.",
     instructor: {
       name: "Ana Silva",
-      bio: "Cientista de dados e educadora, com foco em tornar analise e automacao acessiveis para iniciantes.",
+      bio: "Cientista de dados e educadora, com foco em tornar analise e automacao acessiveis para diferentes perfis de alunos.",
       image:
         "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&h=200&fit=crop",
     },
@@ -380,12 +407,159 @@ export const mockCourses: Course[] = [
 
 export const courseData = mockCourses[0];
 
+export const mockLearningTrails: LearningTrail[] = [
+  {
+    id: "trilha-projeto-inova-inclusao-digital",
+    slug: "projeto-inova-inclusao-digital",
+    nome: "Projeto Inova Inclusão Digital",
+    descricao:
+      "Formacao para ampliar acesso, autonomia e fluencia digital em ferramentas, interfaces e dados.",
+    capa:
+      "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200&h=680&fit=crop",
+    accentColor: "#2563eb",
+    courseIds: [2, 3, 4],
+  },
+  {
+    id: "trilha-escola-de-games",
+    slug: "escola-de-games",
+    nome: "Escola de Games",
+    descricao:
+      "Aprendizagem pratica para criar jogos digitais, prototipos interativos e experiencias imersivas.",
+    capa:
+      "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=1200&h=680&fit=crop",
+    accentColor: "#0ea5e9",
+    courseIds: [1],
+  },
+  {
+    id: "trilha-projeto-inova-elas-empreendedorismo",
+    slug: "projeto-inova-elas-empreendedorismo",
+    nome: "Projeto Inova + Elas Empreendedorismo",
+    descricao:
+      "Jornada para fortalecer ideias, comunicacao digital, prototipos e tomada de decisao para empreender.",
+    capa:
+      "https://images.unsplash.com/photo-1556761175-b413da4baf72?w=1200&h=680&fit=crop",
+    accentColor: "#7c3aed",
+    courseIds: [3, 4],
+  },
+  {
+    id: "trilha-talentos-estagiarios-prefeitura",
+    slug: "talentos-estagiarios-prefeitura",
+    nome: "Desenvolvimento de Talentos Estagiários Prefeitura",
+    descricao:
+      "Formacao para estagiarios desenvolverem competencias digitais, analiticas e de produto no servico publico.",
+    capa:
+      "https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=680&fit=crop",
+    accentColor: "#d99b16",
+    courseIds: [2, 4],
+  },
+  {
+    id: "trilha-techgov",
+    slug: "techgov",
+    nome: "TechGov",
+    descricao:
+      "Capacitacao em tecnologia aplicada ao governo, dados, plataformas digitais e melhoria de processos publicos.",
+    capa:
+      "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=1200&h=680&fit=crop",
+    accentColor: "#0f9f6e",
+    courseIds: [2, 4],
+  },
+  {
+    id: "trilha-expansao-ead-secretarias",
+    slug: "expansao-ead-secretarias",
+    nome: "Expansão do Programa EAD as Secretárias",
+    descricao:
+      "Apoio a secretarias na ampliacao do EAD com organizacao de conteudo, trilhas e experiencias digitais.",
+    capa:
+      "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&h=680&fit=crop",
+    accentColor: "#0891b2",
+    courseIds: [2, 3],
+  },
+];
+
+const fallbackCourseImage =
+  "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200&h=680&fit=crop";
+
 export function getMockCourseById(courseId: number) {
   return mockCourses.find((course) => course.id === courseId) ?? null;
+}
+
+export function getCoursesForTrail(trail: LearningTrail) {
+  return trail.courseIds
+    .map((courseId) => getMockCourseById(courseId))
+    .filter((course): course is Course => Boolean(course));
+}
+
+export function getMockTrailsWithCourses(): LearningTrailWithCourses[] {
+  return mockLearningTrails.map((trail) => {
+    const courses = getCoursesForTrail(trail);
+    const totalLessons = courses.reduce(
+      (total, course) => total + course.totalLessons,
+      0,
+    );
+    const completedLessons = courses.reduce(
+      (total, course) => total + course.completedLessons,
+      0,
+    );
+    const completedCourses = courses.filter(
+      (course) => course.progress >= 100,
+    ).length;
+
+    return {
+      ...trail,
+      courses,
+      progress:
+        totalLessons > 0
+          ? Math.round((completedLessons / totalLessons) * 100)
+          : 0,
+      completedLessons,
+      totalLessons,
+      completedCourses,
+    };
+  });
+}
+
+export function getMockTrailBySlug(trailSlug: string) {
+  return (
+    getMockTrailsWithCourses().find((trail) => trail.slug === trailSlug) ??
+    null
+  );
 }
 
 export function getRelatedMockCourses(courseId: number, limit = 3) {
   return mockCourses
     .filter((course) => course.id !== courseId)
     .slice(0, limit);
+}
+
+let nextMockCourseId = Math.max(...mockCourses.map((course) => course.id)) + 1;
+
+// Criacao somente em memoria para desenvolvimento local. Quando o backend de
+// cursos existir, esta funcao deve ser substituida por POST /cursos ou similar.
+export function addMockCourse(input: CreateMockCourseInput) {
+  const lessons: Lesson[] = input.lessonTitles.map((title, index) => ({
+    id: index + 1,
+    title: title.trim(),
+    duration: "00:00",
+    completed: false,
+    content:
+      "Conteudo mockado temporario. O backend futuro deve enviar a descricao, video e materiais desta aula.",
+  }));
+
+  const createdCourse: Course = {
+    id: nextMockCourseId,
+    title: input.title.trim(),
+    description: input.description.trim(),
+    image: input.image?.trim() || fallbackCourseImage,
+    progress: 0,
+    completedLessons: 0,
+    totalLessons: lessons.length,
+    about: input.about.trim(),
+    instructor: input.instructor,
+    lessons,
+  };
+
+  nextMockCourseId += 1;
+  mockCourses.push(createdCourse);
+
+  return createdCourse;
 }

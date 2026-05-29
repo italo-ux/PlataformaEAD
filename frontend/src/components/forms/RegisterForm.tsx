@@ -4,6 +4,7 @@ import FormInput from "./FormInput";
 import SmilingRobot from "../../assets/login/smilingRobot.png";
 import { createUser } from "../../services/userService";
 import { useAuthForm } from "../../hooks/useAuthForm";
+import MockCredentialsHint from "./MockCredentialsHint";
 
 interface RegisterFormProps {
   onSwitchToLogin: () => void;
@@ -194,6 +195,8 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
                 </span>
               </div>
             </form>
+
+            <MockCredentialsHint />
           </div>
         </div>
       </div>

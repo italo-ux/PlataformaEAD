@@ -3,7 +3,9 @@ import AboutPage from "./pages/AboutPage";
 import CourseView from "./pages/CourseView";
 import FeedbackPage from "./pages/FeedbackPage";
 import LoginPage from "./pages/LoginPage";
+import ProfessorCourseCreatePage from "./pages/ProfessorCourseCreatePage";
 import RegisterPage from "./pages/RegisterPage";
+import TrailPage from "./pages/TrailPage";
 import UserHome from "./pages/userHome";
 
 function App() {
@@ -16,6 +18,11 @@ function App() {
         <Route path="/home" element={<UserHome />} />
         <Route path="/courses" element={<UserHome />} />
         <Route path="/courses/:courseId" element={<CourseView />} />
+        <Route path="/trilhas/:trailSlug" element={<TrailPage />} />
+        <Route
+          path="/professor/cursos/novo"
+          element={<ProfessorCourseCreatePage />}
+        />
         <Route path="/course" element={<Navigate to="/courses/1" replace />} />
         <Route path="/course/:courseId" element={<CourseView />} />
         <Route path="/quem-somos" element={<AboutPage />} />

@@ -5,7 +5,7 @@ import { BookOpenCheck, GraduationCap, UsersRound } from "lucide-react";
 import Navbar from "../components/Navbar/Navbar";
 import Footer from "../components/Footer/Footer";
 //Importação dos dados simulados
-import { mockUser } from "../data/userMock";
+import { getAuthenticatedUser } from "../services/userService";
 //Importação da imagem do robô
 import smilingRobot from "../assets/login/smilingRobot.png";
 
@@ -36,11 +36,13 @@ const values: Array<{
 
 //Component principal
 export default function AboutPage() {
+  const user = getAuthenticatedUser();
+
   return (
     //Container principal
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/*Navbar */}
-      <Navbar user={mockUser} />
+      <Navbar user={user} />
       {/*Conteúdo principal */}
       <main className="flex-1">
         {/*Apresentação */}

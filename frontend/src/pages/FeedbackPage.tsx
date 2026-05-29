@@ -6,7 +6,7 @@ import Navbar from "../components/Navbar/Navbar";
 import Footer from "../components/Footer/Footer";
 
 //Importação dos dados do usuário(simulação)
-import { mockUser } from "../data/userMock";
+import { getAuthenticatedUser } from "../services/userService";
 
 //Ícones da lucide-react
 import {
@@ -45,6 +45,7 @@ const feedbacks = [
 
 // Component principal feedback
 export default function FeedbackPage() {
+  const user = getAuthenticatedUser();
 
   //Nota dada pelo usuário
   const [rating, setRating] = useState(0);
@@ -69,7 +70,7 @@ export default function FeedbackPage() {
     //Container principal
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/*Navbar */}
-      <Navbar user={mockUser} />
+      <Navbar user={user} />
 
       <main className="flex-1">
         {/*Cabeçalho */}
