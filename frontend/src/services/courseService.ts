@@ -1,6 +1,8 @@
 import {
+  addMockCourse,
   getMockCourseById,
   type Course,
+  type CreateMockCourseInput,
   type Lesson,
 } from "../data/courseData";
 
@@ -17,9 +19,33 @@ async function failMock(message: string): Promise<never> {
   throw new Error(message);
 }
 
-// Mock course service. Swap these methods for fetch/HTTP client calls when the
-// backend course API is available.
+// Servico de cursos mockado. Quando a API de cursos estiver pronta, troque os
+// metodos internos por chamadas HTTP mantendo as assinaturas publicas.
 class CourseService {
+  async createCourse(courseData: CreateMockCourseInput): Promise<Course> {
+    const lessonTitles = courseData.lessonTitles
+      .map((lessonTitle) => lessonTitle.trim())
+      .filter(Boolean);
+
+    if (
+      !courseData.title.trim() ||
+      !courseData.description.trim() ||
+      !courseData.about.trim() ||
+      lessonTitles.length === 0
+    ) {
+      return failMock("Preencha os dados obrigatorios do curso");
+    }
+
+    // Hoje o curso nasce no array mockado em memoria. No backend real, este
+    // ponto deve virar uma chamada HTTP autenticada feita pelo professor/admin.
+    const createdCourse = addMockCourse({
+      ...courseData,
+      lessonTitles,
+    });
+
+    return waitForMock(createdCourse);
+  }
+
   async getCourse(courseId: number): Promise<Course> {
     const course = getMockCourseById(courseId);
 

@@ -7,6 +7,7 @@ Esta tela esta funcionando somente com dados locais enquanto o backend real nao 
 - `/courses` abre a home/lista de cursos.
 - `/courses/:courseId` abre o curso mockado pelo ID da rota.
 - `/course` redireciona para `/courses/1` por compatibilidade.
+- `/professor/cursos/novo` permite que professor/admin crie um curso mockado em memoria.
 
 ## Dados usados
 
@@ -21,6 +22,7 @@ Esta tela esta funcionando somente com dados locais enquanto o backend real nao 
 - `CourseView` busca o curso com `getMockCourseById`.
 - Se o ID nao existir, a tela mostra `Curso nao encontrado`.
 - Trocar de aula muda titulo, duracao e conteudo exibidos no player.
+- Professor/admin pode criar um novo curso, que fica disponivel ate recarregar a pagina.
 
 ## Integracao futura
 

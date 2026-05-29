@@ -13,7 +13,7 @@ export default function TabsSection({ about, instructor }: TabsSectionProps) {
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      {/* Tabs Header */}
+      {/* Cabecalho das abas */}
       <div className="flex border-b border-gray-200">
         <button
           onClick={() => setActiveTab("about")}
@@ -33,11 +33,11 @@ export default function TabsSection({ about, instructor }: TabsSectionProps) {
               : "text-gray-600 hover:text-gray-900"
           }`}
         >
-          Instrutor
+          Professor
         </button>
       </div>
 
-      {/* Tabs Content */}
+      {/* Conteudo das abas */}
       <div className="p-6">
         {activeTab === "about" && (
           <div className="animate-fadeIn">
@@ -47,7 +47,7 @@ export default function TabsSection({ about, instructor }: TabsSectionProps) {
 
         {activeTab === "instructor" && (
           <div className="animate-fadeIn flex flex-col gap-4">
-            {/* Instructor Image */}
+            {/* Imagem do professor */}
             {instructor.image && (
               <img
                 src={instructor.image}
@@ -56,14 +56,14 @@ export default function TabsSection({ about, instructor }: TabsSectionProps) {
               />
             )}
 
-            {/* Instructor Name */}
+            {/* Nome do professor */}
             <div>
               <h4 className="text-xl font-bold text-gray-900">
                 {instructor.name}
               </h4>
             </div>
 
-            {/* Instructor Bio */}
+            {/* Bio do professor */}
             <p className="text-gray-700 leading-relaxed text-base">
               {instructor.bio}
             </p>

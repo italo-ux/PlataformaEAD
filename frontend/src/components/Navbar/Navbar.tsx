@@ -3,7 +3,11 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronDown, faEnvelope } from "@fortawesome/free-solid-svg-icons";
 import { Link } from "react-router-dom";
 import logo from "../../assets/navbar/logo.png";
-import type { User } from "../../data/userMock";
+import {
+  canAccessPerformance,
+  canCreateCourses,
+  type User,
+} from "../../data/userMock";
 import Navlinks from "./NavLinks";
 
 const transparentActionClass =
@@ -23,6 +27,8 @@ function getInitials(name: string) {
 function Navbar({ user }: { user: null | User }) {
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const isLoggedIn = Boolean(user);
+  const showPerformanceLink = canAccessPerformance(user);
+  const showCreateCourseLink = canCreateCourses(user);
 
   const closeFeedback = () => {
     setIsFeedbackOpen(false);
@@ -103,9 +109,19 @@ function Navbar({ user }: { user: null | User }) {
 
         {isLoggedIn ? (
           <div className="flex items-center gap-3">
-            <Link to="/home#cursos" className={transparentActionClass}>
-              Meu Desempenho
-            </Link>
+            {showCreateCourseLink && (
+              <Link
+                to="/professor/cursos/novo"
+                className={transparentActionClass}
+              >
+                Adicionar curso
+              </Link>
+            )}
+            {showPerformanceLink && (
+              <Link to="/home#cursos" className={transparentActionClass}>
+                Meu Desempenho
+              </Link>
+            )}
             <div className="w-10 h-10 rounded-full bg-blue-600 text-white font-semibold flex items-center justify-center overflow-hidden">
               {user?.avatar ? (
                 <img

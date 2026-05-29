@@ -1,4 +1,5 @@
 import {
+  isUserRole,
   mockUserCredentials,
   type MockUserCredential,
   type User,
@@ -41,8 +42,9 @@ async function failMock(message: string): Promise<never> {
   throw new Error(message);
 }
 
-// Mock auth service. Replace these functions with real backend calls when the
-// authentication API is available.
+// Servico de autenticacao mockado. Quando o backend estiver pronto, mantenha as
+// mesmas assinaturas publicas e troque apenas o conteudo destas funcoes por
+// chamadas HTTP reais.
 export async function loginUser(email: string, password: string): Promise<User> {
   const normalizedEmail = normalizeEmail(email);
   const foundUser = mockUserStore.find(
@@ -70,7 +72,7 @@ export async function createUser(userData: RegisterUserInput): Promise<User> {
     id: nextMockUserId,
     name: userData.name.trim(),
     email: normalizedEmail,
-    role: "student",
+    role: "aluno",
   };
 
   nextMockUserId += 1;
@@ -100,7 +102,7 @@ export function getAuthenticatedUser(): User | null {
       typeof parsedUser.id !== "number" ||
       typeof parsedUser.name !== "string" ||
       typeof parsedUser.email !== "string" ||
-      typeof parsedUser.role !== "string"
+      !isUserRole(parsedUser.role)
     ) {
       throw new Error("Invalid mock session");
     }

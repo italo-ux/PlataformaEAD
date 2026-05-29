@@ -1,20 +1,23 @@
 import { useNavigate } from "react-router-dom";
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
-import { mockCourses } from "../data/courseData";
+import { getMockTrailsWithCourses, mockCourses } from "../data/courseData";
 import { getAuthenticatedUser } from "../services/userService";
 import {
   ArrowRight,
   BadgeCheck,
+  BarChart3,
   BookOpen,
   Box,
   Clock3,
+  Code2,
   Gamepad2,
   GraduationCap,
   Headset,
+  Layers3,
+  Palette,
   Play,
   Sparkles,
-  Trophy,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -26,11 +29,14 @@ const courseIcons: Record<number, LucideIcon> = {
   4: GraduationCap,
 };
 
-const highlights = [
-  { label: "Cursos ativos", value: "40+", icon: BookOpen },
-  { label: "Alunos na plataforma", value: "2.5k", icon: Users },
-  { label: "Certificados emitidos", value: "980", icon: Trophy },
-];
+const trailIcons: Record<string, LucideIcon> = {
+  "projeto-inova-inclusao-digital": Code2,
+  "escola-de-games": Gamepad2,
+  "projeto-inova-elas-empreendedorismo": Palette,
+  "talentos-estagiarios-prefeitura": GraduationCap,
+  techgov: BarChart3,
+  "expansao-ead-secretarias": BookOpen,
+};
 
 const metaverseFeatures = [
   "Salas virtuais para aulas imersivas",
@@ -38,12 +44,36 @@ const metaverseFeatures = [
   "Projetos colaborativos com avatares",
 ];
 
+function colorWithAlpha(hexColor: string, alpha: number) {
+  const normalized = hexColor.replace("#", "");
+  const value = Number.parseInt(normalized, 16);
+
+  if (normalized.length !== 6 || Number.isNaN(value)) {
+    return `rgba(37, 99, 235, ${alpha})`;
+  }
+
+  const red = (value >> 16) & 255;
+  const green = (value >> 8) & 255;
+  const blue = value & 255;
+
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
 export default function UserHome() {
   const navigate = useNavigate();
   const user = getAuthenticatedUser();
+  const trails = getMockTrailsWithCourses();
 
   const handleStartCourse = (courseId: number) => {
     navigate(`/courses/${courseId}`);
+  };
+
+  const handleOpenTrail = (trailSlug: string) => {
+    navigate(`/trilhas/${trailSlug}`);
+  };
+
+  const scrollToTrails = () => {
+    document.getElementById("trilhas")?.scrollIntoView({ behavior: "smooth" });
   };
 
   const scrollToCourses = () => {
@@ -80,7 +110,7 @@ export default function UserHome() {
                   <ArrowRight size={20} />
                 </button>
                 <button
-                  onClick={scrollToCourses}
+                  onClick={scrollToTrails}
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-6 py-3 font-bold text-blue-700 transition hover:border-blue-300 hover:bg-blue-50"
                 >
                   Ver trilhas
@@ -122,25 +152,122 @@ export default function UserHome() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-          <div className="grid gap-4 md:grid-cols-3">
-            {highlights.map((item) => {
-              const Icon = item.icon;
+        <section
+          id="trilhas"
+          className="mx-auto max-w-7xl scroll-mt-24 px-4 py-14 sm:px-6 lg:px-8"
+        >
+          <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wide text-blue-600">
+                Trilhas de aprendizagem
+              </p>
+              <h2 className="mt-2 text-3xl font-black text-[#25304a]">
+                Escolha uma jornada para seguir
+              </h2>
+              <p className="mt-3 max-w-2xl leading-7 text-slate-600">
+                Cada trilha agrupa cursos relacionados, seguindo o modelo de
+                trilhas e cursos do banco de dados.
+              </p>
+            </div>
+            <button
+              onClick={scrollToCourses}
+              className="inline-flex items-center gap-2 font-bold text-blue-700 transition hover:text-blue-900"
+            >
+              Ver cursos
+              <ArrowRight size={18} />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+            {trails.map((trail) => {
+              const Icon = trailIcons[trail.slug] ?? Layers3;
+              const accentBorder = colorWithAlpha(trail.accentColor, 0.25);
+
               return (
-                <div
-                  key={item.label}
-                  className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm"
+                <article
+                  key={trail.id}
+                  onClick={() => handleOpenTrail(trail.slug)}
+                  className="group cursor-pointer overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-900/10"
+                  style={{ borderColor: accentBorder }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      handleOpenTrail(trail.slug);
+                    }
+                  }}
                 >
-                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                    <Icon size={22} />
+                  <div
+                    className="h-2"
+                    style={{ backgroundColor: trail.accentColor }}
+                  />
+                  <div className="relative h-36 overflow-hidden bg-slate-200">
+                    <img
+                      src={trail.capa}
+                      alt={trail.nome}
+                      className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/5 to-transparent" />
+                    <div
+                      className="absolute left-4 top-4 flex h-11 w-11 items-center justify-center rounded-xl bg-white shadow"
+                      style={{ color: trail.accentColor }}
+                    >
+                      <Icon size={22} />
+                    </div>
                   </div>
-                  <p className="text-3xl font-black text-[#25304a]">
-                    {item.value}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-500">
-                    {item.label}
-                  </p>
-                </div>
+
+                  <div className="p-5">
+                    <h3 className="text-lg font-black text-[#25304a] transition group-hover:text-blue-700">
+                      {trail.nome}
+                    </h3>
+                    <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">
+                      {trail.descricao}
+                    </p>
+
+                    <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <p className="font-black text-[#25304a]">
+                          {trail.courses.length}
+                        </p>
+                        <p className="text-xs font-semibold text-slate-500">
+                          cursos
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <p className="font-black text-[#25304a]">
+                          {trail.totalLessons}
+                        </p>
+                        <p className="text-xs font-semibold text-slate-500">
+                          aulas
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5">
+                      <div className="mb-2 flex items-center justify-between text-xs font-bold text-slate-500">
+                        <span>{trail.progress}% concluido</span>
+                        <span>{trail.completedLessons} aulas feitas</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${trail.progress}%`,
+                            backgroundColor: trail.accentColor,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-5 inline-flex items-center gap-2 font-bold text-[#25304a]">
+                      Abrir trilha
+                      <ArrowRight
+                        size={18}
+                        className="transition group-hover:translate-x-1"
+                      />
+                    </div>
+                  </div>
+                </article>
               );
             })}
           </div>
@@ -217,7 +344,7 @@ export default function UserHome() {
                     </p>
                     <div className="mt-5 flex items-center justify-between gap-3">
                       <p className="text-xs font-semibold text-slate-500">
-                        Instrutor:{" "}
+                        Professor:{" "}
                         <span className="text-slate-700">
                           {course.instructor.name}
                         </span>

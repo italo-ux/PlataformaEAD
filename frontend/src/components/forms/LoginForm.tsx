@@ -4,6 +4,7 @@ import FormInput from "./FormInput";
 import SmilingRobot from "../../assets/login/smilingRobot.png";
 import { loginUser, saveAuthenticatedUser } from "../../services/userService";
 import { useAuthForm } from "../../hooks/useAuthForm";
+import MockCredentialsHint from "./MockCredentialsHint";
 
 interface LoginFormProps {
   onSwitchToRegister: () => void;
@@ -120,6 +121,8 @@ function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
                 </span>
               </div>
             </form>
+
+            <MockCredentialsHint />
           </div>
 
           <div className="hidden lg:flex flex-col items-center justify-center">
