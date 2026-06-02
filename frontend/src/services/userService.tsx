@@ -42,22 +42,50 @@ async function failMock(message: string): Promise<never> {
   throw new Error(message);
 }
 
-// Servico de autenticacao mockado. Quando o backend estiver pronto, mantenha as
-// mesmas assinaturas publicas e troque apenas o conteudo destas funcoes por
-// chamadas HTTP reais.
+/*
+========================================================
+função alterada (está usando backend real)
+========================================================
+- Faz requisição HTTP
+- Usa JWT
+- Depende do backend rodando
+*/
 export async function loginUser(email: string, password: string): Promise<User> {
-  const normalizedEmail = normalizeEmail(email);
-  const foundUser = mockUserStore.find(
-    ({ user }) => normalizeEmail(user.email) === normalizedEmail,
-  );
+  const response = await fetch("http://localhost:3000/auth/login", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email, password }),
+  });
 
-  if (!foundUser || foundUser.password !== password) {
-    return failMock("Email ou senha incorretos");
+  // erro de autenticação
+  if (!response.ok) {
+    throw new Error("Email ou senha incorretos");
   }
 
-  return waitForMock(sanitizeUser(foundUser.user));
+  const data = await response.json();
+
+  /*
+  salvando token JWT 
+  */
+  localStorage.setItem("token", data.access_token);
+
+  /*
+  backend NÃO manda name nem role
+  então estamos adaptando pro formato esperado pelo frontend
+  */
+  return {
+    id: Number(data.user.id),
+    name: data.user.email, //  gambiarra temporária
+    email: data.user.email,
+    role: "aluno", //  fixo por enquanto
+  };
 }
 
+/*
+esta parte ainda está mockada
+*/
 export async function createUser(userData: RegisterUserInput): Promise<User> {
   const normalizedEmail = normalizeEmail(userData.email);
   const emailAlreadyExists = mockUserStore.some(
