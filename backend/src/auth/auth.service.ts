@@ -10,10 +10,10 @@ interface User {
 
 @Injectable()
 export class AuthService {
-  //  Ideal: isso vir do .env depois
-  private readonly JWT_SECRET = 'segredo';
+  // Ideal: vir do .env
+  private readonly JWT_SECRET = process.env.JWT_SECRET || 'default_secret';
 
-  // = Simulação de banco (por enquanto)
+  // Simulação de banco (por enquanto)
   private async findUserByEmail(email: string): Promise<User | null> {
     if (email === 'teste@email.com') {
       return {
@@ -23,38 +23,30 @@ export class AuthService {
         password_hash: await bcrypt.hash('123456', 10),
       };
     }
-
     return null;
   }
 
   async login(email: string, password: string) {
     // 1. Buscar usuário
     const user = await this.findUserByEmail(email);
-
     if (!user) {
       throw new UnauthorizedException('Usuário não encontrado');
     }
 
     // 2. Validar senha
     const senhaValida = await bcrypt.compare(password, user.password_hash);
-
     if (!senhaValida) {
       throw new UnauthorizedException('Senha inválida');
     }
 
     // 3. Gerar token
     const token = jwt.sign(
-      {
-        sub: user.id,
-        email: user.email,
-      },
+      { sub: user.id, email: user.email },
       this.JWT_SECRET,
-      {
-        expiresIn: '1h',
-      },
+      { expiresIn: '1h' },
     );
 
-    // 4. Retornar resposta padrão (isso é importante pro frontend)
+    // 4. Retornar resposta padrão
     return {
       access_token: token,
       user: {

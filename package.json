@@ -1,5 +1,8 @@
 {
   "dependencies": {
-    "lucide-react": "^1.14.0"
+    "@nestjs/typeorm": "^11.0.1",
+    "lucide-react": "^1.14.0",
+    "pg": "^8.21.0",
+    "typeorm": "^1.0.0"
   }
 }
