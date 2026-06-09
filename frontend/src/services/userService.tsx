@@ -14,6 +14,14 @@ export interface RegisterUserInput {
   password: string;
 }
 
+export interface UpdateUserProfileInput {
+  name: string;
+  email: string;
+  avatar?: string;
+  cpf?: string;
+  phone?: string;
+}
+
 const mockUserStore: MockUserCredential[] = [...mockUserCredentials];
 let nextMockUserId = mockUserStore.length + 1;
 
@@ -27,6 +35,8 @@ function sanitizeUser(user: User): User {
     name: user.name,
     email: user.email,
     avatar: user.avatar,
+    cpf: user.cpf,
+    phone: user.phone,
     role: user.role,
   };
 }
@@ -82,6 +92,69 @@ export async function createUser(userData: RegisterUserInput): Promise<User> {
   });
 
   return waitForMock(sanitizeUser(createdUser));
+}
+
+export async function updateAuthenticatedUserProfile(
+  userId: number,
+  userData: UpdateUserProfileInput,
+): Promise<User> {
+  const storedUser = getAuthenticatedUser();
+
+  if (!storedUser || storedUser.id !== userId) {
+    return failMock("Sessao expirada. Faca login novamente.");
+  }
+
+  const normalizedEmail = normalizeEmail(userData.email);
+  const emailAlreadyExists = mockUserStore.some(
+    ({ user }) =>
+      user.id !== userId && normalizeEmail(user.email) === normalizedEmail,
+  );
+
+  if (emailAlreadyExists) {
+    return failMock("Este email ja esta cadastrado no mock");
+  }
+
+  const updatedUser: User = {
+    ...storedUser,
+    name: userData.name.trim(),
+    email: normalizedEmail,
+    avatar: userData.avatar?.trim() || undefined,
+    cpf: userData.cpf?.trim() || undefined,
+    phone: userData.phone?.trim() || undefined,
+  };
+
+  const storedCredential = mockUserStore.find(({ user }) => user.id === userId);
+  if (storedCredential) {
+    storedCredential.user = updatedUser;
+  }
+
+  saveAuthenticatedUser(updatedUser);
+  return waitForMock(sanitizeUser(updatedUser));
+}
+
+export async function changeAuthenticatedUserPassword(
+  userId: number,
+  currentPassword: string,
+  nextPassword: string,
+): Promise<void> {
+  const storedUser = getAuthenticatedUser();
+
+  if (!storedUser || storedUser.id !== userId) {
+    return failMock("Sessao expirada. Faca login novamente.");
+  }
+
+  const storedCredential = mockUserStore.find(({ user }) => user.id === userId);
+
+  if (!storedCredential) {
+    return failMock("Senha disponivel apenas durante a sessao mock atual.");
+  }
+
+  if (storedCredential.password !== currentPassword) {
+    return failMock("Senha atual incorreta");
+  }
+
+  storedCredential.password = nextPassword;
+  await waitForMock(null);
 }
 
 export function saveAuthenticatedUser(user: User) {
