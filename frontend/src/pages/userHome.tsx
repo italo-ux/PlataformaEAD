@@ -1,7 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
-import { getMockTrailsWithCourses, mockCourses } from "../data/courseData";
+import {
+  formatCourseInstructorNames,
+  getMockTrailsWithCourses,
+  mockCourses,
+} from "../data/courseData";
 import { getAuthenticatedUser } from "../services/userService";
 import {
   ArrowRight,
@@ -84,7 +88,7 @@ export default function UserHome() {
                 Aprenda tecnologia com trilhas praticas e acompanhamento real.
               </h1>
               <p className="mt-5 max-w-xl text-lg leading-8 text-slate-600">
-                Continue seus cursos, acompanhe seu desempenho e desenvolva
+                Continue seus cursos, acompanhe sua jornada e desenvolva
                 habilidades para criar projetos digitais, jogos, interfaces e
                 experiencias imersivas.
               </p>
@@ -164,6 +168,7 @@ export default function UserHome() {
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
             {mockCourses.map((course) => {
               const Icon = courseIcons[course.id] ?? BookOpen;
+              const instructorCount = course.instructors?.length ?? 1;
               return (
                 <article
                   key={course.id}
@@ -210,9 +215,9 @@ export default function UserHome() {
                     </p>
                     <div className="mt-5 flex items-center justify-between gap-3">
                       <p className="text-xs font-semibold text-slate-500">
-                        Professor:{" "}
+                        {instructorCount > 1 ? "Professores: " : "Professor: "}
                         <span className="text-slate-700">
-                          {course.instructor.name}
+                          {formatCourseInstructorNames(course)}
                         </span>
                       </p>
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white transition group-hover:bg-blue-700">

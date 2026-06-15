@@ -187,6 +187,13 @@ export function getAuthenticatedUser(): User | null {
   }
 }
 
+export function getRegisteredTeachers(): User[] {
+  return mockUserStore
+    .map(({ user }) => user)
+    .filter((user) => user.role === "professor")
+    .map(sanitizeUser);
+}
+
 export function clearAuthenticatedUser() {
   localStorage.removeItem(AUTH_USER_STORAGE_KEY);
 }

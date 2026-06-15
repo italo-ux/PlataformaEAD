@@ -71,19 +71,19 @@ export const mockUserCredentials: MockUserCredential[] = [
 export const rolePermissions: Record<UserRole, UserPermissions> = {
   aluno: {
     canAccessCourses: true,
-    canAccessPerformance: true,
+    canAccessPerformance: false,
     canCreateCourses: false,
     canCreateTeachers: false,
   },
   professor: {
     canAccessCourses: true,
-    canAccessPerformance: true,
+    canAccessPerformance: false,
     canCreateCourses: true,
     canCreateTeachers: false,
   },
   admin: {
     canAccessCourses: true,
-    canAccessPerformance: true,
+    canAccessPerformance: false,
     canCreateCourses: true,
     canCreateTeachers: true,
   },

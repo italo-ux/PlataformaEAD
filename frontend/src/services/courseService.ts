@@ -26,12 +26,19 @@ class CourseService {
     const lessonTitles = courseData.lessonTitles
       .map((lessonTitle) => lessonTitle.trim())
       .filter(Boolean);
+    const instructors =
+      courseData.instructors && courseData.instructors.length > 0
+        ? courseData.instructors
+        : courseData.instructor
+          ? [courseData.instructor]
+          : [];
 
     if (
       !courseData.title.trim() ||
       !courseData.description.trim() ||
       !courseData.about.trim() ||
-      lessonTitles.length === 0
+      lessonTitles.length === 0 ||
+      instructors.length === 0
     ) {
       return failMock("Preencha os dados obrigatorios do curso");
     }
@@ -40,6 +47,7 @@ class CourseService {
     // ponto deve virar uma chamada HTTP autenticada feita pelo professor/admin.
     const createdCourse = addMockCourse({
       ...courseData,
+      instructors,
       lessonTitles,
     });
 

@@ -7,7 +7,7 @@ O frontend esta temporariamente padronizado para funcionar sem chamadas reais de
   - `aluno@plataforma.com` / `aluno123`
   - `professor@plataforma.com` / `professor123`
   - `admin@plataforma.com` / `admin123`
-- Permissoes tambem ficam em `userMock.ts`: aluno acessa cursos/home/desempenho, professor tambem cria cursos, admin tambem podera criar professores.
+- Permissoes tambem ficam em `userMock.ts`: aluno acessa cursos/home, professor cria cursos, admin tambem podera criar professores. `Meu Desempenho` fica oculto na navbar ate a tela separada ser implementada.
 - Login, cadastro e sessao passam por `services/userService.tsx`.
 - O `localStorage` salva apenas os dados minimos da sessao simulada, sem senha.
 - Cursos e aulas mockados ficam em `courseData.ts`.
