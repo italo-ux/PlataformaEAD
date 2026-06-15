@@ -9,7 +9,9 @@ export interface Lesson {
 }
 
 export interface Instructor {
+  id?: number;
   name: string;
+  email?: string;
   bio: string;
   image?: string;
 }
@@ -24,6 +26,7 @@ export interface Course {
   totalLessons: number;
   about: string;
   instructor: Instructor;
+  instructors?: Instructor[];
   lessons: Lesson[];
 }
 
@@ -50,7 +53,8 @@ export interface CreateMockCourseInput {
   description: string;
   image?: string;
   about: string;
-  instructor: Instructor;
+  instructor?: Instructor;
+  instructors?: Instructor[];
   lessonTitles: string[];
 }
 
@@ -483,6 +487,18 @@ export function getMockCourseById(courseId: number) {
   return mockCourses.find((course) => course.id === courseId) ?? null;
 }
 
+export function getCourseInstructors(course: Course) {
+  return course.instructors && course.instructors.length > 0
+    ? course.instructors
+    : [course.instructor];
+}
+
+export function formatCourseInstructorNames(course: Course) {
+  return getCourseInstructors(course)
+    .map((instructor) => instructor.name)
+    .join(", ");
+}
+
 export function getCoursesForTrail(trail: LearningTrail) {
   return trail.courseIds
     .map((courseId) => getMockCourseById(courseId))
@@ -536,6 +552,17 @@ let nextMockCourseId = Math.max(...mockCourses.map((course) => course.id)) + 1;
 // Criacao somente em memoria para desenvolvimento local. Quando o backend de
 // cursos existir, esta funcao deve ser substituida por POST /cursos ou similar.
 export function addMockCourse(input: CreateMockCourseInput) {
+  const instructors =
+    input.instructors && input.instructors.length > 0
+      ? input.instructors
+      : input.instructor
+        ? [input.instructor]
+        : [];
+  const primaryInstructor = instructors[0] ?? {
+    name: "Professor nao informado",
+    bio: "Professor responsavel ainda nao vinculado no mock.",
+  };
+
   const lessons: Lesson[] = input.lessonTitles.map((title, index) => ({
     id: index + 1,
     title: title.trim(),
@@ -554,7 +581,8 @@ export function addMockCourse(input: CreateMockCourseInput) {
     completedLessons: 0,
     totalLessons: lessons.length,
     about: input.about.trim(),
-    instructor: input.instructor,
+    instructor: primaryInstructor,
+    instructors,
     lessons,
   };
 

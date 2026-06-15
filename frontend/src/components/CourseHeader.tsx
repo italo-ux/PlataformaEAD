@@ -46,13 +46,6 @@ export default function CourseHeader() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <Link
-              to="/home#cursos"
-              className="hidden sm:px-4 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-sm sm:inline-block"
-            >
-              Desempenho
-            </Link>
-
             <button className="p-2 hover:bg-gray-100 rounded-lg transition">
               <Bell size={20} className="text-gray-700" />
             </button>
@@ -99,12 +92,6 @@ export default function CourseHeader() {
               className="text-gray-700 hover:text-blue-600 font-medium py-2 px-2 rounded hover:bg-gray-50 transition"
             >
               Feedbacks
-            </Link>
-            <Link
-              to="/home#cursos"
-              className="w-full mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-center"
-            >
-              Desempenho
             </Link>
           </nav>
         )}

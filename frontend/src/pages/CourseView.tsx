@@ -7,6 +7,7 @@ import Navbar from "../components/Navbar/Navbar";
 import ProgressSection from "../components/ProgressSection";
 import TabsSection from "../components/TabsSection";
 import {
+  getCourseInstructors,
   getMockCourseById,
   getRelatedMockCourses,
   type Lesson,
@@ -135,7 +136,10 @@ export default function CourseView() {
         </div>
 
         <section className="mt-7 max-w-[760px]">
-          <TabsSection about={course.about} instructor={course.instructor} />
+          <TabsSection
+            about={course.about}
+            instructors={getCourseInstructors(course)}
+          />
         </section>
 
         <section className="mt-6 max-w-[760px]">

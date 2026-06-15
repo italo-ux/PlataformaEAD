@@ -2,16 +2,23 @@ import { useState, type ChangeEvent, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import {
   BookOpen,
+  CheckCircle2,
   FileText,
   Image,
   ListChecks,
   PlusCircle,
+  UserRound,
+  Users,
 } from "lucide-react";
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
-import { canCreateCourses } from "../data/userMock";
+import { canCreateCourses, type User } from "../data/userMock";
+import type { Instructor } from "../data/courseData";
 import courseService from "../services/courseService";
-import { getAuthenticatedUser } from "../services/userService";
+import {
+  getAuthenticatedUser,
+  getRegisteredTeachers,
+} from "../services/userService";
 
 const initialFormState = {
   title: "",
@@ -26,10 +33,24 @@ const fieldClass =
 
 const labelClass = "mb-2 block text-sm font-bold text-[#25304a]";
 
+function mapTeacherToInstructor(teacher: User): Instructor {
+  return {
+    id: teacher.id,
+    name: teacher.name,
+    email: teacher.email,
+    image: teacher.avatar,
+    bio: "Professor da Plataforma EAD Inovacao. Bio temporaria ate o backend enviar o perfil completo.",
+  };
+}
+
 export default function ProfessorCourseCreatePage() {
   const navigate = useNavigate();
   const user = getAuthenticatedUser();
+  const registeredTeachers = getRegisteredTeachers();
   const [formValues, setFormValues] = useState(initialFormState);
+  const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>(() =>
+    user?.role === "professor" ? [user.id] : [],
+  );
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -48,6 +69,15 @@ export default function ProfessorCourseCreatePage() {
     setError("");
   };
 
+  const handleToggleTeacher = (teacherId: number) => {
+    setSelectedTeacherIds((currentIds) =>
+      currentIds.includes(teacherId)
+        ? currentIds.filter((currentId) => currentId !== teacherId)
+        : [...currentIds, teacherId],
+    );
+    setError("");
+  };
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
@@ -57,6 +87,18 @@ export default function ProfessorCourseCreatePage() {
       .split(/\r?\n/)
       .map((lessonTitle) => lessonTitle.trim())
       .filter(Boolean);
+    const selectedTeachers =
+      user.role === "admin"
+        ? registeredTeachers.filter((teacher) =>
+            selectedTeacherIds.includes(teacher.id),
+          )
+        : [user];
+
+    if (selectedTeachers.length === 0) {
+      setError("Selecione pelo menos um professor para o curso.");
+      setSaving(false);
+      return;
+    }
 
     try {
       // Este payload simula o contrato do backend: dados do curso, instrutor
@@ -66,11 +108,7 @@ export default function ProfessorCourseCreatePage() {
         description: formValues.description,
         image: formValues.image,
         about: formValues.about,
-        instructor: {
-          name: user.name,
-          bio: "Professor da Plataforma EAD Inovacao. Bio temporaria ate o backend enviar o perfil completo.",
-          image: user.avatar,
-        },
+        instructors: selectedTeachers.map(mapTeacherToInstructor),
         lessonTitles,
       });
 
@@ -194,6 +232,78 @@ export default function ProfessorCourseCreatePage() {
               className={`${fieldClass} min-h-32 resize-y`}
               required
             />
+          </div>
+
+          <div className="mt-6">
+            <div className="mb-2 flex items-center gap-2">
+              <Users className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-bold text-[#25304a]">
+                Professores responsaveis
+              </span>
+            </div>
+
+            {user.role === "admin" ? (
+              <div className="grid gap-3 rounded-lg border border-blue-100 bg-blue-50/50 p-4 sm:grid-cols-2">
+                {registeredTeachers.length > 0 ? (
+                  registeredTeachers.map((teacher) => {
+                    const isSelected = selectedTeacherIds.includes(teacher.id);
+
+                    return (
+                      <label
+                        key={teacher.id}
+                        className={`flex cursor-pointer items-center gap-3 rounded-lg border bg-white p-3 transition ${
+                          isSelected
+                            ? "border-blue-400 shadow-sm"
+                            : "border-slate-200 hover:border-blue-200"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleTeacher(teacher.id)}
+                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-sm font-bold text-white">
+                          {teacher.avatar ? (
+                            <img
+                              src={teacher.avatar}
+                              alt={`${teacher.name} avatar`}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <UserRound className="h-5 w-5" />
+                          )}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-bold text-[#25304a]">
+                            {teacher.name}
+                          </span>
+                          <span className="block truncate text-xs text-slate-500">
+                            {teacher.email}
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })
+                ) : (
+                  <p className="text-sm font-semibold text-slate-600">
+                    Nenhum professor cadastrado no mock atual.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 rounded-lg border border-emerald-100 bg-emerald-50 p-4">
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-[#25304a]">
+                    {user.name}
+                  </p>
+                  <p className="truncate text-xs text-slate-500">
+                    {user.email}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="mt-6">
