@@ -1,7 +1,12 @@
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
-import { type Course, getMockTrailBySlug } from "../data/courseData";
+import {
+  formatCourseInstructorNames,
+  type Course,
+  getMockTrailBySlug,
+} from "../data/courseData";
 import { getAuthenticatedUser } from "../services/userService";
 import {
   ArrowLeft,
@@ -36,6 +41,39 @@ const courseIcons: Record<number, LucideIcon> = {
   3: Palette,
   4: GraduationCap,
 };
+
+type CourseFilter = "all" | "in-progress" | "not-started" | "completed";
+type CourseSort = "recommended" | "progress-desc" | "progress-asc" | "title";
+
+const filterOptions: { label: string; value: CourseFilter }[] = [
+  { label: "Todos", value: "all" },
+  { label: "Em andamento", value: "in-progress" },
+  { label: "Nao iniciados", value: "not-started" },
+  { label: "Concluidos", value: "completed" },
+];
+
+function normalizeSearchText(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function matchesCourseFilter(course: Course, filter: CourseFilter) {
+  if (filter === "completed") {
+    return course.progress >= 100;
+  }
+
+  if (filter === "in-progress") {
+    return course.progress > 0 && course.progress < 100;
+  }
+
+  if (filter === "not-started") {
+    return course.progress === 0;
+  }
+
+  return true;
+}
 
 function CourseTrailCard({
   course,
@@ -101,7 +139,47 @@ export default function TrailPage() {
   const { trailSlug } = useParams();
   const navigate = useNavigate();
   const user = getAuthenticatedUser();
-  const trail = trailSlug ? getMockTrailBySlug(trailSlug) : null;
+  const trail = useMemo(
+    () => (trailSlug ? getMockTrailBySlug(trailSlug) : null),
+    [trailSlug],
+  );
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [courseFilter, setCourseFilter] = useState<CourseFilter>("all");
+  const [courseSort, setCourseSort] = useState<CourseSort>("recommended");
+  const filteredCourses = useMemo(() => {
+    const trailCourses = trail?.courses ?? [];
+    const normalizedSearch = normalizeSearchText(searchTerm.trim());
+
+    return [...trailCourses]
+      .filter((course) => {
+        const searchableContent = normalizeSearchText(
+          `${course.title} ${course.description} ${formatCourseInstructorNames(
+            course,
+          )}`,
+        );
+
+        return (
+          matchesCourseFilter(course, courseFilter) &&
+          (!normalizedSearch || searchableContent.includes(normalizedSearch))
+        );
+      })
+      .sort((currentCourse, nextCourse) => {
+        if (courseSort === "progress-desc") {
+          return nextCourse.progress - currentCourse.progress;
+        }
+
+        if (courseSort === "progress-asc") {
+          return currentCourse.progress - nextCourse.progress;
+        }
+
+        if (courseSort === "title") {
+          return currentCourse.title.localeCompare(nextCourse.title, "pt-BR");
+        }
+
+        return 0;
+      });
+  }, [courseFilter, courseSort, searchTerm, trail]);
 
   if (!trail) {
     return (
@@ -134,8 +212,8 @@ export default function TrailPage() {
   }
 
   const TrailIcon = trailIcons[trail.slug] ?? Layers3;
-  const foundCoursesText = `${trail.courses.length} ${
-    trail.courses.length === 1 ? "curso encontrado" : "cursos encontrados"
+  const foundCoursesText = `${filteredCourses.length} ${
+    filteredCourses.length === 1 ? "curso encontrado" : "cursos encontrados"
   }`;
 
   return (
@@ -158,13 +236,25 @@ export default function TrailPage() {
         </section>
 
         <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <button
+            type="button"
+            onClick={() => navigate("/home")}
+            className="flex w-fit items-center gap-2 text-xs font-medium text-gray-700 transition hover:text-blue-600"
+          >
+            <ArrowLeft size={14} />
+            Voltar para home
+          </button>
           <div className="mb-6 flex items-center justify-between gap-4">
             <p className="text-sm font-bold text-slate-700">
               {foundCoursesText}
             </p>
+
             <button
               type="button"
+              onClick={() => setIsFilterOpen((current) => !current)}
               className="inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm font-bold text-slate-700 transition hover:bg-white"
+              aria-expanded={isFilterOpen}
+              aria-controls="trail-course-filters"
               aria-label="Filtrar cursos"
             >
               Filtrar
@@ -172,8 +262,71 @@ export default function TrailPage() {
             </button>
           </div>
 
+          {isFilterOpen && (
+            <div
+              id="trail-course-filters"
+              className="mb-6 grid gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_auto_auto]"
+            >
+              <label className="grid gap-2 text-sm font-bold text-slate-700">
+                Buscar
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Nome, descricao ou professor"
+                  className="h-11 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </label>
+
+              <div className="grid gap-2 text-sm font-bold text-slate-700">
+                Status
+                <div
+                  className="grid grid-cols-2 overflow-hidden rounded-md border border-slate-200 sm:flex"
+                  role="group"
+                  aria-label="Filtrar cursos por status"
+                >
+                  {filterOptions.map((option) => {
+                    const isSelected = courseFilter === option.value;
+
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setCourseFilter(option.value)}
+                        aria-pressed={isSelected}
+                        className={`px-3 py-2 text-xs font-bold transition ${
+                          isSelected
+                            ? "bg-blue-600 text-white"
+                            : "bg-white text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <label className="grid gap-2 text-sm font-bold text-slate-700">
+                Ordenar
+                <select
+                  value={courseSort}
+                  onChange={(event) =>
+                    setCourseSort(event.target.value as CourseSort)
+                  }
+                  className="h-11 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="recommended">Recomendados</option>
+                  <option value="progress-desc">Maior progresso</option>
+                  <option value="progress-asc">Menor progresso</option>
+                  <option value="title">Titulo</option>
+                </select>
+              </label>
+            </div>
+          )}
+
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {trail.courses.map((course) => (
+            {filteredCourses.map((course) => (
               <CourseTrailCard
                 key={course.id}
                 course={course}
@@ -182,6 +335,17 @@ export default function TrailPage() {
               />
             ))}
           </div>
+
+          {filteredCourses.length === 0 && (
+            <div className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-10 text-center">
+              <p className="font-bold text-[#25304a]">
+                Nenhum curso encontrado
+              </p>
+              <p className="mt-2 text-sm text-slate-500">
+                Ajuste os filtros para ver outros cursos desta trilha.
+              </p>
+            </div>
+          )}
         </section>
       </main>
 

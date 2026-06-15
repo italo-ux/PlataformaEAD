@@ -198,12 +198,11 @@ function Navbar({ user }: { user: null | User }) {
             Contato
           </Link>
 
-          <Link to="/dashboard" className={transparentActionClass}>
-            Meu Desempenho
-          </Link>
-
           {isLoggedIn ? (
             <div className="flex items-center gap-3">
+              <Link to="/dashboard" className={transparentActionClass}>
+                Meu Desempenho
+              </Link>
               {showCreateCourseLink && (
                 <Link
                   to="/professor/cursos/novo"
@@ -422,6 +421,13 @@ function Navbar({ user }: { user: null | User }) {
 
               {isLoggedIn ? (
                 <>
+                  <Link
+                    to="/dashboard"
+                    onClick={closeMobileMenu}
+                    className={mobileActionClass}
+                  >
+                    Meu Desempenho
+                  </Link>
                   {showCreateCourseLink && (
                     <Link
                       to="/professor/cursos/novo"
