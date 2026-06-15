@@ -5,9 +5,12 @@ import { AuthService } from './auth.service';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './jwt.strategy';
+import { User } from './user.entity';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
   imports: [
+    TypeOrmModule.forFeature([User]),
     PassportModule, //habilita o uso de AuthGuard
     //configura o módulo JWT, definindo a chave secreta e o tempo de expiração dos tokens:
     JwtModule.register({

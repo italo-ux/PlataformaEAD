@@ -12,10 +12,10 @@ import { User } from './auth/user.entity'; //entidade que representa o banco de 
       host: 'localhost',
       port: 5432,
       username: 'postgres',
-      password: 'sua_senha',
-      database: 'plataformaead',
+      password: '',
+      database: 'meu_sistema_login',
       entities: [User],
-      synchronize: true, // cria/atualiza tabelas automaticamente em dev
+      synchronize: false, // cria/atualiza tabelas automaticamente em dev
     }),
     AuthModule,
   ],

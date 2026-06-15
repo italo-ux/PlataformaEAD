@@ -1,20 +1,19 @@
-/*----------------- estrutura da tabela de usuarios -----------------*/
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity()
+@Entity('users')
 export class User {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @Column({ unique: true })
-  email: string;
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
 
   @Column()
-  senha: string;
+  name!: string;
 
-  @Column({ default: true })
-  ativo: boolean;
+  @Column({ unique: true })
+  email!: string;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  criadoEm: Date;
+  @Column()
+  password_hash!: string;
+
+  @Column()
+  cpf!: string;
 }

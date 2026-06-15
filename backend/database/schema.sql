@@ -1,84 +1,162 @@
--- PlataformaEAD - Schema PostgreSQL
--- Definição completa do banco de dados
+-- Migração 1: Schema Inicial
+-- Data: 2026-05-05
+-- Descrição: Cria as tabelas principais do sistema
 
 -- Extensões
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Tabela: Usuários
-CREATE TABLE IF NOT EXISTS usuarios (
-  id SERIAL PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  senha VARCHAR(255) NOT NULL,
-  nome VARCHAR(255) NOT NULL,
-  sobrenome VARCHAR(255),
-  foto_perfil VARCHAR(500),
-  descricao_perfil TEXT,
-  tipo_usuario VARCHAR(50) DEFAULT 'aluno', -- 'aluno', 'instructor', 'admin'
-  ativo BOOLEAN DEFAULT true,
-  data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  data_ultimo_acesso TIMESTAMP
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    cpf VARCHAR(11) NOT NULL,
+    celular VARCHAR(11),
+    foto_perfil VARCHAR(255),
+    data_nasc DATE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Tabela: Cursos
+CREATE TABLE IF NOT EXISTS programas (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    nome VARCHAR(255) NOT NULL,
+    descricao TEXT,
+    banner VARCHAR(255),
+    icone VARCHAR(255),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS trilhas (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    nome VARCHAR(255) NOT NULL,
+    descricao TEXT,
+    capa VARCHAR(255),
+    nivel VARCHAR(100),
+    id_programa UUID,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    FOREIGN KEY (id_programa) REFERENCES programas(id)
+);
+
 CREATE TABLE IF NOT EXISTS cursos (
-  id SERIAL PRIMARY KEY,
-  titulo VARCHAR(255) NOT NULL,
-  descricao TEXT,
-  instrutor_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-  categoria VARCHAR(100),
-  nivel VARCHAR(50), -- 'iniciante', 'intermediário', 'avançado'
-  duracao_horas INTEGER,
-  preco DECIMAL(10, 2),
-  imagem_capa VARCHAR(500),
-  ativo BOOLEAN DEFAULT true,
-  data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    nome VARCHAR(255) NOT NULL,
+    descricao TEXT,
+    url_foto VARCHAR(255),
+    carga_horaria INTEGER,
+    categoria VARCHAR(255),
+    nivel VARCHAR(100),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Tabela: Aulas
 CREATE TABLE IF NOT EXISTS aulas (
-  id SERIAL PRIMARY KEY,
-  curso_id INTEGER NOT NULL REFERENCES cursos(id) ON DELETE CASCADE,
-  titulo VARCHAR(255) NOT NULL,
-  descricao TEXT,
-  conteudo TEXT,
-  video_url VARCHAR(500),
-  duracao_minutos INTEGER,
-  ordem_aula INTEGER,
-  data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_curso UUID NOT NULL,
+    id_instrutor UUID NOT NULL,
+    titulo VARCHAR(255) NOT NULL,
+    descricao TEXT,
+    url_video VARCHAR(255),
+    ordem INTEGER,
+    duracao INTERVAL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    FOREIGN KEY (id_curso) REFERENCES cursos(id)
 );
 
--- Tabela: Inscrições
-CREATE TABLE IF NOT EXISTS inscricoes (
-  id SERIAL PRIMARY KEY,
-  usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-  curso_id INTEGER NOT NULL REFERENCES cursos(id) ON DELETE CASCADE,
-  data_inscricao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  data_conclusao TIMESTAMP,
-  progresso_percentual INTEGER DEFAULT 0,
-  UNIQUE(usuario_id, curso_id)
+CREATE TABLE IF NOT EXISTS matricula (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_usuario UUID NOT NULL,
+    id_curso UUID NOT NULL,
+    progresso INTEGER DEFAULT 0,
+    data_matricula TIMESTAMPTZ DEFAULT NOW(),
+    conclusao BOOLEAN DEFAULT FALSE,
+    pontuacao INTEGER DEFAULT 0,
+    horas_estudadas INTEGER DEFAULT 0,
+    FOREIGN KEY (id_usuario) REFERENCES users(id),
+    FOREIGN KEY (id_curso) REFERENCES cursos(id)
 );
 
--- Tabela: Progresso de Aulas
-CREATE TABLE IF NOT EXISTS progresso_aulas (
-  id SERIAL PRIMARY KEY,
-  usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-  aula_id INTEGER NOT NULL REFERENCES aulas(id) ON DELETE CASCADE,
-  concluida BOOLEAN DEFAULT false,
-  data_conclusao TIMESTAMP,
-  data_primeira_visualizacao TIMESTAMP,
-  tempo_assistido_minutos INTEGER DEFAULT 0,
-  UNIQUE(usuario_id, aula_id)
+CREATE TABLE IF NOT EXISTS usuario_curso (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_usuario UUID NOT NULL,
+    id_curso UUID NOT NULL,
+    concluido BOOLEAN DEFAULT FALSE,
+    data_conclusao TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    FOREIGN KEY (id_usuario) REFERENCES users(id),
+    FOREIGN KEY (id_curso) REFERENCES cursos(id)
 );
 
--- Índices para melhor performance
-CREATE INDEX idx_usuarios_email ON usuarios(email);
-CREATE INDEX idx_cursos_instrutor ON cursos(instrutor_id);
-CREATE INDEX idx_aulas_curso ON aulas(curso_id);
-CREATE INDEX idx_inscricoes_usuario ON inscricoes(usuario_id);
-CREATE INDEX idx_inscricoes_curso ON inscricoes(curso_id);
-CREATE INDEX idx_progresso_usuario ON progresso_aulas(usuario_id);
-CREATE INDEX idx_progresso_aula ON progresso_aulas(aula_id);
+CREATE TABLE IF NOT EXISTS usuario_trilha (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_usuario UUID NOT NULL,
+    id_trilha UUID NOT NULL,
+    progresso INTEGER DEFAULT 0,
+    data_inicio TIMESTAMPTZ DEFAULT NOW(),
+    concluida BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    FOREIGN KEY (id_usuario) REFERENCES users(id),
+    FOREIGN KEY (id_trilha) REFERENCES trilhas(id)
+);
+
+CREATE TABLE IF NOT EXISTS trilha_curso (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_trilha UUID NOT NULL,
+    id_curso UUID NOT NULL,
+    ordem INTEGER,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    FOREIGN KEY (id_trilha) REFERENCES trilhas(id),
+    FOREIGN KEY (id_curso) REFERENCES cursos(id)
+);
+
+CREATE TABLE IF NOT EXISTS conquistas (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    nome VARCHAR(255) NOT NULL,
+    descricao TEXT,
+    icone VARCHAR(255),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS usuario_conquista (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_usuario UUID NOT NULL,
+    id_conquista UUID NOT NULL,
+    data_conquista TIMESTAMPTZ DEFAULT NOW(),
+    FOREIGN KEY (id_usuario) REFERENCES users(id),
+    FOREIGN KEY (id_conquista) REFERENCES conquistas(id)
+);
+
+CREATE TABLE IF NOT EXISTS avaliacao_curso (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_usuario UUID NOT NULL,
+    id_curso UUID NOT NULL,
+    nota INTEGER CHECK (nota >= 1 AND nota <= 5),
+    comentario TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    FOREIGN KEY (id_usuario) REFERENCES users(id),
+    FOREIGN KEY (id_curso) REFERENCES cursos(id)
+);
+
+CREATE TABLE IF NOT EXISTS endereco (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_usuario UUID NOT NULL,
+    cep VARCHAR(10) NOT NULL,
+    rua VARCHAR(255),
+    numero VARCHAR(50),
+    bairro VARCHAR(255),
+    cidade VARCHAR(255),
+    estado VARCHAR(100),
+    complemento VARCHAR(255),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    FOREIGN KEY (id_usuario) REFERENCES users(id)
+);

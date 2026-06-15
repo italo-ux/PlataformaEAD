@@ -1,54 +1,60 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import * as jwt from 'jsonwebtoken';
-
-interface User {
-  id: string;
-  email: string;
-  password_hash: string;
-}
+import { JwtService } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from './user.entity';
 
 @Injectable()
 export class AuthService {
-  // Ideal: vir do .env
-  private readonly JWT_SECRET = process.env.JWT_SECRET || 'default_secret';
+  constructor(
+    private jwtService: JwtService,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+  ) {}
 
-  // Simulação de banco (por enquanto)
-  private async findUserByEmail(email: string): Promise<User | null> {
-    if (email === 'teste@email.com') {
-      return {
-        id: '1',
-        email: 'teste@email.com',
-        // senha: 123456
-        password_hash: await bcrypt.hash('123456', 10),
-      };
-    }
-    return null;
+  // 🔹 REGISTRO REAL (salva no banco)
+  async register(name: string, email: string, password: string, cpf: string) {
+    const hash = await bcrypt.hash(password, 10);
+
+    const user = this.userRepository.create({
+      name,
+      email,
+      password_hash: hash,
+      cpf,
+    });
+
+    await this.userRepository.save(user);
+
+    return {
+      id: user.id,
+      email: user.email,
+    };
   }
 
+  // 🔹 LOGIN REAL
   async login(email: string, password: string) {
-    // 1. Buscar usuário
-    const user = await this.findUserByEmail(email);
+    const user = await this.userRepository.findOne({
+      where: { email },
+    });
+
     if (!user) {
       throw new UnauthorizedException('Usuário não encontrado');
     }
 
-    // 2. Validar senha
-    const senhaValida = await bcrypt.compare(password, user.password_hash);
-    if (!senhaValida) {
+    const isMatch = await bcrypt.compare(
+      password,
+      user.password_hash, //  password.hash é a senha
+    );
+
+    if (!isMatch) {
       throw new UnauthorizedException('Senha inválida');
     }
 
-    // 3. Gerar token
-    const token = jwt.sign(
-      { sub: user.id, email: user.email },
-      this.JWT_SECRET,
-      { expiresIn: '1h' },
-    );
+    const payload = { sub: user.id, email: user.email };
 
-    // 4. Retornar resposta padrão
     return {
-      access_token: token,
+      access_token: this.jwtService.sign(payload),
       user: {
         id: user.id,
         email: user.email,
