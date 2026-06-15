@@ -198,6 +198,10 @@ function Navbar({ user }: { user: null | User }) {
             Contato
           </Link>
 
+          <Link to="/dashboard" className={transparentActionClass}>
+            Meu Desempenho
+          </Link>
+
           {isLoggedIn ? (
             <div className="flex items-center gap-3">
               {showCreateCourseLink && (
