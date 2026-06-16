@@ -69,7 +69,7 @@ export function useAuthForm({
         setSuccess(true);
       } catch (err) {
         const errorMessage =
-          err instanceof Error ? err.message : "Erro ao processar formulario";
+          err instanceof Error ? err.message : "Erro ao processar formulário";
         setGeneralError(errorMessage);
       } finally {
         setLoading(false);

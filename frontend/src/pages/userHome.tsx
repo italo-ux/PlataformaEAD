@@ -31,7 +31,7 @@ const courseIcons: Record<number, LucideIcon> = {
 
 const metaverseFeatures = [
   "Salas virtuais para aulas imersivas",
-  "Laboratorios 3D para simulacoes praticas",
+  "Laboratórios 3D para simulações práticas",
   "Projetos colaborativos com avatares",
 ];
 
@@ -82,15 +82,15 @@ export default function UserHome() {
             <div className="relative z-10 max-w-2xl">
               <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white px-4 py-2 text-sm font-semibold text-blue-700 shadow-sm">
                 <Sparkles size={16} />
-                Plataforma EAD Inovacao Barueri
+                Plataforma EAD Inovação Barueri
               </div>
               <h1 className="text-4xl font-black leading-tight text-[#25304a] sm:text-5xl lg:text-6xl">
-                Aprenda tecnologia com trilhas praticas e acompanhamento real.
+                Aprenda tecnologia com trilhas práticas e acompanhamento real.
               </h1>
               <p className="mt-5 max-w-xl text-lg leading-8 text-slate-600">
                 Continue seus cursos, acompanhe sua jornada e desenvolva
                 habilidades para criar projetos digitais, jogos, interfaces e
-                experiencias imersivas.
+                experiências imersivas.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <button
@@ -111,31 +111,32 @@ export default function UserHome() {
             </div>
 
             <div className="relative">
-              <div className="rounded-[2rem] border border-white bg-white/80 p-4 shadow-2xl shadow-blue-900/10 backdrop-blur">
-                <div className="overflow-hidden rounded-[1.5rem] bg-[#25304a]">
+              <div className="rounded-[2rem] border border-white bg-white/80 p-3 shadow-2xl shadow-blue-900/10 backdrop-blur sm:p-4">
+                <div className="relative overflow-hidden rounded-[1.5rem] bg-[#25304a]">
                   <img
                     src="https://images.unsplash.com/photo-1581090464777-f3220bbe1b8b?w=900&h=640&fit=crop"
                     alt="Estudantes explorando tecnologia em aula"
-                    className="h-80 w-full object-cover opacity-90 sm:h-96"
+                    className="aspect-[4/3] h-auto min-h-[280px] w-full object-cover opacity-90 sm:aspect-[16/12] lg:aspect-[5/4]"
                   />
-                </div>
-                <div className="-mt-14 ml-5 mr-5 rounded-2xl bg-white p-5 shadow-xl">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-500">
-                        Proxima aula
-                      </p>
-                      <p className="mt-1 font-bold text-[#25304a]">
-                        {mockCourses[0].lessons[7].title}
-                      </p>
+
+                  <div className="absolute inset-x-3 bottom-3 rounded-2xl bg-white/95 p-4 shadow-xl backdrop-blur sm:inset-x-5 sm:bottom-5 sm:p-5">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-500">
+                          Próxima aula
+                        </p>
+                        <p className="mt-1 truncate font-bold text-[#25304a] sm:text-lg">
+                          {mockCourses[0].lessons[7].title}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleStartCourse(1)}
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/30 transition hover:scale-105 hover:bg-blue-700 sm:h-14 sm:w-14"
+                        aria-label="Iniciar aula"
+                      >
+                        <Play size={22} className="fill-white" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleStartCourse(1)}
-                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition hover:bg-blue-700"
-                      aria-label="Iniciar aula"
-                    >
-                      <Play size={20} className="fill-white" />
-                    </button>
                   </div>
                 </div>
               </div>
@@ -194,7 +195,7 @@ export default function UserHome() {
                     </div>
                     <div className="absolute bottom-4 left-4 right-4">
                       <div className="mb-2 flex items-center justify-between text-xs font-bold text-white">
-                        <span>{course.progress}% concluido</span>
+                        <span>{course.progress}% concluído</span>
                         <span>{course.totalLessons} aulas</span>
                       </div>
                       <div className="h-2 rounded-full bg-white/30">
@@ -294,7 +295,7 @@ export default function UserHome() {
 
                     <div className="mt-5">
                       <div className="mb-2 text-xs font-bold text-slate-500">
-                        <span>{trail.progress}% concluido</span>
+                        <span>{trail.progress}% concluído</span>
                       </div>
                       <div className="h-2 rounded-full bg-slate-100">
                         <div
@@ -317,21 +318,21 @@ export default function UserHome() {
           <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:px-8">
             <div>
               <p className="text-sm font-bold uppercase tracking-wide text-blue-600">
-                Experiencia completa
+                Experiência completa
               </p>
               <h2 className="mt-2 text-3xl font-black text-[#25304a]">
-                Uma plataforma feita para aprender fazendo
+                Uma plataforma feita para aprender fazendo!
               </h2>
               <p className="mt-4 leading-7 text-slate-600">
                 A home organiza seu progresso, destaca novas trilhas e aproxima
-                cada aluno de projetos reais com feedback, certificacao e
-                conteudos atualizados.
+                cada aluno de projetos reais com feedback, certificação e
+                conteúdos atualizados.
               </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               {[
                 { title: "Aulas curtas", icon: Clock3 },
-                { title: "Certificacao", icon: BadgeCheck },
+                { title: "Certificação", icon: BadgeCheck },
                 { title: "Suporte guiado", icon: Headset },
               ].map((feature) => {
                 const Icon = feature.icon;
@@ -359,12 +360,12 @@ export default function UserHome() {
                 Nova jornada imersiva
               </div>
               <h2 className="text-3xl font-black leading-tight sm:text-4xl">
-                Metaverso educacional para transformar teoria em pratica.
+                Metaverso educacional para transformar teoria em prática.
               </h2>
               <p className="mt-5 max-w-xl leading-8 text-blue-100">
-                A proxima etapa da plataforma conecta cursos, oficinas e
-                experiencias virtuais em ambientes 3D. O aluno aprende
-                explorando, testando e colaborando em cenarios digitais.
+                A próxima etapa da plataforma conecta cursos, oficinas e
+                experiências virtuais em ambientes 3D. O aluno aprende
+                explorando, testando e colaborando em cenários digitais.
               </p>
               <div className="mt-8 grid gap-3">
                 {metaverseFeatures.map((feature) => (
@@ -387,7 +388,7 @@ export default function UserHome() {
                       Ambiente 3D
                     </p>
                     <p className="mt-2 text-2xl font-black">
-                      Laboratorio Virtual
+                      Laboratório Virtual
                     </p>
                     <div className="mt-5 h-3 rounded-full bg-white/15">
                       <div className="h-full w-3/4 rounded-full bg-cyan-300" />
@@ -403,7 +404,7 @@ export default function UserHome() {
                       <Gamepad2 size={24} className="text-cyan-200" />
                       <p className="mt-4 text-2xl font-black">3D</p>
                       <p className="text-sm font-bold text-blue-100">
-                        desafios praticos
+                        desafios práticos
                       </p>
                     </div>
                   </div>

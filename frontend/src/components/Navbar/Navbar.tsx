@@ -3,7 +3,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBars,
   faChevronDown,
-  faEnvelope,
   faRightFromBracket,
   faUserPen,
   faXmark,
@@ -21,10 +20,10 @@ const transparentActionClass =
   "inline-flex items-center justify-center whitespace-nowrap rounded-md border border-blue-500 bg-transparent px-4 py-2 text-sm font-semibold text-blue-500 transition hover:bg-blue-500 hover:text-white xl:px-7 xl:text-lg";
 
 const mobileLinkClass =
-  "flex w-full items-center justify-between rounded-md px-3 py-3 text-sm font-bold text-slate-700 transition hover:bg-blue-50 hover:text-blue-700";
+  "flex min-h-11 w-full items-center justify-between rounded-md px-3 py-3 text-sm font-bold text-slate-700 transition hover:bg-blue-50 hover:text-blue-700";
 
 const mobileActionClass =
-  "inline-flex w-full items-center justify-center rounded-md border border-blue-500 px-4 py-3 text-sm font-bold text-blue-600 transition hover:bg-blue-50";
+  "inline-flex min-h-11 w-full items-center justify-center rounded-md border border-blue-500 px-4 py-3 text-sm font-bold text-blue-600 transition hover:bg-blue-50";
 
 function getInitials(name: string) {
   return name
@@ -37,9 +36,14 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
-function Navbar({ user }: { user: null | User }) {
+function Navbar({
+  hideLoginLink = false,
+  user,
+}: {
+  hideLoginLink?: boolean;
+  user: null | User;
+}) {
   const navigate = useNavigate();
-  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -75,13 +79,8 @@ function Navbar({ user }: { user: null | User }) {
     };
   }, [isUserMenuOpen]);
 
-  const closeFeedback = () => {
-    setIsFeedbackOpen(false);
-  };
-
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
-    setIsFeedbackOpen(false);
   };
 
   const closeUserMenu = () => {
@@ -89,13 +88,11 @@ function Navbar({ user }: { user: null | User }) {
   };
 
   const handleToggleUserMenu = () => {
-    setIsFeedbackOpen(false);
     setIsMobileMenuOpen(false);
     setIsUserMenuOpen((current) => !current);
   };
 
   const handleToggleMobileMenu = () => {
-    setIsFeedbackOpen(false);
     setIsUserMenuOpen(false);
     setIsMobileMenuOpen((current) => !current);
   };
@@ -107,21 +104,23 @@ function Navbar({ user }: { user: null | User }) {
     navigate("/login");
   };
 
-  const toggleFeedback = () => {
-    setIsFeedbackOpen((current) => !current);
-  };
-
   return (
-    <nav className="navbar relative z-40 w-full border-b border-blue-100 bg-gradient-to-r from-white to-blue-50">
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+    <nav className="navbar sticky top-0 z-40 w-full border-b border-blue-100 bg-gradient-to-r from-white to-blue-50">
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-2 px-3 py-2 sm:gap-4 sm:px-6 sm:py-3 lg:px-8">
         <Link
-          to="/home"
+          to={isLoggedIn ? "/home" : "#"}
           className="logo flex-shrink-0"
-          aria-label="Ir para home"
-          onClick={closeMobileMenu}
+          aria-label={isLoggedIn ? "Ir para home" : "Logo Inovação Barueri"}
+          onClick={(event) => {
+            if (!isLoggedIn) {
+              event.preventDefault();
+            }
+
+            closeMobileMenu();
+          }}
         >
           <img
-            className="h-auto w-40 sm:w-48 xl:w-55"
+            className="h-auto w-32 sm:w-44 xl:w-55"
             src={logo}
             alt="Logo"
           />
@@ -137,67 +136,12 @@ function Navbar({ user }: { user: null | User }) {
           <li>
             <Navlinks to="/courses">CURSOS</Navlinks>
           </li>
-          <li className="relative">
-            <button
-              type="button"
-              onClick={toggleFeedback}
-              className="flex items-center border-b-2 text-sm font-semibold text-blue-500 transition hover:text-blue-700 focus:outline-none xl:text-lg"
-              aria-expanded={isFeedbackOpen}
-              aria-haspopup="menu"
-            >
-              FEEDBACKS
-              <FontAwesomeIcon
-                icon={faChevronDown}
-                className={`ml-2 h-4 w-4 transition-transform duration-300 ${
-                  isFeedbackOpen ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-
-            {isFeedbackOpen && (
-              <div
-                className="absolute left-0 top-full z-50 mt-2 w-56 rounded-md border border-gray-200 bg-white py-2 shadow-lg"
-                role="menu"
-              >
-                <Link
-                  to="/feedback"
-                  onClick={closeFeedback}
-                  className="block px-4 py-2 text-gray-700 transition hover:bg-blue-50"
-                >
-                  Pagina de feedback
-                </Link>
-                <Link
-                  to="/home#quem-somos"
-                  onClick={closeFeedback}
-                  className="block px-4 py-2 text-gray-700 transition hover:bg-blue-50"
-                >
-                  Experiencia da plataforma
-                </Link>
-                <Link
-                  to="/home#cursos"
-                  onClick={closeFeedback}
-                  className="block px-4 py-2 text-gray-700 transition hover:bg-blue-50"
-                >
-                  Cursos em andamento
-                </Link>
-                <Link
-                  to="/home#contato"
-                  onClick={closeFeedback}
-                  className="block px-4 py-2 text-gray-700 transition hover:bg-blue-50"
-                >
-                  Enviar contato
-                </Link>
-              </div>
-            )}
+          <li>
+            <Navlinks to="/feedback">FEEDBACKS</Navlinks>
           </li>
         </ul>
 
         <div className="hidden items-center gap-3 lg:flex">
-          <Link to="/home#contato" className={transparentActionClass}>
-            <FontAwesomeIcon icon={faEnvelope} className="mr-2" />
-            Contato
-          </Link>
-
           {isLoggedIn ? (
             <div className="flex items-center gap-3">
               <Link to="/dashboard" className={transparentActionClass}>
@@ -218,7 +162,7 @@ function Navbar({ user }: { user: null | User }) {
                   className="flex items-center gap-2 rounded-full border border-blue-100 bg-white p-1 pr-3 text-blue-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   aria-expanded={isUserMenuOpen}
                   aria-haspopup="menu"
-                  aria-label="Abrir menu do usuario"
+                  aria-label="Abrir menu do usuário"
                 >
                   <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-blue-600 font-semibold text-white">
                     {user?.avatar ? (
@@ -260,7 +204,7 @@ function Navbar({ user }: { user: null | User }) {
                         role="menuitem"
                       >
                         <FontAwesomeIcon icon={faUserPen} className="h-4 w-4" />
-                        Editar perfil
+                        Meu perfil
                       </Link>
                       <button
                         type="button"
@@ -281,9 +225,11 @@ function Navbar({ user }: { user: null | User }) {
             </div>
           ) : (
             <div className="flex items-center gap-3">
-              <Link to="/login" className={transparentActionClass}>
-                Login
-              </Link>
+              {!hideLoginLink && (
+                <Link to="/login" className={transparentActionClass}>
+                  Login
+                </Link>
+              )}
               <Link to="/register" className={transparentActionClass}>
                 Cadastre-se
               </Link>
@@ -294,7 +240,7 @@ function Navbar({ user }: { user: null | User }) {
         <button
           type="button"
           onClick={handleToggleMobileMenu}
-          className="flex h-11 w-11 items-center justify-center rounded-md border border-blue-200 bg-white text-blue-600 shadow-sm transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 lg:hidden"
+          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md border border-blue-200 bg-white text-blue-600 shadow-sm transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:h-11 sm:w-11 lg:hidden"
           aria-expanded={isMobileMenuOpen}
           aria-controls="mobile-navbar-menu"
           aria-label={isMobileMenuOpen ? "Fechar menu" : "Abrir menu"}
@@ -309,12 +255,12 @@ function Navbar({ user }: { user: null | User }) {
       {isMobileMenuOpen && (
         <div
           id="mobile-navbar-menu"
-          className="border-t border-blue-100 bg-white px-4 pb-5 pt-3 shadow-lg lg:hidden"
+          className="max-h-[calc(100vh-57px)] overflow-y-auto border-t border-blue-100 bg-white px-3 pb-5 pt-3 shadow-lg sm:px-6 lg:hidden"
         >
-          <div className="mx-auto flex max-w-7xl flex-col gap-2">
+          <div className="mx-auto flex max-w-7xl flex-col gap-1.5">
             {user && (
-              <div className="mb-2 flex items-center gap-3 rounded-lg bg-blue-50 p-3">
-                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-sm font-bold text-white">
+              <div className="mb-2 flex min-w-0 items-center gap-3 rounded-lg bg-blue-50 p-3">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-sm font-bold text-white">
                   {user.avatar ? (
                     <img
                       src={user.avatar}
@@ -358,67 +304,15 @@ function Navbar({ user }: { user: null | User }) {
               CURSOS
             </Link>
 
-            <div>
-              <button
-                type="button"
-                onClick={toggleFeedback}
-                className={mobileLinkClass}
-                aria-expanded={isFeedbackOpen}
-                aria-haspopup="menu"
-              >
-                FEEDBACKS
-                <FontAwesomeIcon
-                  icon={faChevronDown}
-                  className={`h-4 w-4 transition-transform duration-300 ${
-                    isFeedbackOpen ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
+            <Link
+              to="/feedback"
+              onClick={closeMobileMenu}
+              className={mobileLinkClass}
+            >
+              FEEDBACKS
+            </Link>
 
-              {isFeedbackOpen && (
-                <div className="mt-1 rounded-md border border-blue-100 bg-blue-50/60 py-2">
-                  <Link
-                    to="/feedback"
-                    onClick={closeMobileMenu}
-                    className="block px-5 py-2 text-sm font-medium text-slate-700"
-                  >
-                    Pagina de feedback
-                  </Link>
-                  <Link
-                    to="/home#quem-somos"
-                    onClick={closeMobileMenu}
-                    className="block px-5 py-2 text-sm font-medium text-slate-700"
-                  >
-                    Experiencia da plataforma
-                  </Link>
-                  <Link
-                    to="/home#cursos"
-                    onClick={closeMobileMenu}
-                    className="block px-5 py-2 text-sm font-medium text-slate-700"
-                  >
-                    Cursos em andamento
-                  </Link>
-                  <Link
-                    to="/home#contato"
-                    onClick={closeMobileMenu}
-                    className="block px-5 py-2 text-sm font-medium text-slate-700"
-                  >
-                    Enviar contato
-                  </Link>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-3 grid gap-3 border-t border-slate-100 pt-4">
-              <Link
-                to="/home#contato"
-                onClick={closeMobileMenu}
-                className={mobileActionClass}
-              >
-                <FontAwesomeIcon icon={faEnvelope} className="mr-2" />
-                Contato
-              </Link>
-
+            <div className="mt-3 grid gap-2 border-t border-slate-100 pt-4 sm:grid-cols-2">
               {isLoggedIn ? (
                 <>
                   <Link
@@ -443,7 +337,7 @@ function Navbar({ user }: { user: null | User }) {
                     className={mobileActionClass}
                   >
                     <FontAwesomeIcon icon={faUserPen} className="mr-2 h-4 w-4" />
-                    Editar perfil
+                    Meu perfil
                   </Link>
                   <button
                     type="button"
@@ -459,13 +353,15 @@ function Navbar({ user }: { user: null | User }) {
                 </>
               ) : (
                 <>
-                  <Link
-                    to="/login"
-                    onClick={closeMobileMenu}
-                    className={mobileActionClass}
-                  >
-                    Login
-                  </Link>
+                  {!hideLoginLink && (
+                    <Link
+                      to="/login"
+                      onClick={closeMobileMenu}
+                      className={mobileActionClass}
+                    >
+                      Login
+                    </Link>
+                  )}
                   <Link
                     to="/register"
                     onClick={closeMobileMenu}
