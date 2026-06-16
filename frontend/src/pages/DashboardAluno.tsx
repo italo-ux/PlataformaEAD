@@ -7,6 +7,7 @@ import {
   mockCourses,
   type Course,
 } from "../data/courseData";
+import { canAccessPerformance } from "../data/userMock";
 import { getAuthenticatedUser } from "../services/userService";
 import {
   ArrowRight,
@@ -146,6 +147,10 @@ export default function DashboardAluno() {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (!canAccessPerformance(user)) {
+    return <Navigate to="/home" replace />;
   }
 
   const quickStats = [
@@ -610,7 +615,12 @@ export default function DashboardAluno() {
                           Carga horária: {course.totalLessons * 2}h | Status:
                           validado
                         </p>
-                        <button className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700">
+                        <button
+                          type="button"
+                          disabled
+                          aria-disabled="true"
+                          className="mt-5 inline-flex cursor-not-allowed items-center gap-2 rounded-xl bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-500 shadow-none"
+                        >
                           <Download size={14} />
                           Baixar PDF
                         </button>
