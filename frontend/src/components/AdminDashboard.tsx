@@ -67,174 +67,207 @@ const stateLevels = {
   low: { label: "Quantidade baixa de alunos", color: "#39e75f" },
 } as const;
 
-const stateLevelByName: Record<string, keyof typeof stateLevels> = {
-  Acre: "low",
-  AC: "low",
-  Alagoas: "medium",
-  AL: "medium",
-  Amapa: "regular",
-  "Amapá": "regular",
-  AP: "regular",
-  Amazonas: "low",
-  AM: "low",
-  Bahia: "medium",
-  BA: "medium",
-  Ceara: "high",
-  Ceará: "high",
-  CE: "high",
-  "Distrito Federal": "regular",
-  DF: "regular",
-  "Espirito Santo": "medium",
-  "Espírito Santo": "medium",
-  ES: "medium",
-  Goias: "medium",
-  Goiás: "medium",
-  GO: "medium",
-  Maranhao: "medium",
-  Maranhão: "medium",
-  MA: "medium",
-  "Mato Grosso": "regular",
-  MT: "regular",
-  "Mato Grosso do Sul": "low",
-  MS: "low",
-  "Minas Gerais": "high",
-  MG: "high",
-  Para: "regular",
-  Pará: "regular",
-  PA: "regular",
-  Paraiba: "high",
-  Paraíba: "high",
-  PB: "high",
-  Parana: "regular",
-  Paraná: "regular",
-  PR: "regular",
-  Pernambuco: "high",
-  PE: "high",
-  Piaui: "medium",
-  Piauí: "medium",
-  PI: "medium",
-  "Rio de Janeiro": "high",
-  RJ: "high",
-  "Rio Grande do Norte": "high",
-  RN: "high",
-  "Rio Grande do Sul": "medium",
-  RS: "medium",
-  Rondonia: "low",
-  Rondônia: "low",
-  RO: "low",
-  Roraima: "regular",
-  RR: "regular",
-  "Santa Catarina": "medium",
-  SC: "medium",
-  "Sao Paulo": "high",
-  "São Paulo": "high",
-  SP: "high",
-  Sergipe: "high",
-  SE: "high",
-  Tocantins: "medium",
-  TO: "medium",
+type StateLevelKey = keyof typeof stateLevels;
+
+const stateDisplayNamesByCode: Record<string, string> = {
+  AC: "Acre",
+  AL: "Alagoas",
+  AP: "Amapá",
+  AM: "Amazonas",
+  BA: "Bahia",
+  CE: "Ceará",
+  DF: "Distrito Federal",
+  ES: "Espírito Santo",
+  GO: "Goiás",
+  MA: "Maranhão",
+  MT: "Mato Grosso",
+  MS: "Mato Grosso do Sul",
+  MG: "Minas Gerais",
+  PA: "Pará",
+  PB: "Paraíba",
+  PR: "Paraná",
+  PE: "Pernambuco",
+  PI: "Piauí",
+  RJ: "Rio de Janeiro",
+  RN: "Rio Grande do Norte",
+  RS: "Rio Grande do Sul",
+  RO: "Rondônia",
+  RR: "Roraima",
+  SC: "Santa Catarina",
+  SP: "São Paulo",
+  SE: "Sergipe",
+  TO: "Tocantins",
 };
 
-const stateStudentCounts: Record<string, number> = {
-  Acre: 1280,
-  AC: 1280,
-  Alagoas: 4620,
-  AL: 4620,
-  Amapa: 3180,
-  "AmapÃ¡": 3180,
-  AP: 3180,
-  Amazonas: 2470,
-  AM: 2470,
-  Bahia: 6820,
-  BA: 6820,
-  Ceara: 8050,
-  "CearÃ¡": 8050,
-  CE: 8050,
-  "Distrito Federal": 5350,
-  DF: 5350,
-  "Espirito Santo": 5120,
-  "EspÃ­rito Santo": 5120,
-  ES: 5120,
-  Goias: 6240,
-  "GoiÃ¡s": 6240,
-  GO: 6240,
-  Maranhao: 4760,
-  "MaranhÃ£o": 4760,
-  MA: 4760,
-  "Mato Grosso": 3890,
-  MT: 3890,
-  "Mato Grosso do Sul": 2940,
-  MS: 2940,
-  "Minas Gerais": 9130,
-  MG: 9130,
-  Para: 5660,
-  "ParÃ¡": 5660,
-  PA: 5660,
-  Paraiba: 7210,
-  "ParaÃ­ba": 7210,
-  PB: 7210,
-  Parana: 5980,
-  "ParanÃ¡": 5980,
-  PR: 5980,
-  Pernambuco: 8460,
-  PE: 8460,
-  Piaui: 4410,
-  "PiauÃ­": 4410,
-  PI: 4410,
-  "Rio de Janeiro": 9280,
-  RJ: 9280,
-  "Rio Grande do Norte": 7390,
-  RN: 7390,
-  "Rio Grande do Sul": 6520,
-  RS: 6520,
-  Rondonia: 2180,
-  "RondÃ´nia": 2180,
-  RO: 2180,
-  Roraima: 3340,
-  RR: 3340,
-  "Santa Catarina": 6030,
-  SC: 6030,
-  "Sao Paulo": 10025,
-  "SÃ£o Paulo": 10025,
-  SP: 10025,
-  Sergipe: 7850,
-  SE: 7850,
-  Tocantins: 4970,
-  TO: 4970,
+const stateLevelByKey: Record<string, StateLevelKey> = {
+  ac: "low",
+  acre: "low",
+  al: "medium",
+  alagoas: "medium",
+  ap: "regular",
+  amapa: "regular",
+  am: "low",
+  amazonas: "low",
+  ba: "medium",
+  bahia: "medium",
+  ce: "high",
+  ceara: "high",
+  df: "regular",
+  "distrito federal": "regular",
+  es: "medium",
+  "espirito santo": "medium",
+  go: "medium",
+  goias: "medium",
+  ma: "medium",
+  maranhao: "medium",
+  mt: "regular",
+  "mato grosso": "regular",
+  ms: "low",
+  "mato grosso do sul": "low",
+  mg: "high",
+  "minas gerais": "high",
+  pa: "regular",
+  para: "regular",
+  pb: "high",
+  paraiba: "high",
+  pr: "regular",
+  parana: "regular",
+  pe: "high",
+  pernambuco: "high",
+  pi: "medium",
+  piaui: "medium",
+  rj: "high",
+  "rio de janeiro": "high",
+  rn: "high",
+  "rio grande do norte": "high",
+  rs: "medium",
+  "rio grande do sul": "medium",
+  ro: "low",
+  rondonia: "low",
+  rr: "regular",
+  roraima: "regular",
+  sc: "medium",
+  "santa catarina": "medium",
+  sp: "high",
+  "sao paulo": "high",
+  se: "high",
+  sergipe: "high",
+  to: "medium",
+  tocantins: "medium",
 };
 
-function getStateName(properties: Record<string, unknown>) {
-  const candidates = [
-    properties.name,
-    properties.NAME,
-    properties.sigla,
-    properties.SIGLA,
-    properties.uf,
-    properties.UF,
-  ];
+const stateStudentCountsByKey: Record<string, number> = {
+  ac: 1280,
+  acre: 1280,
+  al: 4620,
+  alagoas: 4620,
+  ap: 3180,
+  amapa: 3180,
+  am: 2470,
+  amazonas: 2470,
+  ba: 6820,
+  bahia: 6820,
+  ce: 8050,
+  ceara: 8050,
+  df: 5350,
+  "distrito federal": 5350,
+  es: 5120,
+  "espirito santo": 5120,
+  go: 6240,
+  goias: 6240,
+  ma: 4760,
+  maranhao: 4760,
+  mt: 3890,
+  "mato grosso": 3890,
+  ms: 2940,
+  "mato grosso do sul": 2940,
+  mg: 9130,
+  "minas gerais": 9130,
+  pa: 5660,
+  para: 5660,
+  pb: 7210,
+  paraiba: 7210,
+  pr: 5980,
+  parana: 5980,
+  pe: 8460,
+  pernambuco: 8460,
+  pi: 4410,
+  piaui: 4410,
+  rj: 9280,
+  "rio de janeiro": 9280,
+  rn: 7390,
+  "rio grande do norte": 7390,
+  rs: 6520,
+  "rio grande do sul": 6520,
+  ro: 2180,
+  rondonia: 2180,
+  rr: 3340,
+  roraima: 3340,
+  sc: 6030,
+  "santa catarina": 6030,
+  sp: 10025,
+  "sao paulo": 10025,
+  se: 7850,
+  sergipe: 7850,
+  to: 4970,
+  tocantins: 4970,
+};
 
-  for (const candidate of candidates) {
-    if (typeof candidate === "string" && candidate.trim()) {
-      return candidate;
+const stateCodeKeys = ["sigla", "SIGLA", "uf", "UF"] as const;
+const stateNameKeys = ["name", "NAME"] as const;
+
+function normalizeStateKey(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function getStringProperty(
+  properties: Record<string, unknown>,
+  keys: readonly string[],
+) {
+  for (const key of keys) {
+    const value = properties[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
     }
   }
 
-  return "Estado";
+  return null;
+}
+
+function getStateCode(properties: Record<string, unknown>) {
+  return getStringProperty(properties, stateCodeKeys)?.toUpperCase() ?? null;
+}
+
+function getStateLookupKeys(properties: Record<string, unknown>) {
+  const candidates = [
+    getStateCode(properties),
+    getStringProperty(properties, stateNameKeys),
+  ];
+
+  return candidates
+    .filter((candidate): candidate is string => Boolean(candidate))
+    .map(normalizeStateKey);
+}
+
+function getStateName(properties: Record<string, unknown>) {
+  const stateCode = getStateCode(properties);
+
+  if (stateCode && stateDisplayNamesByCode[stateCode]) {
+    return stateDisplayNamesByCode[stateCode];
+  }
+
+  return getStringProperty(properties, stateNameKeys) ?? stateCode ?? "Estado";
 }
 
 function getStateStudentCount(properties: Record<string, unknown>) {
-  const candidates = [
-    properties.name,
-    properties.NAME,
-    properties.sigla,
-    properties.SIGLA,
-    properties.uf,
-    properties.UF,
-  ];
-
-  for (const candidate of candidates) {
-    if (typeof candidate === "string" && stateStudentCounts[candidate]) {
-      return stateStudentCounts[candidate];
+  for (const key of getStateLookupKeys(properties)) {
+    if (Object.prototype.hasOwnProperty.call(stateStudentCountsByKey, key)) {
+      return stateStudentCountsByKey[key];
     }
   }
 
@@ -244,28 +277,14 @@ function getStateStudentCount(properties: Record<string, unknown>) {
 function getStateLevel(
   properties: Record<string, unknown>,
   fallbackIndex: number,
-): keyof typeof stateLevels {
-  const candidates = [
-    properties.name,
-    properties.NAME,
-    properties.sigla,
-    properties.SIGLA,
-    properties.uf,
-    properties.UF,
-  ];
-
-  for (const candidate of candidates) {
-    if (typeof candidate === "string" && stateLevelByName[candidate]) {
-      return stateLevelByName[candidate];
+): StateLevelKey {
+  for (const key of getStateLookupKeys(properties)) {
+    if (stateLevelByKey[key]) {
+      return stateLevelByKey[key];
     }
   }
 
-  const fallbackLevels: Array<keyof typeof stateLevels> = [
-    "low",
-    "medium",
-    "regular",
-    "high",
-  ];
+  const fallbackLevels: StateLevelKey[] = ["low", "medium", "regular", "high"];
 
   return fallbackLevels[fallbackIndex % fallbackLevels.length];
 }
@@ -393,6 +412,32 @@ const brazilStatesGeography =
     ? brazilStates
     : "/brazil-states.geojson";
 
+function formatTooltipValue(value: unknown): string {
+  if (typeof value === "number") {
+    return value.toLocaleString("pt-BR");
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(formatTooltipValue).join(" - ");
+  }
+
+  return "0";
+}
+
+const formatStudentsTooltip = (value: unknown): [string, string] => [
+  `${formatTooltipValue(value)} alunos`,
+  "Alunos",
+];
+
+const formatPercentTooltip = (value: unknown): [string, string] => [
+  `${formatTooltipValue(value)}%`,
+  "Participação",
+];
+
 function AdminDashboard() {
   const [hoveredState, setHoveredState] = useState<{
     name: string;
@@ -442,7 +487,7 @@ function AdminDashboard() {
                 <CartesianGrid stroke="#d6d6d6" />
                 <XAxis dataKey="month" tick={{ fontSize: 12, fontWeight: 700 }} />
                 <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(value) => [`${value} alunos`, "Alunos"]} />
+                <Tooltip formatter={formatStudentsTooltip} />
                 <Line
                   type="monotone"
                   dataKey="alunos"
@@ -466,7 +511,7 @@ function AdminDashboard() {
                 <CartesianGrid stroke="#eeeeee" vertical={false} />
                 <XAxis dataKey="trail" interval={0} tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(value) => [`${value} alunos`, "Alunos"]} />
+                <Tooltip formatter={formatStudentsTooltip} />
                 <Bar dataKey="alunos" radius={[3, 3, 0, 0]}>
                   {trailStudents.map((entry) => (
                     <Cell key={entry.trail} fill={entry.color} />
@@ -494,7 +539,7 @@ function AdminDashboard() {
                       <Cell key={entry.name} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => [`${value}%`, "Participação"]} />
+                  <Tooltip formatter={formatPercentTooltip} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>

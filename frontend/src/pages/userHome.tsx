@@ -21,7 +21,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-
+import HomeIMG from "../assets/home/HomeIMG.png";
 const courseIcons: Record<number, LucideIcon> = {
   1: Gamepad2,
   2: BookOpen,
@@ -111,34 +111,15 @@ export default function UserHome() {
             </div>
 
             <div className="relative">
-              <div className="rounded-[2rem] border border-white bg-white/80 p-3 shadow-2xl shadow-blue-900/10 backdrop-blur sm:p-4">
-                <div className="relative overflow-hidden rounded-[1.5rem] bg-[#25304a]">
+              <div>
+                <div>
                   <img
-                    src="https://images.unsplash.com/photo-1581090464777-f3220bbe1b8b?w=900&h=640&fit=crop"
+                    src={HomeIMG}
                     alt="Estudantes explorando tecnologia em aula"
                     className="aspect-[4/3] h-auto min-h-[280px] w-full object-cover opacity-90 sm:aspect-[16/12] lg:aspect-[5/4]"
                   />
-
-                  <div className="absolute inset-x-3 bottom-3 rounded-2xl bg-white/95 p-4 shadow-xl backdrop-blur sm:inset-x-5 sm:bottom-5 sm:p-5">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-500">
-                          Próxima aula
-                        </p>
-                        <p className="mt-1 truncate font-bold text-[#25304a] sm:text-lg">
-                          {mockCourses[0].lessons[7].title}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleStartCourse(1)}
-                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/30 transition hover:scale-105 hover:bg-blue-700 sm:h-14 sm:w-14"
-                        aria-label="Iniciar aula"
-                      >
-                        <Play size={22} className="fill-white" />
-                      </button>
-                    </div>
-                  </div>
                 </div>
+                
               </div>
             </div>
           </div>
@@ -348,68 +329,6 @@ export default function UserHome() {
                   </div>
                 );
               })}
-            </div>
-          </div>
-        </section>
-
-        <section className="bg-[#25304a] px-4 py-16 text-white sm:px-6 lg:px-8">
-          <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1fr_1fr] lg:items-center">
-            <div>
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-bold text-cyan-100">
-                <Box size={16} />
-                Nova jornada imersiva
-              </div>
-              <h2 className="text-3xl font-black leading-tight sm:text-4xl">
-                Metaverso educacional para transformar teoria em prática.
-              </h2>
-              <p className="mt-5 max-w-xl leading-8 text-blue-100">
-                A próxima etapa da plataforma conecta cursos, oficinas e
-                experiências virtuais em ambientes 3D. O aluno aprende
-                explorando, testando e colaborando em cenários digitais.
-              </p>
-              <div className="mt-8 grid gap-3">
-                {metaverseFeatures.map((feature) => (
-                  <div key={feature} className="flex items-center gap-3">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-cyan-400 text-[#25304a]">
-                      <BadgeCheck size={16} />
-                    </span>
-                    <span className="font-semibold text-white">{feature}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="relative min-h-[360px] rounded-[2rem] border border-white/15 bg-white/10 p-5 shadow-2xl shadow-black/20">
-              <div className="absolute inset-5 rounded-[1.5rem] bg-gradient-to-br from-cyan-400/20 via-blue-500/20 to-violet-500/20" />
-              <div className="relative grid h-full min-h-[320px] place-items-center rounded-[1.5rem] border border-white/10 bg-[#111a31]/80 p-6">
-                <div className="grid w-full max-w-md gap-4">
-                  <div className="rounded-2xl border border-cyan-300/30 bg-white/10 p-5 backdrop-blur">
-                    <p className="text-sm font-bold text-cyan-100">
-                      Ambiente 3D
-                    </p>
-                    <p className="mt-2 text-2xl font-black">
-                      Laboratório Virtual
-                    </p>
-                    <div className="mt-5 h-3 rounded-full bg-white/15">
-                      <div className="h-full w-3/4 rounded-full bg-cyan-300" />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="rounded-2xl bg-cyan-300 p-5 text-[#25304a]">
-                      <Users size={24} />
-                      <p className="mt-4 text-2xl font-black">12</p>
-                      <p className="text-sm font-bold">alunos online</p>
-                    </div>
-                    <div className="rounded-2xl border border-white/15 bg-white/10 p-5">
-                      <Gamepad2 size={24} className="text-cyan-200" />
-                      <p className="mt-4 text-2xl font-black">3D</p>
-                      <p className="text-sm font-bold text-blue-100">
-                        desafios práticos
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </section>
