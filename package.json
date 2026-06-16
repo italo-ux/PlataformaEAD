@@ -1,5 +1,15 @@
 {
+  "scripts": {
+    "dev": "npm --prefix frontend run dev --",
+    "build": "npm --prefix frontend run build --",
+    "preview": "npm --prefix frontend run preview --"
+  },
   "dependencies": {
-    "lucide-react": "^1.14.0"
+    "lucide-react": "^1.14.0",
+    "react-simple-maps": "^3.0.0",
+    "recharts": "^3.8.1"
+  },
+  "devDependencies": {
+    "vite": "^8.0.16"
   }
 }

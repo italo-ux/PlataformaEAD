@@ -52,8 +52,8 @@ async function failMock(message: string): Promise<never> {
   throw new Error(message);
 }
 
-// Servico de autenticacao mockado. Quando o backend estiver pronto, mantenha as
-// mesmas assinaturas publicas e troque apenas o conteudo destas funcoes por
+// Servico de autenticação mockado. Quando o backend estiver pronto, mantenha as
+// mesmas assinaturas públicas e troque apenas o conteúdo destas funções por
 // chamadas HTTP reais.
 export async function loginUser(email: string, password: string): Promise<User> {
   const normalizedEmail = normalizeEmail(email);
@@ -75,7 +75,7 @@ export async function createUser(userData: RegisterUserInput): Promise<User> {
   );
 
   if (emailAlreadyExists) {
-    return failMock("Este email ja esta cadastrado no mock");
+    return failMock("Este email já está cadastrado no mock");
   }
 
   const createdUser: User = {
@@ -101,7 +101,7 @@ export async function updateAuthenticatedUserProfile(
   const storedUser = getAuthenticatedUser();
 
   if (!storedUser || storedUser.id !== userId) {
-    return failMock("Sessao expirada. Faca login novamente.");
+    return failMock("Sessão expirada. Faça login novamente.");
   }
 
   const normalizedEmail = normalizeEmail(userData.email);
@@ -111,7 +111,7 @@ export async function updateAuthenticatedUserProfile(
   );
 
   if (emailAlreadyExists) {
-    return failMock("Este email ja esta cadastrado no mock");
+    return failMock("Este email já está cadastrado no mock");
   }
 
   const updatedUser: User = {
@@ -140,13 +140,13 @@ export async function changeAuthenticatedUserPassword(
   const storedUser = getAuthenticatedUser();
 
   if (!storedUser || storedUser.id !== userId) {
-    return failMock("Sessao expirada. Faca login novamente.");
+    return failMock("Sessão expirada. Faça login novamente.");
   }
 
   const storedCredential = mockUserStore.find(({ user }) => user.id === userId);
 
   if (!storedCredential) {
-    return failMock("Senha disponivel apenas durante a sessao mock atual.");
+    return failMock("Senha disponível apenas durante a sessão mock atual.");
   }
 
   if (storedCredential.password !== currentPassword) {

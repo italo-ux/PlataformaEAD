@@ -194,7 +194,7 @@ export default function TrailPage() {
               Trilha nao encontrada
             </h1>
             <p className="mt-3 leading-7 text-slate-600">
-              Essa trilha nao existe na lista mockada atual.
+              Essa trilha não existe na lista mockada atual.
             </p>
             <button
               type="button"
