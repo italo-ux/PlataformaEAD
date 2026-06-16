@@ -6,6 +6,8 @@ export interface Lesson {
   duration: string;
   completed: boolean;
   content: string;
+  videoUrl?: string;
+  videoName?: string;
 }
 
 export interface Instructor {
@@ -58,33 +60,43 @@ export interface CreateMockCourseInput {
   lessonTitles: string[];
 }
 
+export interface CreateMockLessonInput {
+  title: string;
+  duration: string;
+  content: string;
+  videoUrl?: string;
+  videoName?: string;
+}
+
 export const mockCourses: Course[] = [
   {
     id: 1,
     title: "Curso de Game Development",
     description:
-      "Aprenda a criar jogos 2D e 3D com logica visual, prototipos e experiencias interativas.",
+      "Aprenda a criar jogos 2D e 3D com lógica visual, protótipos e experiências interativas.",
     image:
       "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=1200&h=680&fit=crop",
     progress: 70,
     completedLessons: 7,
     totalLessons: 10,
     about:
-      "Neste curso de Game Development, voce aprende fundamentos de jogos, construcao de cenas, eventos, sprites, menus e publicacao. Todo o fluxo usa exemplos praticos para transformar uma ideia simples em um prototipo jogavel.",
+      "Neste curso de Game Development, você aprende fundamentos de jogos, construção de cenas, eventos, sprites, menus e publicação. Todo o fluxo usa exemplos práticos para transformar uma ideia simples em um protótipo jogável.",
     instructor: {
-      name: "Joao Silva",
-      bio: "Desenvolvedor de games com mais de 8 anos de experiencia em projetos educativos e jogos publicados em plataformas digitais.",
+      id: 2,
+      name: "Professor Tecnologia",
+      email: "professor@plataforma.com",
+      bio: "Desenvolvedor de games com mais de 8 anos de experiência em projetos educativos e jogos publicados em plataformas digitais.",
       image:
         "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop",
     },
     lessons: [
       {
         id: 1,
-        title: "Introducao ao Curso",
+        title: "Introdução ao Curso",
         duration: "10:50",
         completed: true,
         content:
-          "Visao geral da jornada, ferramentas usadas e resultado esperado ao final do curso.",
+          "Visão geral da jornada, ferramentas usadas e resultado esperado ao final do curso.",
       },
       {
         id: 2,
@@ -92,7 +104,7 @@ export const mockCourses: Course[] = [
         duration: "15:30",
         completed: true,
         content:
-          "Instalacao, criacao do primeiro projeto e organizacao inicial das cenas.",
+          "Instalação, criação do primeiro projeto e organização inicial das cenas.",
       },
       {
         id: 3,
@@ -100,47 +112,47 @@ export const mockCourses: Course[] = [
         duration: "22:45",
         completed: true,
         content:
-          "Montagem do primeiro personagem, objetivo do jogo e controles basicos.",
+          "Montagem do primeiro personagem, objetivo do jogo e controles básicos.",
       },
       {
         id: 4,
-        title: "Sprites e Animacoes",
+        title: "Sprites e Animações",
         duration: "18:20",
         completed: true,
         content:
-          "Preparacao dos assets, estados de animacao e troca de sprites durante a partida.",
+          "Preparação dos assets, estados de animação e troca de sprites durante a partida.",
       },
       {
         id: 5,
-        title: "Sistema de Colisao",
+        title: "Sistema de Colisão",
         duration: "25:10",
         completed: true,
         content:
-          "Como detectar contato entre objetos e transformar colisoes em regras de jogo.",
+          "Como detectar contato entre objetos e transformar colisões em regras de jogo.",
       },
       {
         id: 6,
-        title: "Logica e Comportamentos",
+        title: "Lógica e Comportamentos",
         duration: "28:50",
         completed: true,
         content:
-          "Uso de eventos, condicoes e comportamentos para criar interacoes reutilizaveis.",
+          "Uso de eventos, condições e comportamentos para criar interações reutilizáveis.",
       },
       {
         id: 7,
-        title: "Pontuacao e Feedback",
+        title: "Pontuação e Feedback",
         duration: "20:15",
         completed: true,
         content:
-          "Criacao de HUD, pontos, mensagens de acerto e retorno visual para o jogador.",
+          "Criação de HUD, pontos, mensagens de acerto e retorno visual para o jogador.",
       },
       {
         id: 8,
-        title: "Som e Musica",
+        title: "Som e Música",
         duration: "16:30",
         completed: false,
         content:
-          "Adicao de efeitos sonoros, trilhas e ajustes de volume para melhorar a experiencia.",
+          "Adição de efeitos sonoros, trilhas e ajustes de volume para melhorar a experiência.",
       },
       {
         id: 9,
@@ -148,7 +160,7 @@ export const mockCourses: Course[] = [
         duration: "24:00",
         completed: false,
         content:
-          "Construcao de telas de inicio, pausa, fim de jogo e navegacao entre cenas.",
+          "Construção de telas de início, pausa, fim de jogo e navegação entre cenas.",
       },
       {
         id: 10,
@@ -156,7 +168,7 @@ export const mockCourses: Course[] = [
         duration: "12:40",
         completed: false,
         content:
-          "Checklist final, exportacao do projeto e preparacao para compartilhar o jogo.",
+          "Checklist final, exportação do projeto e preparação para compartilhar o jogo.",
       },
     ],
   },
@@ -164,14 +176,14 @@ export const mockCourses: Course[] = [
     id: 2,
     title: "Web Development",
     description:
-      "Domine React, TypeScript e arquitetura moderna para aplicacoes escalaveis.",
+      "Domine React, TypeScript e arquitetura moderna para aplicações escaláveis.",
     image:
       "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1200&h=680&fit=crop",
     progress: 45,
     completedLessons: 4,
     totalLessons: 9,
     about:
-      "Uma trilha para evoluir interfaces React com componentes bem tipados, roteamento, estado local, consumo de dados mockados e preparacao para APIs reais.",
+      "Uma trilha para evoluir interfaces React com componentes bem tipados, roteamento, estado local, consumo de dados mockados e preparação para APIs reais.",
     instructor: {
       name: "Maria Santos",
       bio: "Engenheira front-end focada em React, TypeScript e design systems para produtos educacionais.",
@@ -185,23 +197,23 @@ export const mockCourses: Course[] = [
         duration: "14:10",
         completed: true,
         content:
-          "Organizacao de pastas, responsabilidade dos componentes e convencoes de importacao.",
+          "Organização de pastas, responsabilidade dos componentes e convenções de importação.",
       },
       {
         id: 2,
-        title: "Componentes reutilizaveis",
+        title: "Componentes reutilizáveis",
         duration: "18:40",
         completed: true,
         content:
-          "Criacao de componentes de interface com props claras e comportamento previsivel.",
+          "Criação de componentes de interface com props claras e comportamento previsível.",
       },
       {
         id: 3,
-        title: "Rotas com parametros",
+        title: "Rotas com parâmetros",
         duration: "21:00",
         completed: true,
         content:
-          "Uso de parametros de rota para abrir telas dinamicas como detalhes de curso.",
+          "Uso de parâmetros de rota para abrir telas dinâmicas como detalhes de curso.",
       },
       {
         id: 4,
@@ -209,11 +221,11 @@ export const mockCourses: Course[] = [
         duration: "19:25",
         completed: true,
         content:
-          "Padroes para formularios, listas, selecao de itens e estados de carregamento.",
+          "Padrões para formulários, listas, seleção de itens e estados de carregamento.",
       },
       {
         id: 5,
-        title: "Servicos mockados",
+        title: "Serviços mockados",
         duration: "16:55",
         completed: false,
         content:
@@ -225,7 +237,7 @@ export const mockCourses: Course[] = [
         duration: "13:45",
         completed: false,
         content:
-          "Mensagens claras para o usuario e separacao entre erros de campo e erros gerais.",
+          "Mensagens claras para o usuário e separação entre erros de campo e erros gerais.",
       },
       {
         id: 7,
@@ -233,11 +245,11 @@ export const mockCourses: Course[] = [
         duration: "12:20",
         completed: false,
         content:
-          "Verificacoes antes do commit e como evitar falhas especificas de ambiente.",
+          "Verificações antes do commit e como evitar falhas específicas de ambiente.",
       },
       {
         id: 8,
-        title: "Preparando integracao real",
+        title: "Preparando integração real",
         duration: "17:05",
         completed: false,
         content:
@@ -245,7 +257,7 @@ export const mockCourses: Course[] = [
       },
       {
         id: 9,
-        title: "Revisao final",
+        title: "Revisão final",
         duration: "09:30",
         completed: false,
         content:
@@ -264,10 +276,10 @@ export const mockCourses: Course[] = [
     completedLessons: 0,
     totalLessons: 6,
     about:
-      "Curso introdutorio de UX/UI para estruturar problemas, desenhar fluxos, criar telas e validar ideias com usuarios antes da implementacao.",
+      "Curso introdutório de UX/UI para estruturar problemas, desenhar fluxos, criar telas e validar ideias com usuários antes da implementação.",
     instructor: {
       name: "Carlos Lima",
-      bio: "Designer de produto com experiencia em pesquisas, prototipos e interfaces para servicos publicos digitais.",
+      bio: "Designer de produto com experiência em pesquisas, protótipos e interfaces para serviços públicos digitais.",
       image:
         "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop",
     },
@@ -278,7 +290,7 @@ export const mockCourses: Course[] = [
         duration: "11:20",
         completed: false,
         content:
-          "Conceitos essenciais para entender necessidades, contexto e objetivos do usuario.",
+          "Conceitos essenciais para entender necessidades, contexto e objetivos do usuário.",
       },
       {
         id: 2,
@@ -286,7 +298,7 @@ export const mockCourses: Course[] = [
         duration: "15:15",
         completed: false,
         content:
-          "Organizacao de etapas, dores e oportunidades em uma jornada de aprendizagem.",
+          "Organização de etapas, dores e oportunidades em uma jornada de aprendizagem.",
       },
       {
         id: 3,
@@ -302,7 +314,7 @@ export const mockCourses: Course[] = [
         duration: "22:10",
         completed: false,
         content:
-          "Uso de cor, tipografia, espacamento e componentes para melhorar clareza.",
+          "Uso de cor, tipografia, espaçamento e componentes para melhorar clareza.",
       },
       {
         id: 5,
@@ -310,11 +322,11 @@ export const mockCourses: Course[] = [
         duration: "20:35",
         completed: false,
         content:
-          "Conexao entre telas e simulacao de fluxos principais antes do desenvolvimento.",
+          "Conexão entre telas e simulação de fluxos principais antes do desenvolvimento.",
       },
       {
         id: 6,
-        title: "Teste com usuarios",
+        title: "Teste com usuários",
         duration: "16:45",
         completed: false,
         content:
@@ -326,17 +338,17 @@ export const mockCourses: Course[] = [
     id: 4,
     title: "Data Science com Python",
     description:
-      "Explore analise de dados, machine learning e visualizacoes com projetos praticos.",
+      "Explore análise de dados, machine learning e visualizações com projetos práticos.",
     image:
       "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&h=680&fit=crop",
     progress: 30,
     completedLessons: 3,
     totalLessons: 8,
     about:
-      "Uma introducao pratica a ciencia de dados usando Python, leitura de bases, limpeza, graficos e modelos simples para apoiar decisoes.",
+      "Uma introdução prática a ciência de dados usando Python, leitura de bases, limpeza, gráficos e modelos simples para apoiar decisões.",
     instructor: {
       name: "Ana Silva",
-      bio: "Cientista de dados e educadora, com foco em tornar analise e automacao acessiveis para diferentes perfis de alunos.",
+      bio: "Cientista de dados e educadora, com foco em tornar análise e automação acessíveis para diferentes perfis de alunos.",
       image:
         "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&h=200&fit=crop",
     },
@@ -347,7 +359,7 @@ export const mockCourses: Course[] = [
         duration: "12:00",
         completed: true,
         content:
-          "Preparacao do ambiente, notebooks e bibliotecas usadas na trilha.",
+          "Preparação do ambiente, notebooks e bibliotecas usadas na trilha.",
       },
       {
         id: 2,
@@ -355,7 +367,7 @@ export const mockCourses: Course[] = [
         duration: "17:20",
         completed: true,
         content:
-          "Importacao de arquivos, inspecao inicial e entendimento das colunas.",
+          "Importação de arquivos, inspeção inicial e entendimento das colunas.",
       },
       {
         id: 3,
@@ -363,23 +375,23 @@ export const mockCourses: Course[] = [
         duration: "21:10",
         completed: true,
         content:
-          "Tratamento de valores ausentes, duplicados e padronizacao de formatos.",
+          "Tratamento de valores ausentes, duplicados e padronização de formatos.",
       },
       {
         id: 4,
-        title: "Analise exploratoria",
+        title: "Analise exploratória",
         duration: "24:40",
         completed: false,
         content:
-          "Uso de estatisticas simples para encontrar padroes e levantar hipoteses.",
+          "Uso de estatísticas simples para encontrar padrões e levantar hipóteses.",
       },
       {
         id: 5,
-        title: "Visualizacoes",
+        title: "Visualizações",
         duration: "19:50",
         completed: false,
         content:
-          "Criacao de graficos que comunicam dados com clareza e contexto.",
+          "Criação de gráficos que comunicam dados com clareza e contexto.",
       },
       {
         id: 6,
@@ -387,7 +399,7 @@ export const mockCourses: Course[] = [
         duration: "27:30",
         completed: false,
         content:
-          "Treinamento de um modelo basico e avaliacao inicial de resultados.",
+          "Treinamento de um modelo básico e avaliação inicial de resultados.",
       },
       {
         id: 7,
@@ -395,7 +407,7 @@ export const mockCourses: Course[] = [
         duration: "14:20",
         completed: false,
         content:
-          "Como organizar achados, limitacoes e proximos passos em uma narrativa.",
+          "Como organizar achados, limitações e próximos passos em uma narrativa.",
       },
       {
         id: 8,
@@ -403,7 +415,7 @@ export const mockCourses: Course[] = [
         duration: "32:15",
         completed: false,
         content:
-          "Aplicacao completa do fluxo de ciencia de dados em um pequeno case.",
+          "Aplicação completa do fluxo de ciência de dados em um pequeno case.",
       },
     ],
   },
@@ -417,7 +429,7 @@ export const mockLearningTrails: LearningTrail[] = [
     slug: "projeto-inova-inclusao-digital",
     nome: "Projeto Inova Inclusão Digital",
     descricao:
-      "Formacao para ampliar acesso, autonomia e fluencia digital em ferramentas, interfaces e dados.",
+      "Formação para ampliar acesso, autonomia e fluencia digital em ferramentas, interfaces e dados.",
     capa:
       "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200&h=680&fit=crop",
     accentColor: "#e6a100",
@@ -428,7 +440,7 @@ export const mockLearningTrails: LearningTrail[] = [
     slug: "escola-de-games",
     nome: "Escola de Games",
     descricao:
-      "Aprendizagem pratica para criar jogos digitais, prototipos interativos e experiencias imersivas.",
+      "Aprendizagem prática para criar jogos digitais, protótipos interativos e experiências imersivas.",
     capa:
       "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=1200&h=680&fit=crop",
     accentColor: "#8b1fd1",
@@ -439,7 +451,7 @@ export const mockLearningTrails: LearningTrail[] = [
     slug: "projeto-inova-elas-empreendedorismo",
     nome: "Projeto Inova + Elas Empreendedorismo",
     descricao:
-      "Jornada para fortalecer ideias, comunicacao digital, prototipos e tomada de decisao para empreender.",
+      "Jornada para fortalecer ideias, comunicação digital, protótipos e tomada de decisão para empreender.",
     capa:
       "https://images.unsplash.com/photo-1556761175-b413da4baf72?w=1200&h=680&fit=crop",
     accentColor: "#e50046",
@@ -450,7 +462,7 @@ export const mockLearningTrails: LearningTrail[] = [
     slug: "talentos-estagiarios-prefeitura",
     nome: "Desenvolvimento de Talentos Estagiários Prefeitura",
     descricao:
-      "Formacao para estagiarios desenvolverem competencias digitais, analiticas e de produto no servico publico.",
+      "Formação para estagiários desenvolverem competências digitais, analíticas e de produto no serviço público.",
     capa:
       "https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=680&fit=crop",
     accentColor: "#22a915",
@@ -461,7 +473,7 @@ export const mockLearningTrails: LearningTrail[] = [
     slug: "techgov",
     nome: "TechGov",
     descricao:
-      "Capacitacao em tecnologia aplicada ao governo, dados, plataformas digitais e melhoria de processos publicos.",
+      "Capacitação em tecnologia aplicada ao governo, dados, plataformas digitais e melhoria de processos públicos.",
     capa:
       "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=1200&h=680&fit=crop",
     accentColor: "#0a7a8f",
@@ -472,7 +484,7 @@ export const mockLearningTrails: LearningTrail[] = [
     slug: "expansao-ead-secretarias",
     nome: "Expansão do Programa EAD as Secretárias",
     descricao:
-      "Apoio a secretarias na ampliacao do EAD com organizacao de conteudo, trilhas e experiencias digitais.",
+      "Apoio a secretarias na ampliação do EAD com organização de conteúdo, trilhas e experiências digitais.",
     capa:
       "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&h=680&fit=crop",
     accentColor: "#0a8ea3",
@@ -559,8 +571,8 @@ export function addMockCourse(input: CreateMockCourseInput) {
         ? [input.instructor]
         : [];
   const primaryInstructor = instructors[0] ?? {
-    name: "Professor nao informado",
-    bio: "Professor responsavel ainda nao vinculado no mock.",
+    name: "Professor não informado",
+    bio: "Professor responsável ainda não vinculado no mock.",
   };
 
   const lessons: Lesson[] = input.lessonTitles.map((title, index) => ({
@@ -569,7 +581,7 @@ export function addMockCourse(input: CreateMockCourseInput) {
     duration: "00:00",
     completed: false,
     content:
-      "Conteudo mockado temporario. O backend futuro deve enviar a descricao, video e materiais desta aula.",
+      "Conteúdo mockado temporário. O backend futuro deve enviar a descrição, vídeo e materiais desta aula.",
   }));
 
   const createdCourse: Course = {
@@ -590,4 +602,29 @@ export function addMockCourse(input: CreateMockCourseInput) {
   mockCourses.push(createdCourse);
 
   return createdCourse;
+}
+
+export function addMockLesson(courseId: number, input: CreateMockLessonInput) {
+  const course = getMockCourseById(courseId);
+
+  if (!course) {
+    return null;
+  }
+
+  const nextLessonId =
+    Math.max(0, ...course.lessons.map((lesson) => lesson.id)) + 1;
+  const lesson: Lesson = {
+    id: nextLessonId,
+    title: input.title.trim(),
+    duration: input.duration.trim() || "00:00",
+    completed: false,
+    content: input.content.trim(),
+    videoUrl: input.videoUrl,
+    videoName: input.videoName,
+  };
+
+  course.lessons.push(lesson);
+  course.totalLessons = course.lessons.length;
+
+  return lesson;
 }
