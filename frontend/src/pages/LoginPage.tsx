@@ -8,7 +8,7 @@ export default function LoginPage() {
 
   return (
     <>
-      <Navbar user={null} />
+      <Navbar user={null} hideLoginLink />
       <LoginForm
         onSwitchToRegister={() => navigate("/register")}
         onSuccess={() => navigate("/home")}

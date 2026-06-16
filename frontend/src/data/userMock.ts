@@ -28,7 +28,7 @@ export const mockUserCredentials: MockUserCredential[] = [
   {
     user: {
       id: 1,
-      name: "Aluno Inovacao",
+      name: "Aluno Inovação",
       email: "aluno@plataforma.com",
       avatar:
         "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop",

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
+import AdminDashboard from "../components/AdminDashboard";
 import type { User } from "../data/userMock";
 import {
   changeAuthenticatedUserPassword,
@@ -105,11 +106,11 @@ function validateProfile(values: ProfileFormValues): FormErrors {
   }
 
   if (!emailPattern.test(values.email.trim())) {
-    errors.email = "Informe um e-mail valido.";
+    errors.email = "Informe um e-mail válido.";
   }
 
   if (cpfDigits.length !== 11) {
-    errors.cpf = "Informe um CPF com 11 digitos.";
+    errors.cpf = "Informe um CPF com 11 dígitos.";
   }
 
   if (phoneDigits.length < 10 || phoneDigits.length > 11) {
@@ -242,6 +243,7 @@ export default function ProfilePage() {
   const [statusMessage, setStatusMessage] = useState("");
   const [generalError, setGeneralError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isAvatarEditorOpen, setIsAvatarEditorOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [passwordValues, setPasswordValues] = useState<PasswordFormValues>({
@@ -327,11 +329,12 @@ export default function ProfilePage() {
       setFormValues(mapUserToFormValues(updatedUser));
       setStatusMessage("Perfil atualizado no mock com sucesso.");
       setIsAvatarEditorOpen(false);
+      setIsEditingProfile(false);
     } catch (error) {
       setGeneralError(
         error instanceof Error
           ? error.message
-          : "Nao foi possivel salvar o perfil.",
+          : "Não foi possível salvar o perfil.",
       );
     } finally {
       setIsSaving(false);
@@ -370,7 +373,7 @@ export default function ProfilePage() {
       setPasswordGeneralError(
         error instanceof Error
           ? error.message
-          : "Nao foi possivel alterar a senha.",
+          : "Não foi possível alterar a senha.",
       );
     } finally {
       setIsChangingPassword(false);
@@ -407,6 +410,20 @@ export default function ProfilePage() {
     setIsPasswordModalOpen(false);
   };
 
+  const openProfileEditor = () => {
+    setStatusMessage("");
+    setGeneralError("");
+    setIsEditingProfile(true);
+  };
+
+  const closeProfileEditor = () => {
+    setFormValues(mapUserToFormValues(user));
+    setErrors({});
+    setGeneralError("");
+    setIsAvatarEditorOpen(false);
+    setIsEditingProfile(false);
+  };
+
   return (
     <div className="min-h-screen bg-[#f6f9ff] text-slate-950">
       <Navbar user={user} />
@@ -417,15 +434,32 @@ export default function ProfilePage() {
             <h1 className="text-3xl font-black text-slate-950">Meu perfil</h1>
           </div>
 
-          <form onSubmit={handleSubmitProfile}>
-            <div className="mb-8 flex items-center gap-2 text-sm font-semibold text-slate-600">
-              <span>Dados pessoais</span>
-              <UserRound className="h-4 w-4" />
-            </div>
+          <div className="mb-8 flex items-center gap-2 text-sm font-semibold text-slate-600">
+            <span>Dados pessoais</span>
+            <UserRound className="h-4 w-4" />
+          </div>
 
-            <div className="mb-10 flex flex-col items-center gap-4">
-              <div className="relative">
-                <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-4xl font-bold text-white shadow-lg shadow-blue-600/20">
+          {(generalError || statusMessage) && (
+            <div
+              className={`mb-6 rounded-md px-4 py-3 text-sm font-semibold ${
+                generalError
+                  ? "bg-red-50 text-red-700"
+                  : "bg-emerald-50 text-emerald-700"
+              }`}
+            >
+              {generalError || (
+                <span className="inline-flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" />
+                  {statusMessage}
+                </span>
+              )}
+            </div>
+          )}
+
+          {!isEditingProfile && (
+            <div className="mx-auto max-w-3xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
+                <div className="flex h-28 w-28 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-4xl font-bold text-white shadow-lg shadow-blue-600/20">
                   {formValues.avatar ? (
                     <img
                       src={formValues.avatar}
@@ -436,136 +470,213 @@ export default function ProfilePage() {
                     <span>{getInitials(displayName)}</span>
                   )}
                 </div>
+
+                <div className="min-w-0 flex-1 text-center sm:text-left">
+                  <h2 className="text-2xl font-black text-slate-950">
+                    {displayName}
+                  </h2>
+                  <p className="mt-1 text-sm font-semibold text-blue-600">
+                    {user.role === "admin"
+                      ? "Administrador"
+                      : user.role === "professor"
+                        ? "Professor"
+                        : "Aluno"}
+                  </p>
+                  <div className="mt-5 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
+                    <p>
+                      <span className="block font-bold text-slate-900">
+                        E-mail
+                      </span>
+                      {formValues.email || "Não informado"}
+                    </p>
+                    <p>
+                      <span className="block font-bold text-slate-900">
+                        CPF
+                      </span>
+                      {formValues.cpf || "Não informado"}
+                    </p>
+                    <p>
+                      <span className="block font-bold text-slate-900">
+                        Celular
+                      </span>
+                      {formValues.phone || "Não informado"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-end">
                 <button
                   type="button"
-                  onClick={() => setIsAvatarEditorOpen((current) => !current)}
-                  className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-blue-600 shadow transition hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  aria-label="Editar imagem do perfil"
+                  onClick={openProfileEditor}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-blue-600 px-6 text-sm font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <Camera className="h-4 w-4" />
+                  <UserRound className="h-4 w-4" />
+                  Editar perfil
                 </button>
-              </div>
-
-              {isAvatarEditorOpen && (
-                <div className="w-full max-w-xl">
-                  <TextInput
-                    icon={Camera}
-                    label="URL da imagem"
-                    name="avatar"
-                    placeholder="https://exemplo.com/avatar.jpg"
-                    value={formValues.avatar}
-                    onChange={handleProfileChange}
-                    error={errors.avatar}
-                  />
-                </div>
-              )}
-            </div>
-
-            {(generalError || statusMessage) && (
-              <div
-                className={`mb-6 rounded-md px-4 py-3 text-sm font-semibold ${
-                  generalError
-                    ? "bg-red-50 text-red-700"
-                    : "bg-emerald-50 text-emerald-700"
-                }`}
-              >
-                {generalError || (
-                  <span className="inline-flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4" />
-                    {statusMessage}
-                  </span>
-                )}
-              </div>
-            )}
-
-            <div className="mx-auto grid max-w-3xl gap-5 md:grid-cols-2">
-              <TextInput
-                icon={UserRound}
-                label="Nome"
-                name="firstName"
-                placeholder="Fulano"
-                value={formValues.firstName}
-                onChange={handleProfileChange}
-                error={errors.firstName}
-              />
-              <TextInput
-                icon={UserRound}
-                label="Sobrenome"
-                name="lastName"
-                placeholder="Silcrano Beltrano"
-                value={formValues.lastName}
-                onChange={handleProfileChange}
-                error={errors.lastName}
-              />
-              <TextInput
-                icon={Mail}
-                label="E-mail"
-                name="email"
-                placeholder="fulano@example.com"
-                type="email"
-                value={formValues.email}
-                onChange={handleProfileChange}
-                error={errors.email}
-              />
-              <TextInput
-                icon={Shield}
-                label="CPF"
-                name="cpf"
-                placeholder="xxx.xxx.xxx-xx"
-                value={formValues.cpf}
-                onChange={handleProfileChange}
-                error={errors.cpf}
-              />
-              <TextInput
-                icon={Phone}
-                label="Celular"
-                name="phone"
-                placeholder="(xx) xxxxx-xxxx"
-                value={formValues.phone}
-                onChange={handleProfileChange}
-                error={errors.phone}
-              />
-              <div className="flex items-end">
                 <button
                   type="button"
                   onClick={openPasswordModal}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-blue-500 px-4 text-sm font-bold text-blue-600 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="inline-flex h-10 items-center justify-center rounded-md border border-blue-500 px-6 text-sm font-bold text-blue-600 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <KeyRound className="h-4 w-4" />
+                  <KeyRound className="mr-2 h-4 w-4" />
                   Alterar senha
                 </button>
               </div>
             </div>
+          )}
 
-            <div className="mx-auto mt-16 flex max-w-3xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="inline-flex h-10 items-center justify-center rounded-md border border-blue-500 px-6 text-sm font-bold text-blue-600 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                Sair
-              </button>
+          {isEditingProfile && (
+            <form onSubmit={handleSubmitProfile}>
+              <div className="mb-10 flex flex-col items-center gap-4">
+                <div className="relative">
+                  <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-4xl font-bold text-white shadow-lg shadow-blue-600/20">
+                    {formValues.avatar ? (
+                      <img
+                        src={formValues.avatar}
+                        alt={`${displayName} avatar`}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span>{getInitials(displayName)}</span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsAvatarEditorOpen((current) => !current)}
+                    className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-blue-600 shadow transition hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    aria-label="Editar imagem do perfil"
+                  >
+                    <Camera className="h-4 w-4" />
+                  </button>
+                </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row">
+                {isAvatarEditorOpen && (
+                  <div className="w-full max-w-xl">
+                    <TextInput
+                      icon={Camera}
+                      label="URL da imagem"
+                      name="avatar"
+                      placeholder="https://exemplo.com/avatar.jpg"
+                      value={formValues.avatar}
+                      onChange={handleProfileChange}
+                      error={errors.avatar}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="mx-auto grid max-w-3xl gap-5 md:grid-cols-2">
+                <TextInput
+                  icon={UserRound}
+                  label="Nome"
+                  name="firstName"
+                  placeholder="Fulano"
+                  value={formValues.firstName}
+                  onChange={handleProfileChange}
+                  error={errors.firstName}
+                />
+                <TextInput
+                  icon={UserRound}
+                  label="Sobrenome"
+                  name="lastName"
+                  placeholder="Silcrano Beltrano"
+                  value={formValues.lastName}
+                  onChange={handleProfileChange}
+                  error={errors.lastName}
+                />
+                <TextInput
+                  icon={Mail}
+                  label="E-mail"
+                  name="email"
+                  placeholder="fulano@example.com"
+                  type="email"
+                  value={formValues.email}
+                  onChange={handleProfileChange}
+                  error={errors.email}
+                />
+                <TextInput
+                  icon={Shield}
+                  label="CPF"
+                  name="cpf"
+                  placeholder="xxx.xxx.xxx-xx"
+                  value={formValues.cpf}
+                  onChange={handleProfileChange}
+                  error={errors.cpf}
+                />
+                <TextInput
+                  icon={Phone}
+                  label="Celular"
+                  name="phone"
+                  placeholder="(xx) xxxxx-xxxx"
+                  value={formValues.phone}
+                  onChange={handleProfileChange}
+                  error={errors.phone}
+                />
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={openPasswordModal}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-blue-500 px-4 text-sm font-bold text-blue-600 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <KeyRound className="h-4 w-4" />
+                    Alterar senha
+                  </button>
+                </div>
+              </div>
+
+              <div className="mx-auto mt-16 flex max-w-3xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <button
                   type="button"
-                  onClick={handleBack}
+                  onClick={closeProfileEditor}
                   className="inline-flex h-10 items-center justify-center rounded-md border border-blue-500 px-6 text-sm font-bold text-blue-600 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  Voltar
+                  Cancelar
                 </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-blue-600 px-6 text-sm font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Save className="h-4 w-4" />
-                  {isSaving ? "Salvando..." : "Salvar edicoes"}
-                </button>
+
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={handleBack}
+                    className="inline-flex h-10 items-center justify-center rounded-md border border-blue-500 px-6 text-sm font-bold text-blue-600 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    Voltar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-blue-600 px-6 text-sm font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Save className="h-4 w-4" />
+                    {isSaving ? "Salvando..." : "Salvar edicoes"}
+                  </button>
+                </div>
               </div>
-            </div>
-          </form>
+            </form>
+          )}
+
+          <div className="mx-auto mt-10 flex max-w-3xl justify-between gap-3">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex h-10 items-center justify-center rounded-md border border-blue-500 px-6 text-sm font-bold text-blue-600 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Sair
+            </button>
+
+            {!isEditingProfile && (
+              <button
+                type="button"
+                onClick={handleBack}
+                className="inline-flex h-10 items-center justify-center rounded-md border border-blue-500 px-6 text-sm font-bold text-blue-600 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                Voltar
+              </button>
+            )}
+              </div>
         </section>
+
+        {user.role === "admin" && <AdminDashboard />}
       </main>
 
       <Footer />
@@ -587,7 +698,7 @@ export default function ProfilePage() {
                   Alterar senha
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Atualizacao valida apenas no mock desta sessao.
+                  Atualização válida apenas no mock desta sessão.
                 </p>
               </div>
               <button

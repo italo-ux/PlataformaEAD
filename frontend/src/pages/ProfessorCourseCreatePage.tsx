@@ -39,7 +39,7 @@ function mapTeacherToInstructor(teacher: User): Instructor {
     name: teacher.name,
     email: teacher.email,
     image: teacher.avatar,
-    bio: "Professor da Plataforma EAD Inovacao. Bio temporaria ate o backend enviar o perfil completo.",
+    bio: "Professor da Plataforma EAD Inovação. Bio temporária até o backend enviar o perfil completo.",
   };
 }
 
@@ -130,14 +130,14 @@ export default function ProfessorCourseCreatePage() {
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-bold uppercase tracking-wide text-blue-600">
-              Area do professor
+              Área do professor
             </p>
             <h1 className="mt-2 text-3xl font-black text-[#25304a]">
               Adicionar novo curso
             </h1>
             <p className="mt-3 max-w-2xl leading-7 text-slate-600">
               Crie um curso mockado para validar o fluxo do professor antes da
-              integracao com o backend.
+              integração com o backend.
             </p>
           </div>
           <button
@@ -163,7 +163,7 @@ export default function ProfessorCourseCreatePage() {
           <div className="grid gap-6 md:grid-cols-2">
             <div>
               <label htmlFor="title" className={labelClass}>
-                Titulo do curso
+                Título do curso
               </label>
               <div className="relative">
                 <FileText
@@ -175,7 +175,7 @@ export default function ProfessorCourseCreatePage() {
                   name="title"
                   value={formValues.title}
                   onChange={handleChange}
-                  placeholder="Ex: Logica de programacao"
+                  placeholder="Ex: Logica de programação"
                   className={`${fieldClass} pl-12`}
                   required
                 />
@@ -206,7 +206,7 @@ export default function ProfessorCourseCreatePage() {
 
           <div className="mt-6">
             <label htmlFor="description" className={labelClass}>
-              Descricao curta
+              Descrição curta
             </label>
             <textarea
               id="description"
@@ -228,7 +228,7 @@ export default function ProfessorCourseCreatePage() {
               name="about"
               value={formValues.about}
               onChange={handleChange}
-              placeholder="Explique objetivos, conteudos e resultado esperado"
+              placeholder="Explique objetivos, conteúdos e resultado esperado"
               className={`${fieldClass} min-h-32 resize-y`}
               required
             />
@@ -238,7 +238,7 @@ export default function ProfessorCourseCreatePage() {
             <div className="mb-2 flex items-center gap-2">
               <Users className="h-4 w-4 text-blue-600" />
               <span className="text-sm font-bold text-[#25304a]">
-                Professores responsaveis
+                Professores responsáveis
               </span>
             </div>
 
@@ -320,14 +320,14 @@ export default function ProfessorCourseCreatePage() {
                 name="lessons"
                 value={formValues.lessons}
                 onChange={handleChange}
-                placeholder={"Introducao ao curso\nPrimeiro projeto\nRevisao final"}
+                placeholder={"Introdução ao curso\nPrimeiro projeto\nRevisão final"}
                 className={`${fieldClass} min-h-40 resize-y pl-12`}
                 required
               />
             </div>
             <p className="mt-2 text-sm text-slate-500">
-              Escreva uma aula por linha. O backend futuro podera trocar este
-              campo por um editor completo de modulos e aulas.
+              Escreva uma aula por linha. O backend futuro poderá trocar este
+              campo por um editor completo de módulos e aulas.
             </p>
           </div>
 
