@@ -144,6 +144,9 @@ function Navbar({
         <div className="hidden items-center gap-3 lg:flex">
           {isLoggedIn ? (
             <div className="flex items-center gap-3">
+              <Link to="/dashboard" className={transparentActionClass}>
+                Meu Desempenho
+              </Link>
               {showCreateCourseLink && (
                 <Link
                   to="/professor/cursos/novo"
@@ -312,6 +315,13 @@ function Navbar({
             <div className="mt-3 grid gap-2 border-t border-slate-100 pt-4 sm:grid-cols-2">
               {isLoggedIn ? (
                 <>
+                  <Link
+                    to="/dashboard"
+                    onClick={closeMobileMenu}
+                    className={mobileActionClass}
+                  >
+                    Meu Desempenho
+                  </Link>
                   {showCreateCourseLink && (
                     <Link
                       to="/professor/cursos/novo"
