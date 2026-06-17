@@ -10,6 +10,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import logo from "../../assets/navbar/logo.png";
 import {
+  canAccessPerformance,
   canCreateCourses,
   type User,
 } from "../../data/userMock";
@@ -48,6 +49,7 @@ function Navbar({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const isLoggedIn = Boolean(user);
+  const showPerformanceLink = canAccessPerformance(user);
   const showCreateCourseLink = canCreateCourses(user);
 
   useEffect(() => {
@@ -144,6 +146,11 @@ function Navbar({
         <div className="hidden items-center gap-3 lg:flex">
           {isLoggedIn ? (
             <div className="flex items-center gap-3">
+              {showPerformanceLink && (
+                <Link to="/dashboard" className={transparentActionClass}>
+                  Meu Desempenho
+                </Link>
+              )}
               {showCreateCourseLink && (
                 <Link
                   to="/professor/cursos/novo"
@@ -312,6 +319,15 @@ function Navbar({
             <div className="mt-3 grid gap-2 border-t border-slate-100 pt-4 sm:grid-cols-2">
               {isLoggedIn ? (
                 <>
+                  {showPerformanceLink && (
+                    <Link
+                      to="/dashboard"
+                      onClick={closeMobileMenu}
+                      className={mobileActionClass}
+                    >
+                      Meu Desempenho
+                    </Link>
+                  )}
                   {showCreateCourseLink && (
                     <Link
                       to="/professor/cursos/novo"
