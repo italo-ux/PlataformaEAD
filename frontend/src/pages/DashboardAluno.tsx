@@ -397,7 +397,7 @@ export default function DashboardAluno() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => navigate("/home#cursos")}
+                    onClick={() => navigate("/courses")}
                     className="inline-flex items-center gap-2 text-sm font-semibold text-blue-700 hover:text-blue-900"
                   >
                     Ver catálogo
