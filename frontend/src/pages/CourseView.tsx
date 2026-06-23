@@ -191,7 +191,7 @@ export default function CourseView() {
             Este curso não existe na lista mockada atual.
           </p>
           <button
-            onClick={() => navigate("/home#cursos")}
+            onClick={() => navigate("/courses")}
             className="mt-8 rounded-md bg-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700"
           >
             Voltar para cursos
@@ -221,7 +221,7 @@ export default function CourseView() {
                 lessonVideoName={currentLesson.videoName}
                 lessonVideoUrl={currentLesson.videoUrl}
                 image={course.image}
-                onBack={() => navigate("/home#cursos")}
+                onBack={() => navigate("/courses")}
               />
             )}
 

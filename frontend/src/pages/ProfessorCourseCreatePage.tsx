@@ -142,7 +142,7 @@ export default function ProfessorCourseCreatePage() {
           </div>
           <button
             type="button"
-            onClick={() => navigate("/home#cursos")}
+            onClick={() => navigate("/courses")}
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-4 py-3 font-bold text-blue-700 transition hover:border-blue-300 hover:bg-blue-50"
           >
             <BookOpen size={18} />
@@ -334,7 +334,7 @@ export default function ProfessorCourseCreatePage() {
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-end">
             <button
               type="button"
-              onClick={() => navigate("/home#cursos")}
+              onClick={() => navigate("/courses")}
               className="rounded-lg border border-gray-200 bg-white px-5 py-3 font-bold text-slate-600 transition hover:border-gray-300 hover:bg-gray-50"
             >
               Cancelar
