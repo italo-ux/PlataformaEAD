@@ -1,140 +1,111 @@
+/*------------------------------------------------------- */
 import {
-  isUserRole,
-  mockUserCredentials,
-  type MockUserCredential,
   type User,
 } from "../data/userMock";
 
-const AUTH_USER_STORAGE_KEY = "ead.auth.user";
-const MOCK_DELAY_MS = 300;
+const AUTH_USER_STORAGE_KEY = "ead.auth.user";  //nome da chave
 
+// Interface atualizada com o campo CPF 
 export interface RegisterUserInput {
   name: string;
   email: string;
   password: string;
+  cpf: string; 
 }
-
-const mockUserStore: MockUserCredential[] = [...mockUserCredentials];
-let nextMockUserId = mockUserStore.length + 1;
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
+//cria um objeto novo sem informações sensiveis vindas do back-end
 function sanitizeUser(user: User): User {
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     avatar: user.avatar,
-    role: user.role,
+    role: user.role, //identifica se é func, aluno ou prof
   };
 }
 
-function waitForMock<T>(value: T): Promise<T> {
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(value), MOCK_DELAY_MS);
-  });
-}
+/*--------------------------------------- Função de login real --------------------------------------- */
 
-async function failMock(message: string): Promise<never> {
-  await waitForMock(null);
-  throw new Error(message);
-}
-
-/*
-========================================================
-função alterada (está usando backend real)
-========================================================
-- Faz requisição HTTP
-- Usa JWT
-- Depende do backend rodando
-*/
-export async function loginUser(email: string, password: string): Promise<User> {
+//usa promise para garantir que se o login der certo, essa função vai devolver o novo objeto User (Limpo)
+export async function loginUser(email: string, password: string): Promise<User> { 
   const response = await fetch("http://localhost:3000/auth/login", {
-    method: "POST",
+    method: "POST", //criar sessão segura
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ email, password }),
   });
 
-  // erro de autenticação
   if (!response.ok) {
-    throw new Error("Email ou senha incorretos");
+    throw new Error("Email ou senha incorretos"); //interrompe o processo
   }
 
-  const data = await response.json();
+  const data = await response.json(); //torna texto puro em legível e dentro de data esta o JWT e dados básicos do usuário
 
-  /*
-  salvando token JWT 
-  */
+  // Salva o Token de acesso gerado pelo NestJS no navegador
   localStorage.setItem("token", data.access_token);
 
-  /*
-  backend NÃO manda name nem role
-  então estamos adaptando pro formato esperado pelo frontend
-  */
   return {
-    id: Number(data.user.id),
-    name: data.user.email, //  gambiarra temporária
+    id: data.user.id, 
+    name: data.user.name || data.user.email, 
     email: data.user.email,
-    role: "aluno", //  fixo por enquanto
+    role: data.user.role || "aluno", 
   };
 }
 
-/*
-esta parte ainda está mockada
-*/
+/*--------------------------------------- Função de cadastro --------------------------------------- */
+
 export async function createUser(userData: RegisterUserInput): Promise<User> {
-  const normalizedEmail = normalizeEmail(userData.email);
-  const emailAlreadyExists = mockUserStore.some(
-    ({ user }) => normalizeEmail(user.email) === normalizedEmail,
-  );
-
-  if (emailAlreadyExists) {
-    return failMock("Este email ja esta cadastrado no mock");
-  }
-
-  const createdUser: User = {
-    id: nextMockUserId,
-    name: userData.name.trim(),
-    email: normalizedEmail,
-    role: "aluno",
-  };
-
-  nextMockUserId += 1;
-  mockUserStore.push({
-    user: createdUser,
-    password: userData.password,
+  const response = await fetch("http://localhost:3000/auth/register", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    // Passa exatamente o que 'auth.controller.ts' espera receber no body
+    body: JSON.stringify({  //transformaobjeto de código em tetxo puro
+      name: userData.name.trim(),
+      email: normalizeEmail(userData.email),
+      password: userData.password, 
+      cpf: userData.cpf, // Passando o CPF digitado na tela
+    }),
   });
 
-  return waitForMock(sanitizeUser(createdUser));
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || "Erro ao realizar o cadastro no banco.");
+  }
+
+  const data = await response.json();  //peg o ID real e transforma em data
+
+  return {
+    id: data.id,
+    name: userData.name.trim(),
+    email: data.email,
+    role: "aluno", 
+  };
 }
 
+/*--------------------------------------- Gerenciamento de localstorage --------------------------------------- */
+
+//essa função pega o user, passa pelo sanity pra limpar, transforma em texto e tranca no storage
 export function saveAuthenticatedUser(user: User) {
   localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(sanitizeUser(user)));
 }
 
+//essa função recupera sessão ativa para verificar se tem alguém logado
 export function getAuthenticatedUser(): User | null {
   const storedUser = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+  if (!storedUser) return null;
 
-  if (!storedUser) {
-    return null;
-  }
-
-  try {
+  try { //tenta executar oque ta no storage
     const parsedUser = JSON.parse(storedUser) as Partial<User>;
-
-    if (
-      typeof parsedUser.id !== "number" ||
-      typeof parsedUser.name !== "string" ||
-      typeof parsedUser.email !== "string" ||
-      !isUserRole(parsedUser.role)
-    ) {
-      throw new Error("Invalid mock session");
+    if (!parsedUser.id || !parsedUser.name || !parsedUser.email) {
+      throw new Error("Sessão inválida");
     }
-
     return sanitizeUser(parsedUser as User);
   } catch {
     localStorage.removeItem(AUTH_USER_STORAGE_KEY);
@@ -142,6 +113,9 @@ export function getAuthenticatedUser(): User | null {
   }
 }
 
+
+//essa função é responsável pelo logout
 export function clearAuthenticatedUser() {
   localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+  localStorage.removeItem("token");
 }

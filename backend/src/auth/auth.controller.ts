@@ -27,4 +27,12 @@ export class AuthController {
   async login(@Body() body: { email: string; password: string }) {
     return this.authService.login(body.email, body.password);
   }
+
+  // MÉTODO DE VERIFICAÇÃO
+
+  @Post('verify')
+  async verify(@Body() body: { email: string; code: string }) {
+    //pega os dados enviados pelo front e envia pro authservice
+    return this.authService.verifyEmail(body.email, body.code);
+  }
 }

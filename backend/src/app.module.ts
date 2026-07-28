@@ -13,9 +13,9 @@ import { User } from './auth/user.entity'; //entidade que representa o banco de 
       port: 5432,
       username: 'postgres',
       password: '',
-      database: 'meu_sistema_login',
+      database: 'plataforma_ead',
       entities: [User],
-      synchronize: false, // cria/atualiza tabelas automaticamente em dev
+      synchronize: true, // cria/atualiza tabelas automaticamente em dev
     }),
     AuthModule,
   ],
