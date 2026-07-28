@@ -1,4 +1,9 @@
 {
+  "scripts": {
+    "dev": "npm --prefix frontend run dev --",
+    "build": "npm --prefix frontend run build --",
+    "preview": "npm --prefix frontend run preview --"
+  },
   "dependencies": {
     "@nestjs/typeorm": "^11.0.1",
     "lucide-react": "^1.14.0",

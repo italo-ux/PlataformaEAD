@@ -3,13 +3,14 @@ import type { Instructor } from "../data/courseData";
 
 interface TabsSectionProps {
   about: string;
-  instructor: Instructor;
+  instructors: Instructor[];
 }
 
-type TabType = "about" | "instructor";
+type TabType = "about" | "instructors";
 
-export default function TabsSection({ about, instructor }: TabsSectionProps) {
+export default function TabsSection({ about, instructors }: TabsSectionProps) {
   const [activeTab, setActiveTab] = useState<TabType>("about");
+  const tabLabel = instructors.length > 1 ? "Professores" : "Professor";
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -26,14 +27,14 @@ export default function TabsSection({ about, instructor }: TabsSectionProps) {
           Sobre
         </button>
         <button
-          onClick={() => setActiveTab("instructor")}
+          onClick={() => setActiveTab("instructors")}
           className={`flex-1 px-6 py-4 font-medium text-center transition ${
-            activeTab === "instructor"
+            activeTab === "instructors"
               ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
               : "text-gray-600 hover:text-gray-900"
           }`}
         >
-          Professor
+          {tabLabel}
         </button>
       </div>
 
@@ -45,28 +46,36 @@ export default function TabsSection({ about, instructor }: TabsSectionProps) {
           </div>
         )}
 
-        {activeTab === "instructor" && (
-          <div className="animate-fadeIn flex flex-col gap-4">
-            {/* Imagem do professor */}
-            {instructor.image && (
-              <img
-                src={instructor.image}
-                alt={instructor.name}
-                className="w-32 h-32 rounded-full object-cover"
-              />
-            )}
+        {activeTab === "instructors" && (
+          <div className="animate-fadeIn grid gap-4">
+            {instructors.map((instructor) => (
+              <div
+                key={`${instructor.id ?? instructor.name}-${instructor.email ?? ""}`}
+                className="flex flex-col gap-4 rounded-lg border border-slate-100 bg-slate-50 p-4 sm:flex-row sm:items-center"
+              >
+                {instructor.image && (
+                  <img
+                    src={instructor.image}
+                    alt={instructor.name}
+                    className="h-24 w-24 rounded-full object-cover"
+                  />
+                )}
 
-            {/* Nome do professor */}
-            <div>
-              <h4 className="text-xl font-bold text-gray-900">
-                {instructor.name}
-              </h4>
-            </div>
-
-            {/* Bio do professor */}
-            <p className="text-gray-700 leading-relaxed text-base">
-              {instructor.bio}
-            </p>
+                <div>
+                  <h4 className="text-xl font-bold text-gray-900">
+                    {instructor.name}
+                  </h4>
+                  {instructor.email && (
+                    <p className="mt-1 text-sm font-semibold text-blue-600">
+                      {instructor.email}
+                    </p>
+                  )}
+                  <p className="mt-3 text-base leading-relaxed text-gray-700">
+                    {instructor.bio}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

@@ -1,8 +1,10 @@
 import {
   addMockCourse,
+  addMockLesson,
   getMockCourseById,
   type Course,
   type CreateMockCourseInput,
+  type CreateMockLessonInput,
   type Lesson,
 } from "../data/courseData";
 
@@ -26,20 +28,28 @@ class CourseService {
     const lessonTitles = courseData.lessonTitles
       .map((lessonTitle) => lessonTitle.trim())
       .filter(Boolean);
+    const instructors =
+      courseData.instructors && courseData.instructors.length > 0
+        ? courseData.instructors
+        : courseData.instructor
+          ? [courseData.instructor]
+          : [];
 
     if (
       !courseData.title.trim() ||
       !courseData.description.trim() ||
       !courseData.about.trim() ||
-      lessonTitles.length === 0
+      lessonTitles.length === 0 ||
+      instructors.length === 0
     ) {
-      return failMock("Preencha os dados obrigatorios do curso");
+      return failMock("Preencha os dados obrigatórios do curso");
     }
 
     // Hoje o curso nasce no array mockado em memoria. No backend real, este
     // ponto deve virar uma chamada HTTP autenticada feita pelo professor/admin.
     const createdCourse = addMockCourse({
       ...courseData,
+      instructors,
       lessonTitles,
     });
 
@@ -50,7 +60,7 @@ class CourseService {
     const course = getMockCourseById(courseId);
 
     if (!course) {
-      return failMock("Curso nao encontrado");
+      return failMock("Curso não encontrado");
     }
 
     return waitForMock(course);
@@ -60,10 +70,27 @@ class CourseService {
     const course = getMockCourseById(courseId);
 
     if (!course) {
-      return failMock("Curso nao encontrado");
+      return failMock("Curso não encontrado");
     }
 
     return waitForMock(course.lessons);
+  }
+
+  async createLesson(
+    courseId: number,
+    lessonData: CreateMockLessonInput,
+  ): Promise<Lesson> {
+    if (!lessonData.title.trim() || !lessonData.content.trim()) {
+      return failMock("Preencha título e conteúdo da aula");
+    }
+
+    const createdLesson = addMockLesson(courseId, lessonData);
+
+    if (!createdLesson) {
+      return failMock("Curso não encontrado");
+    }
+
+    return waitForMock(createdLesson);
   }
 
   async completeLesson(courseId: number, lessonId: number): Promise<void> {
@@ -71,7 +98,7 @@ class CourseService {
     const lessonExists = course?.lessons.some((lesson) => lesson.id === lessonId);
 
     if (!course || !lessonExists) {
-      return failMock("Aula nao encontrada");
+      return failMock("Aula não encontrada");
     }
 
     return waitForMock(undefined);
@@ -81,7 +108,7 @@ class CourseService {
     const course = getMockCourseById(courseId);
 
     if (!course || progress < 0 || progress > 100) {
-      return failMock("Progresso invalido");
+      return failMock("Progresso inválido");
     }
 
     return waitForMock(undefined);
@@ -92,7 +119,7 @@ class CourseService {
     const lesson = course?.lessons.find((item) => item.id === lessonId);
 
     if (!lesson) {
-      return failMock("Aula nao encontrada");
+      return failMock("Aula não encontrada");
     }
 
     return waitForMock(lesson);
@@ -108,7 +135,7 @@ class CourseService {
     const lessonExists = course?.lessons.some((lesson) => lesson.id === lessonId);
 
     if (!course || !lessonExists || rating < 1 || rating > 5) {
-      return failMock("Feedback invalido");
+      return failMock("Feedback inválido");
     }
 
     void comment;

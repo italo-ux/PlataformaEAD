@@ -5,6 +5,8 @@ export interface User {
   name: string;
   email: string;
   avatar?: string;
+  cpf?: string;
+  phone?: string;
   role: UserRole;
 }
 
@@ -26,10 +28,12 @@ export const mockUserCredentials: MockUserCredential[] = [
   {
     user: {
       id: 1,
-      name: "Aluno Inovacao",
+      name: "Aluno Inovação",
       email: "aluno@plataforma.com",
       avatar:
         "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop",
+      cpf: "123.456.789-00",
+      phone: "(11) 99999-0001",
       role: "aluno",
     },
     password: "aluno123",
@@ -41,6 +45,8 @@ export const mockUserCredentials: MockUserCredential[] = [
       email: "professor@plataforma.com",
       avatar:
         "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop",
+      cpf: "234.567.890-11",
+      phone: "(11) 99999-0002",
       role: "professor",
     },
     password: "professor123",
@@ -52,6 +58,8 @@ export const mockUserCredentials: MockUserCredential[] = [
       email: "admin@plataforma.com",
       avatar:
         "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&h=200&fit=crop",
+      cpf: "345.678.901-22",
+      phone: "(11) 99999-0003",
       role: "admin",
     },
     password: "admin123",
@@ -69,13 +77,13 @@ export const rolePermissions: Record<UserRole, UserPermissions> = {
   },
   professor: {
     canAccessCourses: true,
-    canAccessPerformance: true,
+    canAccessPerformance: false,
     canCreateCourses: true,
     canCreateTeachers: false,
   },
   admin: {
     canAccessCourses: true,
-    canAccessPerformance: true,
+    canAccessPerformance: false,
     canCreateCourses: true,
     canCreateTeachers: true,
   },

@@ -1,8 +1,11 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import AboutPage from "./pages/AboutPage";
+import CoursesPage from "./pages/CoursesPage";
 import CourseView from "./pages/CourseView";
 import FeedbackPage from "./pages/FeedbackPage";
+import DashboardAluno from "./pages/DashboardAluno";
 import LoginPage from "./pages/LoginPage";
+import ProfilePage from "./pages/ProfilePage";
 import ProfessorCourseCreatePage from "./pages/ProfessorCourseCreatePage";
 import RegisterPage from "./pages/RegisterPage";
 import TrailPage from "./pages/TrailPage";
@@ -16,7 +19,9 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/home" element={<UserHome />} />
-        <Route path="/courses" element={<UserHome />} />
+        <Route path="/dashboard" element={<DashboardAluno />} />
+        <Route path="/perfil" element={<ProfilePage />} />
+        <Route path="/courses" element={<CoursesPage />} />
         <Route path="/courses/:courseId" element={<CourseView />} />
         <Route path="/trilhas/:trailSlug" element={<TrailPage />} />
         <Route

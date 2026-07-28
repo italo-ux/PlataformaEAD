@@ -30,8 +30,8 @@ function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
     },
     validate: (formValues) => {
       const newErrors: Record<string, string> = {};
-      if (!formValues.email) newErrors.email = "Email e obrigatorio";
-      if (!formValues.password) newErrors.password = "Senha e obrigatoria";
+      if (!formValues.email) newErrors.email = "Email é obrigatório";
+      if (!formValues.password) newErrors.password = "Senha é obrigatória";
       return newErrors;
     },
   });
@@ -55,7 +55,7 @@ function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
               Acessar a plataforma
             </h1>
             <p className="text-gray-500 text-lg mb-12 font-light">
-              Bem-vindo de volta a Inovacao
+              Bem-vindo de volta à Inovação
             </p>
 
             {(error || Object.keys(errors).length > 0) && (
@@ -97,7 +97,7 @@ function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
               />
 
               <p className="text-right text-sm text-gray-500">
-                Recuperacao de senha sera ligada ao backend real.
+                Recuperação de senha será ligada ao backend real.
               </p>
 
               <button
@@ -110,7 +110,7 @@ function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
 
               <div className="text-center pt-6 border-t border-gray-200">
                 <span className="text-gray-600 text-sm">
-                  Nao tem uma conta?{" "}
+                  Não tem uma conta?{" "}
                   <button
                     type="button"
                     onClick={onSwitchToRegister}

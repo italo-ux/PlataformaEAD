@@ -20,8 +20,8 @@ export default function MockCredentialsHint() {
         ))}
       </div>
       <p className="mt-3 text-xs text-slate-500">
-        Estes acessos existem apenas no frontend e serao trocados pela API de
-        autenticacao futuramente.
+        Estes acessos existem apenas no frontend e serão trocados pela API de
+        autenticação futuramente.
       </p>
     </div>
   );

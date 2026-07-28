@@ -39,9 +39,9 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
     validate: (formValues) => {
       const newErrors: Record<string, string> = {};
 
-      if (!formValues.name.trim()) newErrors.name = "Nome e obrigatorio";
-      if (!formValues.email.trim()) newErrors.email = "Email e obrigatorio";
-      if (!formValues.password) newErrors.password = "Senha e obrigatoria";
+      if (!formValues.name.trim()) newErrors.name = "Nome é obrigatório";
+      if (!formValues.email.trim()) newErrors.email = "Email é obrigatório";
+      if (!formValues.password) newErrors.password = "Senha é obrigatória";
       if (!formValues.confirmPassword) {
         newErrors.confirmPassword = "Confirme sua senha";
       }
@@ -55,7 +55,7 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         formValues.confirmPassword &&
         formValues.password !== formValues.confirmPassword
       ) {
-        newErrors.confirmPassword = "As senhas nao conferem";
+        newErrors.confirmPassword = "As senhas não conferem";
       }
 
       return newErrors;
@@ -90,7 +90,7 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
             <div className="w-full max-w-md flex items-center justify-center">
               <img
                 src={SmilingRobot}
-                alt="Robo amigavel"
+                alt="Robo amigável"
                 className="w-auto h-auto drop-shadow-2xl transform hover:scale-105 transition-transform duration-300"
               />
             </div>
@@ -101,7 +101,7 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
               Criar Conta
             </h1>
             <p className="text-gray-500 text-lg mb-12 font-light">
-              Junte-se a nossa comunidade de inovacao
+              Junte-se à nossa comunidade de inovação
             </p>
 
             {(error || Object.keys(errors).length > 0) && (
@@ -184,13 +184,13 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
               <div className="text-center pt-6 border-t border-gray-200">
                 <span className="text-gray-600 text-sm">
-                  Ja tem uma conta?{" "}
+                  Já tem uma conta?{" "}
                   <button
                     type="button"
                     onClick={onSwitchToLogin}
                     className="text-[#4B6FFF] hover:text-blue-700 font-bold transition-colors duration-200 ml-1 bg-none border-none cursor-pointer"
                   >
-                    Faca login
+                    Faça login
                   </button>
                 </span>
               </div>

@@ -27,13 +27,13 @@ const feedbacks = [
     name: "Mariana Costa",
     course: "Web Development Avançaado",
     rating: 5,
-    text: "As aulas sao objetivas e o progresso ajuda muito a manter o ritmo de estudo!"
+    text: "As aulas são objetivas e o progresso ajuda muito a manter o ritmo de estudo!"
   },
   {
     name: "Rafael Lima",
     course: "Curso de Game Development",
     rating: 4,
-    text: "Gostei da didática e dos exemplos práticos. Seria ótimo ter mais exercícios ao final dos modulos."
+    text: "Gostei da didática e dos exemplos práticos. Seria ótimo ter mais exercícios ao final dos módulos."
   },
   {
     name: "Camila Rocha",
