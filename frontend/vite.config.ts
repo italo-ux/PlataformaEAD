@@ -6,6 +6,9 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    open: true,
+  },
   resolve: {
     alias: {
       react: fileURLToPath(new URL('./node_modules/react', import.meta.url)),

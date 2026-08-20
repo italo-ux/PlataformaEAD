@@ -38,6 +38,13 @@ const courseCategories: Record<number, string> = {
   4: "Dados",
 };
 
+const courseCategoryGradients: Record<number, string> = {
+  1: "linear-gradient(90deg, #ef4444, #991b1b)",
+  2: "linear-gradient(90deg, #3b82f6, #1e3a8a)",
+  3: "linear-gradient(90deg, #a855f7, #581c87)",
+  4: "linear-gradient(90deg, #10b981, #065f46)",
+};
+
 const filterOptions: { label: string; value: CourseFilter }[] = [
   { label: "Todos", value: "all" },
   { label: "Em andamento", value: "in-progress" },
@@ -89,6 +96,10 @@ function CourseCard({
       role="button"
       tabIndex={0}
     >
+      <div
+        className="h-1.5"
+        style={{ background: courseCategoryGradients[course.id] ?? "linear-gradient(90deg, #3b82f6, #1e3a8a)" }}
+      />
       <div className="relative h-40 overflow-hidden bg-slate-200">
         <img
           src={course.image}
@@ -101,6 +112,13 @@ function CourseCard({
       </div>
 
       <div className="p-4">
+        <div className="mb-2 flex flex-wrap gap-1">
+          {course.audiences.map((audience) => (
+            <span key={audience} className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+              {audience}
+            </span>
+          ))}
+        </div>
         <p className="text-[11px] font-bold uppercase tracking-wide text-blue-600">
           {courseCategories[course.id] ?? "Curso"}
         </p>
