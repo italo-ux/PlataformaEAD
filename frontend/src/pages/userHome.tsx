@@ -11,14 +11,12 @@ import {
   ArrowRight,
   BadgeCheck,
   BookOpen,
-  Box,
   Clock3,
   Gamepad2,
   GraduationCap,
   Headset,
   Play,
   Sparkles,
-  Users,
   type LucideIcon,
 } from "lucide-react";
 import HomeIMG from "../assets/home/HomeIMG.png";
@@ -28,12 +26,6 @@ const courseIcons: Record<number, LucideIcon> = {
   3: Sparkles,
   4: GraduationCap,
 };
-
-const metaverseFeatures = [
-  "Salas virtuais para aulas imersivas",
-  "Laboratórios 3D para simulações práticas",
-  "Projetos colaborativos com avatares",
-];
 
 function colorWithAlpha(hexColor: string, alpha: number) {
   const normalized = hexColor.replace("#", "");
@@ -65,10 +57,6 @@ export default function UserHome() {
 
   const scrollToTrails = () => {
     document.getElementById("trilhas")?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const scrollToCourses = () => {
-    document.getElementById("cursos")?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
@@ -139,7 +127,7 @@ export default function UserHome() {
               </h2>
             </div>
             <button
-              onClick={scrollToCourses}
+              onClick={() => navigate("/courses")}
               className="inline-flex items-center gap-2 font-bold text-blue-700 transition hover:text-blue-900"
             >
               Ver todos
@@ -231,7 +219,7 @@ export default function UserHome() {
               </p>
             </div>
             <button
-              onClick={scrollToCourses}
+              onClick={() => navigate("/courses")}
               className="inline-flex items-center gap-2 font-bold text-blue-700 transition hover:text-blue-900"
             >
               Ver cursos

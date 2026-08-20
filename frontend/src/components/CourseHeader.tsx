@@ -32,7 +32,7 @@ export default function CourseHeader() {
               Quem Somos
             </Link>
             <Link
-              to="/home#cursos"
+              to="/courses"
               className="text-gray-700 hover:text-blue-600 font-medium transition"
             >
               Cursos
@@ -82,7 +82,7 @@ export default function CourseHeader() {
               Quem Somos
             </Link>
             <Link
-              to="/home#cursos"
+              to="/courses"
               className="text-gray-700 hover:text-blue-600 font-medium py-2 px-2 rounded hover:bg-gray-50 transition"
             >
               Cursos

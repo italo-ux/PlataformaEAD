@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import AboutPage from "./pages/AboutPage";
+import CoursesPage from "./pages/CoursesPage";
 import CourseView from "./pages/CourseView";
 import FeedbackPage from "./pages/FeedbackPage";
 import DashboardAluno from "./pages/DashboardAluno";
@@ -20,7 +21,7 @@ function App() {
         <Route path="/home" element={<UserHome />} />
         <Route path="/dashboard" element={<DashboardAluno />} />
         <Route path="/perfil" element={<ProfilePage />} />
-        <Route path="/courses" element={<UserHome />} />
+        <Route path="/courses" element={<CoursesPage />} />
         <Route path="/courses/:courseId" element={<CourseView />} />
         <Route path="/trilhas/:trailSlug" element={<TrailPage />} />
         <Route
