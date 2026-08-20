@@ -13,7 +13,7 @@ import {
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
 import { canCreateCourses, type User } from "../data/userMock";
-import type { Instructor } from "../data/courseData";
+import type { CourseAudience, Instructor } from "../data/courseData";
 import courseService from "../services/courseService";
 import {
   getAuthenticatedUser,
@@ -26,6 +26,7 @@ const initialFormState = {
   image: "",
   about: "",
   lessons: "",
+  audiences: ["Cidadão"] as CourseAudience[],
 };
 
 const fieldClass =
@@ -78,6 +79,15 @@ export default function ProfessorCourseCreatePage() {
     setError("");
   };
 
+  const handleToggleAudience = (audience: CourseAudience) => {
+    setFormValues((currentValues) => ({
+      ...currentValues,
+      audiences: currentValues.audiences.includes(audience)
+        ? currentValues.audiences.filter((item) => item !== audience)
+        : [...currentValues.audiences, audience],
+    }));
+  };
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
@@ -100,6 +110,12 @@ export default function ProfessorCourseCreatePage() {
       return;
     }
 
+    if (formValues.audiences.length === 0) {
+      setError("Selecione pelo menos um público para o curso.");
+      setSaving(false);
+      return;
+    }
+
     try {
       // Este payload simula o contrato do backend: dados do curso, instrutor
       // autenticado e aulas iniciais enviadas pelo professor/admin.
@@ -110,6 +126,7 @@ export default function ProfessorCourseCreatePage() {
         about: formValues.about,
         instructors: selectedTeachers.map(mapTeacherToInstructor),
         lessonTitles,
+        audiences: formValues.audiences,
       });
 
       navigate(`/courses/${createdCourse.id}`);
@@ -304,6 +321,25 @@ export default function ProfessorCourseCreatePage() {
                 </div>
               </div>
             )}
+          </div>
+
+          <div className="mt-6">
+            <div className="mb-2 text-sm font-bold text-[#25304a]">Público do curso</div>
+            <div className="flex flex-wrap gap-2 rounded-lg border border-blue-100 bg-blue-50/50 p-4">
+              {(["Cidadão", "Estagiário", "Funcionário"] as CourseAudience[]).map((audience) => {
+                const selected = formValues.audiences.includes(audience);
+                return (
+                  <button
+                    key={audience}
+                    type="button"
+                    onClick={() => handleToggleAudience(audience)}
+                    className={`rounded-full border px-4 py-2 text-sm font-bold transition ${selected ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-blue-300"}`}
+                  >
+                    {audience}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="mt-6">

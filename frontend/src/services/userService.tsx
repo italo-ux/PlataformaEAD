@@ -1,5 +1,6 @@
 /*------------------------------------------------------- */
 import {
+  mockUserCredentials,
   type User,
 } from "../data/userMock";
 
@@ -11,6 +12,8 @@ export interface RegisterUserInput {
   email: string;
   password: string;
   cpf: string; 
+  profileType: "cidadao" | "estagiario" | "funcionario";
+  verificationProof?: string;
 }
 
 function normalizeEmail(email: string) {
@@ -24,7 +27,11 @@ function sanitizeUser(user: User): User {
     name: user.name,
     email: user.email,
     avatar: user.avatar,
+    cpf: user.cpf,
+    phone: user.phone,
     role: user.role, //identifica se é func, aluno ou prof
+    profileType: user.profileType,
+    verificationStatus: user.verificationStatus,
   };
 }
 
@@ -32,12 +39,24 @@ function sanitizeUser(user: User): User {
 
 //usa promise para garantir que se o login der certo, essa função vai devolver o novo objeto User (Limpo)
 export async function loginUser(email: string, password: string): Promise<User> { 
+  const normalizedEmail = normalizeEmail(email);
+  const mockCredential = mockUserCredentials.find(
+    (credential) =>
+      normalizeEmail(credential.user.email) === normalizedEmail &&
+      credential.password === password,
+  );
+
+  if (mockCredential) {
+    localStorage.setItem("token", `mock-token-${mockCredential.user.role}`);
+    return sanitizeUser(mockCredential.user);
+  }
+
   const response = await fetch("http://localhost:3000/auth/login", {
     method: "POST", //criar sessão segura
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email: normalizedEmail, password }),
   });
 
   if (!response.ok) {
@@ -71,6 +90,8 @@ export async function createUser(userData: RegisterUserInput): Promise<User> {
       email: normalizeEmail(userData.email),
       password: userData.password, 
       cpf: userData.cpf, // Passando o CPF digitado na tela
+      profileType: userData.profileType,
+      verificationProof: userData.verificationProof,
     }),
   });
 
@@ -86,6 +107,9 @@ export async function createUser(userData: RegisterUserInput): Promise<User> {
     name: userData.name.trim(),
     email: data.email,
     role: "aluno", 
+    profileType: userData.profileType,
+    verificationStatus:
+      userData.profileType === "cidadao" ? "nao_aplicavel" : "pendente",
   };
 }
 
@@ -118,4 +142,60 @@ export function getAuthenticatedUser(): User | null {
 export function clearAuthenticatedUser() {
   localStorage.removeItem(AUTH_USER_STORAGE_KEY);
   localStorage.removeItem("token");
+}
+
+export function getRegisteredTeachers(): User[] {
+  return mockUserCredentials
+    .map(({ user }) => user)
+    .filter((user) => user.role === "professor")
+    .map(sanitizeUser);
+}
+
+export async function updateAuthenticatedUserProfile(
+  userId: number,
+  updates: Pick<User, "name" | "email" | "cpf" | "phone" | "avatar">,
+): Promise<User> {
+  const currentUser = getAuthenticatedUser();
+
+  if (!currentUser || currentUser.id !== userId) {
+    throw new Error("Usuário autenticado não encontrado.");
+  }
+
+  const updatedUser = sanitizeUser({
+    ...currentUser,
+    ...updates,
+    name: updates.name.trim(),
+    email: normalizeEmail(updates.email),
+  });
+
+  const credential = mockUserCredentials.find(({ user }) => user.id === userId);
+  if (credential) {
+    credential.user = updatedUser;
+  }
+
+  saveAuthenticatedUser(updatedUser);
+  return updatedUser;
+}
+
+export async function changeAuthenticatedUserPassword(
+  userId: number,
+  currentPassword: string,
+  nextPassword: string,
+): Promise<void> {
+  const currentUser = getAuthenticatedUser();
+
+  if (!currentUser || currentUser.id !== userId) {
+    throw new Error("Usuário autenticado não encontrado.");
+  }
+
+  const credential = mockUserCredentials.find(({ user }) => user.id === userId);
+  if (!credential) {
+    throw new Error("A alteração de senha ainda não está disponível para esta conta.");
+  }
+
+  if (credential.password !== currentPassword) {
+    throw new Error("A senha atual está incorreta.");
+  }
+
+  credential.password = nextPassword;
 }
