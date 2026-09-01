@@ -30,7 +30,10 @@ export interface Course {
   instructor: Instructor;
   instructors?: Instructor[];
   lessons: Lesson[];
+  audiences: CourseAudience[];
 }
+
+export type CourseAudience = "Cidadão" | "Estagiário" | "Funcionário";
 
 export interface LearningTrail {
   id: string;
@@ -58,6 +61,7 @@ export interface CreateMockCourseInput {
   instructor?: Instructor;
   instructors?: Instructor[];
   lessonTitles: string[];
+  audiences?: CourseAudience[];
 }
 
 export interface CreateMockLessonInput {
@@ -79,6 +83,7 @@ export const mockCourses: Course[] = [
     progress: 70,
     completedLessons: 7,
     totalLessons: 10,
+    audiences: ["Cidadão", "Estagiário", "Funcionário"],
     about:
       "Neste curso de Game Development, você aprende fundamentos de jogos, construção de cenas, eventos, sprites, menus e publicação. Todo o fluxo usa exemplos práticos para transformar uma ideia simples em um protótipo jogável.",
     instructor: {
@@ -182,6 +187,7 @@ export const mockCourses: Course[] = [
     progress: 45,
     completedLessons: 4,
     totalLessons: 9,
+    audiences: ["Estagiário", "Funcionário"],
     about:
       "Uma trilha para evoluir interfaces React com componentes bem tipados, roteamento, estado local, consumo de dados mockados e preparação para APIs reais.",
     instructor: {
@@ -275,6 +281,7 @@ export const mockCourses: Course[] = [
     progress: 0,
     completedLessons: 0,
     totalLessons: 6,
+    audiences: ["Cidadão"],
     about:
       "Curso introdutório de UX/UI para estruturar problemas, desenhar fluxos, criar telas e validar ideias com usuários antes da implementação.",
     instructor: {
@@ -344,6 +351,7 @@ export const mockCourses: Course[] = [
     progress: 30,
     completedLessons: 3,
     totalLessons: 8,
+    audiences: ["Funcionário"],
     about:
       "Uma introdução prática a ciência de dados usando Python, leitura de bases, limpeza, gráficos e modelos simples para apoiar decisões.",
     instructor: {
@@ -596,6 +604,7 @@ export function addMockCourse(input: CreateMockCourseInput) {
     instructor: primaryInstructor,
     instructors,
     lessons,
+    audiences: input.audiences?.length ? input.audiences : ["Cidadão"],
   };
 
   nextMockCourseId += 1;

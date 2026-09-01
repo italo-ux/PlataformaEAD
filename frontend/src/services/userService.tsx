@@ -13,6 +13,8 @@ export interface RegisterUserInput {
   email: string;
   password: string;
   cpf: string;
+  profileType?: "cidadao" | "estagiario" | "funcionario";
+  verificationProof?: string;
 }
 
 export type UpdateUserProfileInput = Pick<
@@ -52,6 +54,8 @@ function sanitizeUser(user: User): User {
     cpf: user.cpf,
     phone: user.phone,
     role: user.role,
+    profileType: user.profileType,
+    verificationStatus: user.verificationStatus,
   };
 }
 
@@ -123,6 +127,8 @@ export async function createUser(userData: RegisterUserInput): Promise<User> {
       email: normalizeEmail(userData.email),
       password: userData.password,
       cpf: userData.cpf,
+      profileType: userData.profileType,
+      verificationProof: userData.verificationProof,
     }),
   });
 
@@ -143,6 +149,11 @@ export async function createUser(userData: RegisterUserInput): Promise<User> {
     name: userData.name.trim(),
     email: data.email,
     role: "aluno",
+    profileType: userData.profileType,
+    verificationStatus:
+      userData.profileType && userData.profileType !== "cidadao"
+        ? "pendente"
+        : "nao_aplicavel",
   };
 }
 
