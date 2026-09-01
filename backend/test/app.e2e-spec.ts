@@ -1,25 +1,35 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access */
-import { UnauthorizedException, ValidationPipe } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+import {
+  INestApplication,
+  UnauthorizedException,
+  ValidationPipe,
+} from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Test } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
 import request from 'supertest';
+import { AuthenticatedUser } from '../src/auth/authenticated-user.interface';
 import { JwtAuthGuard } from '../src/auth/jwt-auth.guard';
+import { RolesGuard } from '../src/auth/roles.guard';
+import { UserRole } from '../src/auth/user-role.enum';
 import { Curso } from '../src/cursos/curso.entity';
 import { CursosController } from '../src/cursos/cursos.controller';
 import { CursosService } from '../src/cursos/cursos.service';
 
 const testSecret = 'e2e-test-secret';
 const courseId = '11111111-1111-4111-8111-111111111111';
-const missingId = '22222222-2222-4222-8222-222222222222';
+const professorId = '22222222-2222-4222-8222-222222222222';
+const otherProfessorId = '33333333-3333-4333-8333-333333333333';
+const adminId = '44444444-4444-4444-8444-444444444444';
+const studentId = '55555555-5555-4555-8555-555555555555';
+const missingId = '66666666-6666-4666-8666-666666666666';
 
-describe('Cursos (e2e)', () => {
+describe('Cursos authorization (e2e)', () => {
   let app: INestApplication;
   let courses: Curso[];
   const repository = {
     create: jest.fn(
-      (data: Partial<Curso>) => ({ id: courseId, ...data }) as Curso,
+      (data: Partial<Curso>) => ({ id: courseId, aulas: [], ...data }) as Curso,
     ),
     save: jest.fn((course: Curso) => {
       const index = courses.findIndex((item) => item.id === course.id);
@@ -50,6 +60,7 @@ describe('Cursos (e2e)', () => {
       controllers: [CursosController],
       providers: [
         CursosService,
+        RolesGuard,
         { provide: getRepositoryToken(Curso), useValue: repository },
       ],
     })
@@ -57,15 +68,27 @@ describe('Cursos (e2e)', () => {
       .useValue({
         canActivate: (context: {
           switchToHttp: () => {
-            getRequest: () => { headers: { authorization?: string } };
+            getRequest: () => {
+              headers: { authorization?: string };
+              user?: AuthenticatedUser;
+            };
           };
         }) => {
-          const authorization = context.switchToHttp().getRequest()
-            .headers.authorization;
-          if (!authorization?.startsWith('Bearer '))
+          const httpRequest = context.switchToHttp().getRequest();
+          const authorization = httpRequest.headers.authorization;
+          if (!authorization?.startsWith('Bearer ')) {
             throw new UnauthorizedException();
+          }
           try {
-            jwt.verify(authorization.slice(7), testSecret);
+            const payload = jwt.verify(
+              authorization.slice(7),
+              testSecret,
+            ) as jwt.JwtPayload;
+            httpRequest.user = {
+              userId: String(payload.sub),
+              email: String(payload.email),
+              role: payload.role as UserRole,
+            };
             return true;
           } catch {
             throw new UnauthorizedException();
@@ -73,6 +96,7 @@ describe('Cursos (e2e)', () => {
         },
       })
       .compile();
+
     app = module.createNestApplication();
     app.useGlobalPipes(
       new ValidationPipe({
@@ -86,9 +110,11 @@ describe('Cursos (e2e)', () => {
 
   afterEach(async () => app.close());
 
-  const token = () =>
-    jwt.sign({ sub: 'user-id', email: 'user@example.com' }, testSecret);
-  const authorization = () => ({ Authorization: `Bearer ${token()}` });
+  const token = (userId: string, role: UserRole) =>
+    jwt.sign({ sub: userId, email: `${role}@example.com`, role }, testSecret);
+  const authorization = (userId: string, role: UserRole) => ({
+    Authorization: `Bearer ${token(userId, role)}`,
+  });
   const coursePayload = {
     nome: 'Curso de TypeScript',
     descricao: 'Fundamentos',
@@ -97,32 +123,33 @@ describe('Cursos (e2e)', () => {
     nivel: 'Iniciante',
   };
 
-  it('cria, lista, consulta, atualiza e remove um curso', async () => {
+  const createOwnedCourse = async () => {
     await request(app.getHttpServer())
       .post('/cursos')
-      .set(authorization())
+      .set(authorization(professorId, UserRole.PROFESSOR))
       .send(coursePayload)
       .expect(201)
-      .expect(({ body }) => expect(body).toMatchObject(coursePayload));
-    await request(app.getHttpServer())
-      .get('/cursos')
-      .expect(200)
-      .expect(({ body }) => expect(body).toHaveLength(1));
-    await request(app.getHttpServer())
-      .get(`/cursos/${courseId}`)
-      .expect(200)
-      .expect(({ body }) => expect(body.nome).toBe(coursePayload.nome));
+      .expect(({ body }) =>
+        expect(body).toMatchObject({
+          ...coursePayload,
+          id_instrutor: professorId,
+        }),
+      );
+  };
+
+  it('permite CRUD ao professor proprietário e mantém leituras públicas', async () => {
+    await createOwnedCourse();
+    await request(app.getHttpServer()).get('/cursos').expect(200);
+    await request(app.getHttpServer()).get(`/cursos/${courseId}`).expect(200);
     await request(app.getHttpServer())
       .patch(`/cursos/${courseId}`)
-      .set(authorization())
+      .set(authorization(professorId, UserRole.PROFESSOR))
       .send({ nome: 'Curso atualizado' })
-      .expect(200)
-      .expect(({ body }) => expect(body.nome).toBe('Curso atualizado'));
+      .expect(200);
     await request(app.getHttpServer())
       .delete(`/cursos/${courseId}`)
-      .set(authorization())
+      .set(authorization(professorId, UserRole.PROFESSOR))
       .expect(204);
-    await request(app.getHttpServer()).get(`/cursos/${courseId}`).expect(404);
   });
 
   it('bloqueia escritas sem token', async () => {
@@ -134,15 +161,38 @@ describe('Cursos (e2e)', () => {
       .patch(`/cursos/${courseId}`)
       .send({ nome: 'Novo nome' })
       .expect(401);
+  });
+
+  it('bloqueia aluno autenticado', async () => {
+    await request(app.getHttpServer())
+      .post('/cursos')
+      .set(authorization(studentId, UserRole.ALUNO))
+      .send(coursePayload)
+      .expect(403);
+  });
+
+  it('bloqueia outro professor e permite administrador', async () => {
+    await createOwnedCourse();
+    await request(app.getHttpServer())
+      .patch(`/cursos/${courseId}`)
+      .set(authorization(otherProfessorId, UserRole.PROFESSOR))
+      .send({ nome: 'Não permitido' })
+      .expect(403);
+    await request(app.getHttpServer())
+      .patch(`/cursos/${courseId}`)
+      .set(authorization(adminId, UserRole.ADMIN))
+      .send({ nome: 'Atualizado pelo admin' })
+      .expect(200);
     await request(app.getHttpServer())
       .delete(`/cursos/${courseId}`)
-      .expect(401);
+      .set(authorization(adminId, UserRole.ADMIN))
+      .expect(204);
   });
 
   it('rejeita payload e UUID inválidos', async () => {
     await request(app.getHttpServer())
       .post('/cursos')
-      .set(authorization())
+      .set(authorization(professorId, UserRole.PROFESSOR))
       .send({ nome: '', carga_horaria: -1 })
       .expect(400);
     await request(app.getHttpServer()).get('/cursos/id-invalido').expect(400);
