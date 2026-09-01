@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Aula } from './aula.entity';
 
 @Entity('cursos')
 export class Curso {
@@ -22,4 +23,7 @@ export class Curso {
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   nivel!: string | null;
+
+  @OneToMany(() => Aula, (aula) => aula.curso)
+  aulas!: Aula[];
 }

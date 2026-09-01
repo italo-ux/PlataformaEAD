@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm'; //integra o TypeORM ao NestJS, 
 import { User } from './auth/user.entity'; //entidade que representa o banco de dados
 import { CursosModule } from './cursos/cursos.module';
 import { Curso } from './cursos/curso.entity';
+import { Aula } from './cursos/aula.entity';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { Curso } from './cursos/curso.entity';
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASSWORD ?? '',
       database: process.env.DB_NAME ?? 'plataforma_ead',
-      entities: [User, Curso],
+      entities: [User, Curso, Aula],
       synchronize: true, // cria/atualiza tabelas automaticamente em dev
     }),
     AuthModule,

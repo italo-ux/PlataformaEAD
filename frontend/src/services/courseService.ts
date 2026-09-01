@@ -20,6 +20,23 @@ export interface CursoInput {
   nivel?: string;
 }
 
+export interface Aula {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  url_video: string;
+  duracao_minutos: number | null;
+  ordem: number;
+}
+
+export interface AulaInput {
+  titulo: string;
+  descricao?: string;
+  url_video: string;
+  duracao_minutos?: number;
+  ordem?: number;
+}
+
 function getErrorMessage(data: unknown, fallback: string) {
   if (!data || typeof data !== "object" || !("message" in data)) return fallback;
   const message = (data as { message?: unknown }).message;
@@ -57,6 +74,25 @@ const courseService = {
     request<Curso>(`/cursos/${id}`, { method: "PATCH", headers: authenticatedHeaders(), body: JSON.stringify(curso) }),
   deleteCourse: (id: string) =>
     request<void>(`/cursos/${id}`, { method: "DELETE", headers: authenticatedHeaders() }),
+  listLessons: (courseId: string) =>
+    request<Aula[]>(`/cursos/${courseId}/aulas`),
+  createLesson: (courseId: string, aula: AulaInput) =>
+    request<Aula>(`/cursos/${courseId}/aulas`, {
+      method: "POST",
+      headers: authenticatedHeaders(),
+      body: JSON.stringify(aula),
+    }),
+  updateLesson: (courseId: string, lessonId: string, aula: Partial<AulaInput>) =>
+    request<Aula>(`/cursos/${courseId}/aulas/${lessonId}`, {
+      method: "PATCH",
+      headers: authenticatedHeaders(),
+      body: JSON.stringify(aula),
+    }),
+  deleteLesson: (courseId: string, lessonId: string) =>
+    request<void>(`/cursos/${courseId}/aulas/${lessonId}`, {
+      method: "DELETE",
+      headers: authenticatedHeaders(),
+    }),
 };
 
 export default courseService;
