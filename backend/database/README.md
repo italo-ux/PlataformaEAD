@@ -30,7 +30,13 @@ psql -U seu_usuario -d plataforma_ead -f database/schema.sql
 
 ```bash
 psql -U seu_usuario -d plataforma_ead -f database/migrations/1_initial_schema.sql
+psql -U seu_usuario -d plataforma_ead -f database/migrations/2_course_lessons.sql
+psql -U seu_usuario -d plataforma_ead -f database/migrations/3_roles_and_course_ownership.sql
 ```
+
+> A migração 3 é destrutiva: ela executa `TRUNCATE cursos CASCADE` e remove
+> cursos, aulas, matrículas, avaliações e relações dependentes. Faça backup
+> antes de executá-la. Usuários e dados independentes são preservados.
 
 ### 4️⃣ Popular com Dados de Teste
 
@@ -65,16 +71,19 @@ psql -U seu_usuario -d plataforma_ead -f database/seeds/seed.sql
 - Rastreia o progresso de cada aluno em cada aula
 - Campos: `usuario_id`, `aula_id`, `concluida`, `tempo_assistido_minutos`, etc.
 
-## 🔐 Credenciais Padrão de Teste
+## 🔐 Papéis de usuário
 
-Após rodar o seed.sql, use estas credenciais:
+O cadastro público sempre cria usuários com papel `aluno`. Depois de confirmar
+o e-mail do usuário, um operador autorizado pode promover a conta diretamente
+no banco:
 
-| Email                    | Senha         | Tipo      |
-| ------------------------ | ------------- | --------- |
-| admin@plataforma.com     | admin123      | Admin     |
-| instrutor@plataforma.com | instructor123 | Instrutor |
-| aluno@plataforma.com     | aluno123      | Aluno     |
-| aluno2@plataforma.com    | aluno123      | Aluno     |
+```sql
+UPDATE users SET role = 'professor' WHERE email = 'professor@example.com';
+UPDATE users SET role = 'admin' WHERE email = 'admin@example.com';
+```
+
+Substitua os endereços de exemplo. Nunca aceite `role` no cadastro público e
+nunca mantenha senhas ou credenciais reais em seeds versionados.
 
 ## 🔄 Fluxo de Desenvolvimento
 
@@ -111,7 +120,12 @@ DB_PORT=5432
 DB_USERNAME=seu_usuario
 DB_PASSWORD=sua_senha
 DB_DATABASE=plataforma_ead
+DB_SYNCHRONIZE=false
 ```
+
+Mantenha `DB_SYNCHRONIZE=false` quando usar as migrations. O modo automático
+só deve ser habilitado explicitamente em um banco de desenvolvimento
+descartável.
 
 ## 📞 Suporte
 
