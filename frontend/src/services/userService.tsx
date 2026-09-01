@@ -5,6 +5,7 @@ import {
 } from "../data/userMock";
 
 const AUTH_USER_STORAGE_KEY = "ead.auth.user";  //nome da chave
+const DELETED_USERS_STORAGE_KEY = "ead.deleted.users";
 
 // Interface atualizada com o campo CPF 
 export interface RegisterUserInput {
@@ -40,8 +41,12 @@ function sanitizeUser(user: User): User {
 //usa promise para garantir que se o login der certo, essa função vai devolver o novo objeto User (Limpo)
 export async function loginUser(email: string, password: string): Promise<User> { 
   const normalizedEmail = normalizeEmail(email);
+  const deletedUserIds = JSON.parse(
+    localStorage.getItem(DELETED_USERS_STORAGE_KEY) ?? "[]",
+  ) as number[];
   const mockCredential = mockUserCredentials.find(
     (credential) =>
+      !deletedUserIds.includes(credential.user.id) &&
       normalizeEmail(credential.user.email) === normalizedEmail &&
       credential.password === password,
   );
@@ -142,6 +147,27 @@ export function getAuthenticatedUser(): User | null {
 export function clearAuthenticatedUser() {
   localStorage.removeItem(AUTH_USER_STORAGE_KEY);
   localStorage.removeItem("token");
+}
+
+export function deleteAuthenticatedUser(userId: number) {
+  const currentUser = getAuthenticatedUser();
+
+  if (!currentUser || currentUser.id !== userId) {
+    throw new Error("Usuário autenticado não encontrado.");
+  }
+
+  const deletedUserIds = JSON.parse(
+    localStorage.getItem(DELETED_USERS_STORAGE_KEY) ?? "[]",
+  ) as number[];
+
+  if (!deletedUserIds.includes(userId)) {
+    localStorage.setItem(
+      DELETED_USERS_STORAGE_KEY,
+      JSON.stringify([...deletedUserIds, userId]),
+    );
+  }
+
+  clearAuthenticatedUser();
 }
 
 export function getRegisteredTeachers(): User[] {
