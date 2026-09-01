@@ -24,21 +24,53 @@ function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
     success,
   } = useAuthForm({
     initialValues: { email: "", password: "" },
-    onSubmit: async (formValues) => {
-      const user = await loginUser(formValues.email, formValues.password);
-      saveAuthenticatedUser(user);
-    },
-    validate: (formValues) => {
-      const newErrors: Record<string, string> = {};
-      if (!formValues.email) newErrors.email = "Email é obrigatório";
-      if (!formValues.password) newErrors.password = "Senha é obrigatória";
-      return newErrors;
-    },
-  });
+    const navigate = useNavigate(); // Adicione logo acima do handleSubmit
 
-  useEffect(() => {
-    if (success) {
-      onSuccess?.();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      // 1. Faz a requisição de login para o backend
+      const response = await fetch('http://localhost:3000/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, senha: password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Erro ao realizar login.');
+      }
+
+      // 2. Salva o token e o perfil no navegador
+      localStorage.setItem('token', data.accessToken);
+      localStorage.setItem('user_role', data.user.role);
+
+      console.log("Login bem-sucedido:", data);
+
+      // 3. Redireciona o usuário para a tela certa conforme o cargo
+      switch (data.user.role) {
+        case 'admin':
+          navigate('/admin/dashboard');
+          break;
+        case 'professor':
+          navigate('/professor/painel');
+          break;
+        case 'aluno':
+        default:
+          navigate('/aluno/meus-cursos');
+          break;
+      }
+    } catch (err: any) {
+      setError(err.message || "Erro ao fazer login. Tente novamente.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
     }
   }, [success, onSuccess]);
 
