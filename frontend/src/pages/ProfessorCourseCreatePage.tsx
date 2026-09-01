@@ -28,12 +28,15 @@ export default function ProfessorCourseCreatePage() {
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [loadFailed, setLoadFailed] = useState(false);
   const [courseOwnerId, setCourseOwnerId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!courseId) return;
 
     let cancelled = false;
+    setLoading(true);
+    setLoadFailed(false);
     courseService
       .getCourse(courseId)
       .then((course) => {
@@ -50,6 +53,7 @@ export default function ProfessorCourseCreatePage() {
       })
       .catch((reason: unknown) => {
         if (!cancelled) {
+          setLoadFailed(true);
           setError(
             reason instanceof Error
               ? reason.message
@@ -141,6 +145,26 @@ export default function ProfessorCourseCreatePage() {
 
         {loading ? (
           <p>Carregando curso...</p>
+        ) : loadFailed ? (
+          <div className="rounded-lg border border-red-200 bg-white p-6 shadow-sm">
+            <p className="font-semibold text-red-700">{error}</p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="rounded-lg bg-blue-600 px-5 py-3 font-bold text-white"
+              >
+                Tentar novamente
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/courses")}
+                className="rounded-lg border border-gray-200 px-5 py-3 font-bold text-slate-600"
+              >
+                Voltar aos cursos
+              </button>
+            </div>
+          </div>
         ) : (
           <form
             onSubmit={handleSubmit}

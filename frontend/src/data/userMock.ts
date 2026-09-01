@@ -9,8 +9,6 @@ export interface User {
   cpf?: string;
   phone?: string;
   role: UserRole;
-  profileType?: "cidadao" | "estagiario" | "funcionario";
-  verificationStatus?: "nao_aplicavel" | "pendente" | "verificado";
 }
 
 export interface MockUserCredential {

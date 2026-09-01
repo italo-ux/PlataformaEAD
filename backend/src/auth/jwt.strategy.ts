@@ -10,11 +10,6 @@ import { User } from './user.entity';
 
 const extractor: JwtFromRequestFunction =
   ExtractJwt.fromAuthHeaderAsBearerToken();
-const jwtSecret = process.env.JWT_SECRET;
-
-if (!jwtSecret) {
-  throw new Error('JWT_SECRET deve ser configurado para validar tokens.');
-}
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -22,10 +17,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      throw new Error('JWT_SECRET deve ser configurado para validar tokens.');
+    }
+
     super({
       jwtFromRequest: extractor,
       ignoreExpiration: false,
-      secretOrKey: jwtSecret!,
+      secretOrKey: jwtSecret,
     });
   }
 

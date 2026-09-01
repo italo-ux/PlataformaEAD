@@ -13,8 +13,6 @@ export interface RegisterUserInput {
   email: string;
   password: string;
   cpf: string;
-  profileType?: "cidadao" | "estagiario" | "funcionario";
-  verificationProof?: string;
 }
 
 export type UpdateUserProfileInput = Pick<
@@ -54,8 +52,6 @@ function sanitizeUser(user: User): User {
     cpf: user.cpf,
     phone: user.phone,
     role: user.role,
-    profileType: user.profileType,
-    verificationStatus: user.verificationStatus,
   };
 }
 
@@ -70,7 +66,10 @@ function getResponseErrorMessage(data: unknown, fallback: string) {
     return message;
   }
 
-  if (Array.isArray(message) && message.every((item) => typeof item === "string")) {
+  if (
+    Array.isArray(message) &&
+    message.every((item) => typeof item === "string")
+  ) {
     return message.join(" ");
   }
 
@@ -85,7 +84,10 @@ async function readResponseError(response: Response, fallback: string) {
   }
 }
 
-export async function loginUser(email: string, password: string): Promise<User> {
+export async function loginUser(
+  email: string,
+  password: string,
+): Promise<User> {
   const response = await fetch("http://localhost:3000/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -93,7 +95,9 @@ export async function loginUser(email: string, password: string): Promise<User> 
   });
 
   if (!response.ok) {
-    throw new Error(await readResponseError(response, "Email ou senha incorretos."));
+    throw new Error(
+      await readResponseError(response, "Email ou senha incorretos."),
+    );
   }
 
   const data = (await response.json()) as AuthResponse;
@@ -127,14 +131,15 @@ export async function createUser(userData: RegisterUserInput): Promise<User> {
       email: normalizeEmail(userData.email),
       password: userData.password,
       cpf: userData.cpf,
-      profileType: userData.profileType,
-      verificationProof: userData.verificationProof,
     }),
   });
 
   if (!response.ok) {
     throw new Error(
-      await readResponseError(response, "Erro ao realizar o cadastro no banco."),
+      await readResponseError(
+        response,
+        "Erro ao realizar o cadastro no banco.",
+      ),
     );
   }
 
@@ -149,16 +154,14 @@ export async function createUser(userData: RegisterUserInput): Promise<User> {
     name: userData.name.trim(),
     email: data.email,
     role: "aluno",
-    profileType: userData.profileType,
-    verificationStatus:
-      userData.profileType && userData.profileType !== "cidadao"
-        ? "pendente"
-        : "nao_aplicavel",
   };
 }
 
 export function saveAuthenticatedUser(user: User) {
-  localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(sanitizeUser(user)));
+  localStorage.setItem(
+    AUTH_USER_STORAGE_KEY,
+    JSON.stringify(sanitizeUser(user)),
+  );
 }
 
 export function getAuthenticatedUser(): User | null {
@@ -216,9 +219,7 @@ export async function changeAuthenticatedUserPassword(
   currentPassword: string,
   nextPassword: string,
 ): Promise<void> {
-  const credential = mockUserCredentials.find(
-    ({ user }) => user.id === userId,
-  );
+  const credential = mockUserCredentials.find(({ user }) => user.id === userId);
 
   if (!credential || credential.password !== currentPassword) {
     throw new Error("Senha atual invalida");

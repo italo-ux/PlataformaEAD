@@ -12,6 +12,9 @@ import { AuthenticatedUser } from '../src/auth/authenticated-user.interface';
 import { JwtAuthGuard } from '../src/auth/jwt-auth.guard';
 import { RolesGuard } from '../src/auth/roles.guard';
 import { UserRole } from '../src/auth/user-role.enum';
+import { Aula } from '../src/cursos/aula.entity';
+import { AulasController } from '../src/cursos/aulas.controller';
+import { AulasService } from '../src/cursos/aulas.service';
 import { Curso } from '../src/cursos/curso.entity';
 import { CursosController } from '../src/cursos/cursos.controller';
 import { CursosService } from '../src/cursos/cursos.service';
@@ -23,10 +26,12 @@ const otherProfessorId = '33333333-3333-4333-8333-333333333333';
 const adminId = '44444444-4444-4444-8444-444444444444';
 const studentId = '55555555-5555-4555-8555-555555555555';
 const missingId = '66666666-6666-4666-8666-666666666666';
+const lessonId = '77777777-7777-4777-8777-777777777777';
 
 describe('Cursos authorization (e2e)', () => {
   let app: INestApplication;
   let courses: Curso[];
+  let lessons: Aula[];
   const repository = {
     create: jest.fn(
       (data: Partial<Curso>) => ({ id: courseId, aulas: [], ...data }) as Curso,
@@ -53,15 +58,59 @@ describe('Cursos authorization (e2e)', () => {
       return Promise.resolve(course);
     }),
   };
+  const lessonRepository = {
+    count: jest.fn(({ where }: { where: { curso: { id: string } } }) =>
+      Promise.resolve(
+        lessons.filter((lesson) => lesson.curso.id === where.curso.id).length,
+      ),
+    ),
+    create: jest.fn(
+      (data: Partial<Aula>) => ({ id: lessonId, ...data }) as Aula,
+    ),
+    save: jest.fn((lesson: Aula) => {
+      const index = lessons.findIndex((item) => item.id === lesson.id);
+      if (index >= 0) lessons[index] = lesson;
+      else lessons.push(lesson);
+      return Promise.resolve(lesson);
+    }),
+    find: jest.fn(({ where }: { where: { curso: { id: string } } }) =>
+      Promise.resolve(
+        lessons
+          .filter((lesson) => lesson.curso.id === where.curso.id)
+          .sort(
+            (a, b) => a.ordem - b.ordem || a.titulo.localeCompare(b.titulo),
+          ),
+      ),
+    ),
+    findOne: jest.fn(
+      ({ where }: { where: { id: string; curso: { id: string } } }) =>
+        Promise.resolve(
+          lessons.find(
+            (lesson) =>
+              lesson.id === where.id && lesson.curso.id === where.curso.id,
+          ) ?? null,
+        ),
+    ),
+    merge: jest.fn((lesson: Aula, data: Partial<Aula>) =>
+      Object.assign(lesson, data),
+    ),
+    remove: jest.fn((lesson: Aula) => {
+      lessons = lessons.filter((item) => item.id !== lesson.id);
+      return Promise.resolve(lesson);
+    }),
+  };
 
   beforeEach(async () => {
     courses = [];
+    lessons = [];
     const module = await Test.createTestingModule({
-      controllers: [CursosController],
+      controllers: [CursosController, AulasController],
       providers: [
         CursosService,
+        AulasService,
         RolesGuard,
         { provide: getRepositoryToken(Curso), useValue: repository },
+        { provide: getRepositoryToken(Aula), useValue: lessonRepository },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -121,6 +170,11 @@ describe('Cursos authorization (e2e)', () => {
     carga_horaria: 12,
     categoria: 'Tecnologia',
     nivel: 'Iniciante',
+  };
+  const lessonPayload = {
+    titulo: 'Introdução',
+    url_video: 'https://youtu.be/dQw4w9WgXcQ',
+    duracao_minutos: 10,
   };
 
   const createOwnedCourse = async () => {
@@ -200,5 +254,79 @@ describe('Cursos authorization (e2e)', () => {
 
   it('retorna 404 para UUID válido inexistente', async () => {
     await request(app.getHttpServer()).get(`/cursos/${missingId}`).expect(404);
+  });
+
+  it('aplica papéis e propriedade nas escritas de aulas', async () => {
+    await createOwnedCourse();
+    const lessonsUrl = `/cursos/${courseId}/aulas`;
+
+    await request(app.getHttpServer()).get(lessonsUrl).expect(200, []);
+    await request(app.getHttpServer())
+      .post(lessonsUrl)
+      .send(lessonPayload)
+      .expect(401);
+    await request(app.getHttpServer())
+      .post(lessonsUrl)
+      .set(authorization(studentId, UserRole.ALUNO))
+      .send(lessonPayload)
+      .expect(403);
+    await request(app.getHttpServer())
+      .post(lessonsUrl)
+      .set(authorization(otherProfessorId, UserRole.PROFESSOR))
+      .send(lessonPayload)
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .post(lessonsUrl)
+      .set(authorization(professorId, UserRole.PROFESSOR))
+      .send(lessonPayload)
+      .expect(201)
+      .expect(({ body }) =>
+        expect(body).toMatchObject({
+          titulo: lessonPayload.titulo,
+          id_instrutor: professorId,
+        }),
+      );
+    await request(app.getHttpServer())
+      .patch(`${lessonsUrl}/${lessonId}`)
+      .send({ titulo: 'Sem token' })
+      .expect(401);
+    await request(app.getHttpServer())
+      .patch(`${lessonsUrl}/${lessonId}`)
+      .set(authorization(studentId, UserRole.ALUNO))
+      .send({ titulo: 'Aluno não pode editar' })
+      .expect(403);
+    await request(app.getHttpServer())
+      .delete(`${lessonsUrl}/${lessonId}`)
+      .set(authorization(studentId, UserRole.ALUNO))
+      .expect(403);
+    await request(app.getHttpServer())
+      .patch(`${lessonsUrl}/${lessonId}`)
+      .set(authorization(otherProfessorId, UserRole.PROFESSOR))
+      .send({ titulo: 'Outro professor não pode editar' })
+      .expect(403);
+    await request(app.getHttpServer())
+      .delete(`${lessonsUrl}/${lessonId}`)
+      .set(authorization(otherProfessorId, UserRole.PROFESSOR))
+      .expect(403);
+    await request(app.getHttpServer())
+      .patch(`${lessonsUrl}/${lessonId}`)
+      .set(authorization(professorId, UserRole.PROFESSOR))
+      .send({ titulo: 'Introdução atualizada' })
+      .expect(200);
+    await request(app.getHttpServer())
+      .delete(`${lessonsUrl}/${lessonId}`)
+      .set(authorization(professorId, UserRole.PROFESSOR))
+      .expect(204);
+
+    await request(app.getHttpServer())
+      .post(lessonsUrl)
+      .set(authorization(adminId, UserRole.ADMIN))
+      .send(lessonPayload)
+      .expect(201);
+    await request(app.getHttpServer())
+      .delete(`${lessonsUrl}/${lessonId}`)
+      .set(authorization(adminId, UserRole.ADMIN))
+      .expect(204);
   });
 });
