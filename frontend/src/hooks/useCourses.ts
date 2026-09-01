@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "./api";
+import { api } from "../services/api";
 import type { Course, Lesson, CreateCourseInput, CreateLessonInput, CourseFilters } from "../types/api";
 
 const COURSES_QUERY_KEY = ["courses"];

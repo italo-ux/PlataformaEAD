@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { faEnvelope, faLock } from "@fortawesome/free-solid-svg-icons";
+import { NavLink } from "react-router-dom";
 import FormInput from "./FormInput";
 import SmilingRobot from "../../assets/login/smilingRobot.png";
-import { loginUser, saveAuthenticatedUser } from "../../services/userService";
+import { authService } from "../../services/authService";
+import { setAuthTokens } from "../../services/api";
+import { saveAuthenticatedUser } from "../../services/userService";
 import { useAuthForm } from "../../hooks/useAuthForm";
+import { loginSchema, flattenZodError } from "../../utils/validation";
 import MockCredentialsHint from "./MockCredentialsHint";
 
 interface LoginFormProps {
@@ -25,15 +29,11 @@ function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
   } = useAuthForm({
     initialValues: { email: "", password: "" },
     onSubmit: async (formValues) => {
-      const user = await loginUser(formValues.email, formValues.password);
-      saveAuthenticatedUser(user);
+      const response = await authService.login(formValues.email, formValues.password);
+      setAuthTokens(response.data.tokens.accessToken, response.data.tokens.refreshToken);
+      saveAuthenticatedUser(response.data.user);
     },
-    validate: (formValues) => {
-      const newErrors: Record<string, string> = {};
-      if (!formValues.email) newErrors.email = "Email é obrigatório";
-      if (!formValues.password) newErrors.password = "Senha é obrigatória";
-      return newErrors;
-    },
+    validate: (formValues) => flattenZodError(loginSchema.safeParse(formValues)),
   });
 
   useEffect(() => {
@@ -97,7 +97,12 @@ function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
               />
 
               <p className="text-right text-sm text-gray-500">
-                Recuperação de senha será ligada ao backend real.
+                <NavLink
+                  to="/forgot-password"
+                  className="text-[#4B6FFF] hover:text-blue-700 font-medium transition-colors duration-200"
+                >
+                  Esqueci a senha
+                </NavLink>
               </p>
 
               <button

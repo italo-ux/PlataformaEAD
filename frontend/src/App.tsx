@@ -10,6 +10,9 @@ import ProfessorCourseCreatePage from "./pages/ProfessorCourseCreatePage";
 import RegisterPage from "./pages/RegisterPage";
 import TrailPage from "./pages/TrailPage";
 import UserHome from "./pages/userHome";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
+import VerifyEmailPage from "./pages/VerifyEmailPage";
 
 function App() {
   return (
@@ -18,6 +21,9 @@ function App() {
         <Route path="/" element={<LoginPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/home" element={<UserHome />} />
         <Route path="/dashboard" element={<DashboardAluno />} />
         <Route path="/perfil" element={<ProfilePage />} />

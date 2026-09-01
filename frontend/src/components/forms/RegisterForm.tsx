@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { faEnvelope, faLock, faUser } from "@fortawesome/free-solid-svg-icons";
+import { useNavigate } from "react-router-dom";
 import FormInput from "./FormInput";
 import SmilingRobot from "../../assets/login/smilingRobot.png";
-import { createUser } from "../../services/userService";
+import { authService } from "../../services/authService";
+import { setAuthTokens } from "../../services/api";
+import { saveAuthenticatedUser } from "../../services/userService";
 import { useAuthForm } from "../../hooks/useAuthForm";
+import { registerSchema, flattenZodError } from "../../utils/validation";
 import MockCredentialsHint from "./MockCredentialsHint";
 
 interface RegisterFormProps {
@@ -11,6 +15,7 @@ interface RegisterFormProps {
 }
 
 function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -30,49 +35,25 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
       confirmPassword: "",
     },
     onSubmit: async (formValues) => {
-      await createUser({
+      const response = await authService.register({
         name: formValues.name,
         email: formValues.email,
         password: formValues.password,
       });
+      setAuthTokens(response.data.tokens.accessToken, response.data.tokens.refreshToken);
+      saveAuthenticatedUser(response.data.user);
+      // Navigate to verify-email with email in query params
+      navigate(`/verify-email?email=${encodeURIComponent(formValues.email)}`, { replace: true });
     },
-    validate: (formValues) => {
-      const newErrors: Record<string, string> = {};
-
-      if (!formValues.name.trim()) newErrors.name = "Nome é obrigatório";
-      if (!formValues.email.trim()) newErrors.email = "Email é obrigatório";
-      if (!formValues.password) newErrors.password = "Senha é obrigatória";
-      if (!formValues.confirmPassword) {
-        newErrors.confirmPassword = "Confirme sua senha";
-      }
-
-      if (formValues.password && formValues.password.length < 6) {
-        newErrors.password = "A senha deve ter pelo menos 6 caracteres";
-      }
-
-      if (
-        formValues.password &&
-        formValues.confirmPassword &&
-        formValues.password !== formValues.confirmPassword
-      ) {
-        newErrors.confirmPassword = "As senhas não conferem";
-      }
-
-      return newErrors;
-    },
+    validate: (formValues) => flattenZodError(registerSchema.safeParse(formValues)),
   });
 
   useEffect(() => {
     if (!success) {
       return;
     }
-
-    const redirectTimer = window.setTimeout(onSwitchToLogin, 900);
-
-    return () => {
-      window.clearTimeout(redirectTimer);
-    };
-  }, [success, onSwitchToLogin]);
+    // Navigation is handled in onSubmit now
+  }, [success]);
 
   const togglePasswordVisibility = () => {
     setShowPassword((current) => !current);
@@ -117,7 +98,7 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
             {success && (
               <div className="mb-6 p-4 bg-green-100 text-green-700 rounded-lg text-sm">
-                Conta criada no mock com sucesso. Indo para o login...
+                Conta criada! Verificando e-mail...
               </div>
             )}
 
