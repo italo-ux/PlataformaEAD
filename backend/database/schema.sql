@@ -60,9 +60,10 @@ CREATE TABLE IF NOT EXISTS aulas (
     id_instrutor UUID NOT NULL,
     titulo VARCHAR(255) NOT NULL,
     descricao TEXT,
-    url_video VARCHAR(255),
+    url_video VARCHAR(500),
     ordem INTEGER,
     duracao INTERVAL,
+    duracao_minutos INTEGER,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (id_curso) REFERENCES cursos(id)

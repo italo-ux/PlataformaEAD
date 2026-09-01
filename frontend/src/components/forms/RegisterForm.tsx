@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { faEnvelope, faLock, faUser } from "@fortawesome/free-solid-svg-icons";
+import { faEnvelope, faLock, faShield, faUser } from "@fortawesome/free-solid-svg-icons";
 import FormInput from "./FormInput";
 import SmilingRobot from "../../assets/login/smilingRobot.png";
 import { createUser } from "../../services/userService";
 import { useAuthForm } from "../../hooks/useAuthForm";
-import MockCredentialsHint from "./MockCredentialsHint";
 
 interface RegisterFormProps {
   onSwitchToLogin: () => void;
@@ -26,6 +25,7 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
     initialValues: {
       name: "",
       email: "",
+      cpf: "",
       password: "",
       confirmPassword: "",
     },
@@ -33,6 +33,7 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
       await createUser({
         name: formValues.name,
         email: formValues.email,
+        cpf: formValues.cpf,
         password: formValues.password,
       });
     },
@@ -41,6 +42,9 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
       if (!formValues.name.trim()) newErrors.name = "Nome é obrigatório";
       if (!formValues.email.trim()) newErrors.email = "Email é obrigatório";
+      if (formValues.cpf.replace(/\D/g, "").length !== 11) {
+        newErrors.cpf = "Informe um CPF com 11 dígitos";
+      }
       if (!formValues.password) newErrors.password = "Senha é obrigatória";
       if (!formValues.confirmPassword) {
         newErrors.confirmPassword = "Confirme sua senha";
@@ -117,7 +121,7 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
             {success && (
               <div className="mb-6 p-4 bg-green-100 text-green-700 rounded-lg text-sm">
-                Conta criada no mock com sucesso. Indo para o login...
+                Conta criada com sucesso. Indo para o login...
               </div>
             )}
 
@@ -144,6 +148,18 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
                 value={values.email}
                 onChange={handleChange}
                 error={errors.email}
+              />
+
+              <FormInput
+                id="cpf"
+                name="cpf"
+                label="CPF"
+                type="text"
+                placeholder="000.000.000-00"
+                icon={faShield}
+                value={values.cpf}
+                onChange={handleChange}
+                error={errors.cpf}
               />
 
               <FormInput
@@ -196,7 +212,6 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
               </div>
             </form>
 
-            <MockCredentialsHint />
           </div>
         </div>
       </div>

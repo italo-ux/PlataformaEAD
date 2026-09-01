@@ -23,13 +23,17 @@ function App() {
         <Route path="/perfil" element={<ProfilePage />} />
         <Route path="/courses" element={<CoursesPage />} />
         <Route path="/courses/:courseId" element={<CourseView />} />
+        <Route
+          path="/courses/:courseId/editar"
+          element={<ProfessorCourseCreatePage />}
+        />
         <Route path="/trilhas/:trailSlug" element={<TrailPage />} />
         <Route
           path="/professor/cursos/novo"
           element={<ProfessorCourseCreatePage />}
         />
-        <Route path="/course" element={<Navigate to="/courses/1" replace />} />
-        <Route path="/course/:courseId" element={<CourseView />} />
+        <Route path="/course" element={<Navigate to="/courses" replace />} />
+        <Route path="/course/:courseId" element={<Navigate to="/courses" replace />} />
         <Route path="/quem-somos" element={<AboutPage />} />
         <Route path="/feedback" element={<FeedbackPage />} />
       </Routes>
