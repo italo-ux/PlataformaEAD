@@ -1,4 +1,5 @@
 import {
+  isUserRole,
   mockUserCredentials,
   type User,
   type UserId,
@@ -25,6 +26,7 @@ interface AuthResponse {
     id?: unknown;
     name?: unknown;
     email?: unknown;
+    role?: unknown;
   };
 }
 
@@ -96,7 +98,8 @@ export async function loginUser(email: string, password: string): Promise<User> 
     typeof data.access_token !== "string" ||
     !data.user ||
     !isUserId(data.user.id) ||
-    typeof data.user.email !== "string"
+    typeof data.user.email !== "string" ||
+    !isUserRole(data.user.role)
   ) {
     throw new Error("Resposta de autenticacao invalida.");
   }
@@ -107,7 +110,7 @@ export async function loginUser(email: string, password: string): Promise<User> 
     id: data.user.id,
     name: typeof data.user.name === "string" ? data.user.name : data.user.email,
     email: data.user.email,
-    role: "aluno",
+    role: data.user.role,
   };
 }
 

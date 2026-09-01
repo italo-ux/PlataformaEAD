@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { BookOpen, PlusCircle, Save } from "lucide-react";
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
+import { canCreateCourses } from "../data/userMock";
 import courseService, { type CursoInput } from "../services/courseService";
 import { getAuthenticatedUser } from "../services/userService";
 
@@ -27,6 +28,7 @@ export default function ProfessorCourseCreatePage() {
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [courseOwnerId, setCourseOwnerId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!courseId) return;
@@ -44,6 +46,7 @@ export default function ProfessorCourseCreatePage() {
           categoria: course.categoria ?? "",
           nivel: course.nivel ?? "",
         });
+        setCourseOwnerId(course.id_instrutor);
       })
       .catch((reason: unknown) => {
         if (!cancelled) {
@@ -64,6 +67,16 @@ export default function ProfessorCourseCreatePage() {
   }, [courseId]);
 
   if (!user) return <Navigate to="/login" replace />;
+  if (!canCreateCourses(user)) return <Navigate to="/home" replace />;
+  if (
+    isEditing &&
+    !loading &&
+    courseOwnerId !== null &&
+    user.role !== "admin" &&
+    courseOwnerId !== String(user.id)
+  ) {
+    return <Navigate to={`/courses/${courseId}`} replace />;
+  }
 
   const handleChange = (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,

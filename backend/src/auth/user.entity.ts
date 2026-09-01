@@ -1,4 +1,5 @@
 import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+import { UserRole } from './user-role.enum';
 
 @Entity('users')
 export class User {
@@ -21,4 +22,12 @@ export class User {
 
   @Column({ nullable: true }) // Isso diz ao banco que tudo bem não mandar o CPF por enquanto
   cpf!: string;
+
+  @Column({
+    type: 'enum',
+    enum: UserRole,
+    enumName: 'user_role',
+    default: UserRole.ALUNO,
+  })
+  role!: UserRole;
 }

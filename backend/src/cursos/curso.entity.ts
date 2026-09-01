@@ -24,6 +24,9 @@ export class Curso {
   @Column({ type: 'varchar', length: 100, nullable: true })
   nivel!: string | null;
 
+  @Column({ type: 'uuid' })
+  id_instrutor!: string;
+
   @OneToMany(() => Aula, (aula) => aula.curso)
   aulas!: Aula[];
 }

@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { AuthenticatedUser } from '../auth/authenticated-user.interface';
 import { Aula } from './aula.entity';
-import { Curso } from './curso.entity';
+import { CursosService } from './cursos.service';
 import { CreateAulaDto } from './dto/create-aula.dto';
 import { UpdateAulaDto } from './dto/update-aula.dto';
 
@@ -11,17 +12,15 @@ export class AulasService {
   constructor(
     @InjectRepository(Aula)
     private readonly aulasRepository: Repository<Aula>,
-    @InjectRepository(Curso)
-    private readonly cursosRepository: Repository<Curso>,
+    private readonly cursosService: CursosService,
   ) {}
 
   async create(
     cursoId: string,
-    instrutorId: string,
     createAulaDto: CreateAulaDto,
+    actor: AuthenticatedUser,
   ) {
-    const curso = await this.cursosRepository.findOneBy({ id: cursoId });
-    if (!curso) throw new NotFoundException('Curso não encontrado');
+    const curso = await this.cursosService.findManageable(cursoId, actor);
 
     const ordem =
       createAulaDto.ordem ??
@@ -32,7 +31,7 @@ export class AulasService {
       ...createAulaDto,
       ordem,
       curso,
-      id_instrutor: instrutorId,
+      id_instrutor: actor.userId,
     });
     return this.aulasRepository.save(aula);
   }
@@ -52,14 +51,21 @@ export class AulasService {
     return aula;
   }
 
-  async update(cursoId: string, aulaId: string, updateAulaDto: UpdateAulaDto) {
+  async update(
+    cursoId: string,
+    aulaId: string,
+    updateAulaDto: UpdateAulaDto,
+    actor: AuthenticatedUser,
+  ) {
+    await this.cursosService.findManageable(cursoId, actor);
     const aula = await this.findOne(cursoId, aulaId);
     return this.aulasRepository.save(
       this.aulasRepository.merge(aula, updateAulaDto),
     );
   }
 
-  async remove(cursoId: string, aulaId: string) {
+  async remove(cursoId: string, aulaId: string, actor: AuthenticatedUser) {
+    await this.cursosService.findManageable(cursoId, actor);
     const aula = await this.findOne(cursoId, aulaId);
     await this.aulasRepository.remove(aula);
   }

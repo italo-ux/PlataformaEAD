@@ -9,6 +9,7 @@ export interface Curso {
   carga_horaria: number | null;
   categoria: string | null;
   nivel: string | null;
+  id_instrutor: string;
 }
 
 export interface CursoInput {

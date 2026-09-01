@@ -92,6 +92,13 @@ export default function CourseView() {
   const embedUrl = currentLesson
     ? getYoutubeEmbedUrl(currentLesson.url_video)
     : null;
+  const canManageCourse = Boolean(
+    course &&
+      user &&
+      (user.role === "admin" ||
+        (user.role === "professor" &&
+          course.id_instrutor === String(user.id))),
+  );
 
   const handleStart = () => {
     if (!course || !userId) return;
@@ -172,20 +179,26 @@ export default function CourseView() {
                           <Play size={16} className="fill-current" />
                           {started ? "Curso iniciado" : "Iniciar curso"}
                         </button>
-                        <button
-                          onClick={() => navigate(`/courses/${course.id}/editar`)}
-                          className="inline-flex items-center gap-2 rounded-md border border-blue-200 px-3 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50"
-                        >
-                          <Pencil size={16} />Gerenciar
-                        </button>
-                        <button
-                          onClick={handleDelete}
-                          disabled={deleting}
-                          className="inline-flex items-center gap-2 rounded-md bg-red-600 px-3 py-2 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-60"
-                        >
-                          <Trash2 size={16} />
-                          {deleting ? "Excluindo..." : "Excluir"}
-                        </button>
+                        {canManageCourse && (
+                          <>
+                            <button
+                              onClick={() =>
+                                navigate(`/courses/${course.id}/editar`)
+                              }
+                              className="inline-flex items-center gap-2 rounded-md border border-blue-200 px-3 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50"
+                            >
+                              <Pencil size={16} />Gerenciar
+                            </button>
+                            <button
+                              onClick={handleDelete}
+                              disabled={deleting}
+                              className="inline-flex items-center gap-2 rounded-md bg-red-600 px-3 py-2 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-60"
+                            >
+                              <Trash2 size={16} />
+                              {deleting ? "Excluindo..." : "Excluir"}
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>

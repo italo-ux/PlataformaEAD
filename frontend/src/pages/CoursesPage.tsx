@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, BookOpen, Clock3, PlusCircle, Search } from "lucide-react";
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
+import { canCreateCourses } from "../data/userMock";
 import courseService, { type Curso } from "../services/courseService";
 import { getAuthenticatedUser } from "../services/userService";
 
@@ -40,7 +41,7 @@ export default function CoursesPage() {
         <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
             <button type="button" onClick={() => navigate("/home")} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-blue-600"><ArrowLeft size={16} />Voltar para home</button>
-            {user && <button type="button" onClick={() => navigate("/professor/cursos/novo")} className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"><PlusCircle size={18} />Novo curso</button>}
+            {canCreateCourses(user) && <button type="button" onClick={() => navigate("/professor/cursos/novo")} className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"><PlusCircle size={18} />Novo curso</button>}
           </div>
           <label className="mb-6 flex max-w-xl items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2"><Search size={18} className="text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nome, categoria ou nível" className="w-full outline-none" /></label>
           {loading && <p className="text-slate-600">Carregando cursos...</p>}

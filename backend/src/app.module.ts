@@ -18,7 +18,7 @@ import { Aula } from './cursos/aula.entity';
       password: process.env.DB_PASSWORD ?? '',
       database: process.env.DB_NAME ?? 'plataforma_ead',
       entities: [User, Curso, Aula],
-      synchronize: true, // cria/atualiza tabelas automaticamente em dev
+      synchronize: process.env.DB_SYNCHRONIZE === 'true',
     }),
     AuthModule,
     CursosModule,
