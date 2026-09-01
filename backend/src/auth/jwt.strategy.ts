@@ -7,6 +7,11 @@ import { JwtFromRequestFunction } from 'passport-jwt';
 
 const extractor: JwtFromRequestFunction =
   ExtractJwt.fromAuthHeaderAsBearerToken();
+const jwtSecret = process.env.JWT_SECRET;
+
+if (!jwtSecret) {
+  throw new Error('JWT_SECRET deve ser configurado para validar tokens.');
+}
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -14,7 +19,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: extractor,
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_SECRET || 'default_secret',
+      secretOrKey: jwtSecret!,
     });
   }
 

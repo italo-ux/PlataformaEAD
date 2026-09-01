@@ -5,8 +5,12 @@ coverage/
 .env
 .env.*
 !.env.example
+jwt_secret.env
 
 *.tsbuildinfo
 .vite/
 .cache/
 .turbo/
+
+/output/
+/tmp/
