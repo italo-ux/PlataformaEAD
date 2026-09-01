@@ -33,7 +33,7 @@ function App() {
           element={<ProfessorCourseCreatePage />}
         />
         <Route path="/course" element={<Navigate to="/courses" replace />} />
-        <Route path="/course/:courseId" element={<Navigate to="/courses" replace />} />
+        <Route path="/course/:courseId" element={<CourseView />} />
         <Route path="/quem-somos" element={<AboutPage />} />
         <Route path="/feedback" element={<FeedbackPage />} />
       </Routes>
