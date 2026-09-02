@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-export const emailSchema = z.string().email("E-mail inválido").min(1, "E-mail é obrigatório");
+export const emailSchema = z
+  .string()
+  .email("E-mail inválido")
+  .min(1, "E-mail é obrigatório");
 
 export const passwordSchema = z
   .string()
@@ -20,27 +23,49 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Senha é obrigatória"),
 });
 
-export const registerSchema = z.object({
-  name: z.string().min(2, "Nome muito curto"),
-  email: emailSchema,
-  password: passwordSchema,
-  confirmPassword: z.string(),
-}).refine((d) => d.password === d.confirmPassword, {
-  message: "Senhas não conferem",
-  path: ["confirmPassword"],
-});
+export const registerSchema = z
+  .object({
+    name: z.string().trim().min(2, "Nome muito curto"),
+    email: emailSchema,
+    cpf: z.string().refine((value) => value.replace(/\D/g, "").length === 11, {
+      message: "CPF deve ter 11 dígitos",
+    }),
+    profileType: z.enum(["cidadao", "estagiario", "funcionario"]),
+    verificationProof: z.string(),
+    password: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .superRefine((data, context) => {
+    if (data.password !== data.confirmPassword) {
+      context.addIssue({
+        code: "custom",
+        message: "Senhas não conferem",
+        path: ["confirmPassword"],
+      });
+    }
+
+    if (data.profileType !== "cidadao" && !data.verificationProof.trim()) {
+      context.addIssue({
+        code: "custom",
+        message: "Informe um e-mail institucional ou certificado",
+        path: ["verificationProof"],
+      });
+    }
+  });
 
 export const forgotPasswordSchema = z.object({ email: emailSchema });
 
-export const resetPasswordSchema = z.object({
-  email: emailSchema,
-  code: code6DigitsSchema,
-  password: passwordSchema,
-  confirmPassword: z.string(),
-}).refine((d) => d.password === d.confirmPassword, {
-  message: "Senhas não conferem",
-  path: ["confirmPassword"],
-});
+export const resetPasswordSchema = z
+  .object({
+    email: emailSchema,
+    code: code6DigitsSchema,
+    password: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: "Senhas não conferem",
+    path: ["confirmPassword"],
+  });
 
 export const verifyEmailSchema = z.object({
   email: emailSchema,
@@ -57,7 +82,7 @@ export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
 export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;
 
 export function flattenZodError(
-  result: z.ZodSafeParseResult<unknown>
+  result: z.ZodSafeParseResult<unknown>,
 ): Record<string, string> {
   if (result.success) return {};
   const errors: Record<string, string> = {};

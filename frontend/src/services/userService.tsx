@@ -1,34 +1,27 @@
+/*------------------------------------------------------- */
 import {
-  isUserRole,
   mockUserCredentials,
-  type MockUserCredential,
   type User,
 } from "../data/userMock";
 
-const AUTH_USER_STORAGE_KEY = "ead.auth.user";
-const MOCK_DELAY_MS = 300;
+const AUTH_USER_STORAGE_KEY = "ead.auth.user";  //nome da chave
+const DELETED_USERS_STORAGE_KEY = "ead.deleted.users";
 
+// Interface atualizada com o campo CPF
 export interface RegisterUserInput {
   name: string;
   email: string;
   password: string;
+  cpf: string;
+  profileType: "cidadao" | "estagiario" | "funcionario";
+  verificationProof?: string;
 }
-
-export interface UpdateUserProfileInput {
-  name: string;
-  email: string;
-  avatar?: string;
-  cpf?: string;
-  phone?: string;
-}
-
-const mockUserStore: MockUserCredential[] = [...mockUserCredentials];
-let nextMockUserId = mockUserStore.length + 1;
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
+//cria um objeto novo sem informações sensiveis vindas do back-end
 function sanitizeUser(user: User): User {
   return {
     id: user.id,
@@ -37,149 +30,111 @@ function sanitizeUser(user: User): User {
     avatar: user.avatar,
     cpf: user.cpf,
     phone: user.phone,
-    role: user.role,
+    role: user.role, //identifica se é func, aluno ou prof
+    profileType: user.profileType,
+    verificationStatus: user.verificationStatus,
   };
 }
 
-function waitForMock<T>(value: T): Promise<T> {
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(value), MOCK_DELAY_MS);
-  });
-}
+/*--------------------------------------- Função de login real --------------------------------------- */
 
-async function failMock(message: string): Promise<never> {
-  await waitForMock(null);
-  throw new Error(message);
-}
-
-// Servico de autenticação mockado. Quando o backend estiver pronto, mantenha as
-// mesmas assinaturas públicas e troque apenas o conteúdo destas funções por
-// chamadas HTTP reais.
+//usa promise para garantir que se o login der certo, essa função vai devolver o novo objeto User (Limpo)
 export async function loginUser(email: string, password: string): Promise<User> {
   const normalizedEmail = normalizeEmail(email);
-  const foundUser = mockUserStore.find(
-    ({ user }) => normalizeEmail(user.email) === normalizedEmail,
+  const deletedUserIds = JSON.parse(
+    localStorage.getItem(DELETED_USERS_STORAGE_KEY) ?? "[]",
+  ) as number[];
+  const mockCredential = mockUserCredentials.find(
+    (credential) =>
+      !deletedUserIds.includes(credential.user.id) &&
+      normalizeEmail(credential.user.email) === normalizedEmail &&
+      credential.password === password,
   );
 
-  if (!foundUser || foundUser.password !== password) {
-    return failMock("Email ou senha incorretos");
+  if (mockCredential) {
+    localStorage.setItem("token", `mock-token-${mockCredential.user.role}`);
+    return sanitizeUser(mockCredential.user);
   }
 
-  return waitForMock(sanitizeUser(foundUser.user));
-}
-
-export async function createUser(userData: RegisterUserInput): Promise<User> {
-  const normalizedEmail = normalizeEmail(userData.email);
-  const emailAlreadyExists = mockUserStore.some(
-    ({ user }) => normalizeEmail(user.email) === normalizedEmail,
-  );
-
-  if (emailAlreadyExists) {
-    return failMock("Este email já está cadastrado no mock");
-  }
-
-  const createdUser: User = {
-    id: nextMockUserId,
-    name: userData.name.trim(),
-    email: normalizedEmail,
-    role: "aluno",
-  };
-
-  nextMockUserId += 1;
-  mockUserStore.push({
-    user: createdUser,
-    password: userData.password,
+  const response = await fetch("http://localhost:3000/auth/login", {
+    method: "POST", //criar sessão segura
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email: normalizedEmail, password }),
   });
 
-  return waitForMock(sanitizeUser(createdUser));
-}
-
-export async function updateAuthenticatedUserProfile(
-  userId: number,
-  userData: UpdateUserProfileInput,
-): Promise<User> {
-  const storedUser = getAuthenticatedUser();
-
-  if (!storedUser || storedUser.id !== userId) {
-    return failMock("Sessão expirada. Faça login novamente.");
+  if (!response.ok) {
+    throw new Error("Email ou senha incorretos"); //interrompe o processo
   }
 
-  const normalizedEmail = normalizeEmail(userData.email);
-  const emailAlreadyExists = mockUserStore.some(
-    ({ user }) =>
-      user.id !== userId && normalizeEmail(user.email) === normalizedEmail,
-  );
+  const data = await response.json(); //torna texto puro em legível e dentro de data esta o JWT e dados básicos do usuário
 
-  if (emailAlreadyExists) {
-    return failMock("Este email já está cadastrado no mock");
-  }
+  // Salva o Token de acesso gerado pelo NestJS no navegador
+  localStorage.setItem("token", data.access_token);
 
-  const updatedUser: User = {
-    ...storedUser,
-    name: userData.name.trim(),
-    email: normalizedEmail,
-    avatar: userData.avatar?.trim() || undefined,
-    cpf: userData.cpf?.trim() || undefined,
-    phone: userData.phone?.trim() || undefined,
+  return {
+    id: data.user.id,
+    name: data.user.name || data.user.email,
+    email: data.user.email,
+    role: data.user.role || "aluno",
   };
-
-  const storedCredential = mockUserStore.find(({ user }) => user.id === userId);
-  if (storedCredential) {
-    storedCredential.user = updatedUser;
-  }
-
-  saveAuthenticatedUser(updatedUser);
-  return waitForMock(sanitizeUser(updatedUser));
 }
 
-export async function changeAuthenticatedUserPassword(
-  userId: number,
-  currentPassword: string,
-  nextPassword: string,
-): Promise<void> {
-  const storedUser = getAuthenticatedUser();
+/*--------------------------------------- Função de cadastro --------------------------------------- */
 
-  if (!storedUser || storedUser.id !== userId) {
-    return failMock("Sessão expirada. Faça login novamente.");
+export async function createUser(userData: RegisterUserInput): Promise<User> {
+  const response = await fetch("http://localhost:3000/auth/register", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    // Passa exatamente o que 'auth.controller.ts' espera receber no body
+    body: JSON.stringify({  //transformaobjeto de código em tetxo puro
+      name: userData.name.trim(),
+      email: normalizeEmail(userData.email),
+      password: userData.password,
+      cpf: userData.cpf, // Passando o CPF digitado na tela
+      profileType: userData.profileType,
+      verificationProof: userData.verificationProof,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || "Erro ao realizar o cadastro no banco.");
   }
 
-  const storedCredential = mockUserStore.find(({ user }) => user.id === userId);
+  const data = await response.json();  //peg o ID real e transforma em data
 
-  if (!storedCredential) {
-    return failMock("Senha disponível apenas durante a sessão mock atual.");
-  }
-
-  if (storedCredential.password !== currentPassword) {
-    return failMock("Senha atual incorreta");
-  }
-
-  storedCredential.password = nextPassword;
-  await waitForMock(null);
+  return {
+    id: data.id,
+    name: userData.name.trim(),
+    email: data.email,
+    role: "aluno",
+    profileType: userData.profileType,
+    verificationStatus:
+      userData.profileType === "cidadao" ? "nao_aplicavel" : "pendente",
+  };
 }
 
+/*--------------------------------------- Gerenciamento de localstorage --------------------------------------- */
+
+//essa função pega o user, passa pelo sanity pra limpar, transforma em texto e tranca no storage
 export function saveAuthenticatedUser(user: User) {
   localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(sanitizeUser(user)));
 }
 
+//essa função recupera sessão ativa para verificar se tem alguém logado
 export function getAuthenticatedUser(): User | null {
   const storedUser = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+  if (!storedUser) return null;
 
-  if (!storedUser) {
-    return null;
-  }
-
-  try {
+  try { //tenta executar oque ta no storage
     const parsedUser = JSON.parse(storedUser) as Partial<User>;
-
-    if (
-      typeof parsedUser.id !== "number" ||
-      typeof parsedUser.name !== "string" ||
-      typeof parsedUser.email !== "string" ||
-      !isUserRole(parsedUser.role)
-    ) {
-      throw new Error("Invalid mock session");
+    if (!parsedUser.id || !parsedUser.name || !parsedUser.email) {
+      throw new Error("Sessão inválida");
     }
-
     return sanitizeUser(parsedUser as User);
   } catch {
     localStorage.removeItem(AUTH_USER_STORAGE_KEY);
@@ -187,13 +142,86 @@ export function getAuthenticatedUser(): User | null {
   }
 }
 
+
+//essa função é responsável pelo logout
+export function clearAuthenticatedUser() {
+  localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+  localStorage.removeItem("token");
+}
+
+export function deleteAuthenticatedUser(userId: number) {
+  const currentUser = getAuthenticatedUser();
+
+  if (!currentUser || currentUser.id !== userId) {
+    throw new Error("Usuário autenticado não encontrado.");
+  }
+
+  const deletedUserIds = JSON.parse(
+    localStorage.getItem(DELETED_USERS_STORAGE_KEY) ?? "[]",
+  ) as number[];
+
+  if (!deletedUserIds.includes(userId)) {
+    localStorage.setItem(
+      DELETED_USERS_STORAGE_KEY,
+      JSON.stringify([...deletedUserIds, userId]),
+    );
+  }
+
+  clearAuthenticatedUser();
+}
+
 export function getRegisteredTeachers(): User[] {
-  return mockUserStore
+  return mockUserCredentials
     .map(({ user }) => user)
     .filter((user) => user.role === "professor")
     .map(sanitizeUser);
 }
 
-export function clearAuthenticatedUser() {
-  localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+export async function updateAuthenticatedUserProfile(
+  userId: number,
+  updates: Pick<User, "name" | "email" | "cpf" | "phone" | "avatar">,
+): Promise<User> {
+  const currentUser = getAuthenticatedUser();
+
+  if (!currentUser || currentUser.id !== userId) {
+    throw new Error("Usuário autenticado não encontrado.");
+  }
+
+  const updatedUser = sanitizeUser({
+    ...currentUser,
+    ...updates,
+    name: updates.name.trim(),
+    email: normalizeEmail(updates.email),
+  });
+
+  const credential = mockUserCredentials.find(({ user }) => user.id === userId);
+  if (credential) {
+    credential.user = updatedUser;
+  }
+
+  saveAuthenticatedUser(updatedUser);
+  return updatedUser;
+}
+
+export async function changeAuthenticatedUserPassword(
+  userId: number,
+  currentPassword: string,
+  nextPassword: string,
+): Promise<void> {
+  const currentUser = getAuthenticatedUser();
+
+  if (!currentUser || currentUser.id !== userId) {
+    throw new Error("Usuário autenticado não encontrado.");
+  }
+
+  const credential = mockUserCredentials.find(({ user }) => user.id === userId);
+  if (!credential) {
+    throw new Error("A alteração de senha ainda não está disponível para esta conta.");
+  }
+
+  if (credential.password !== currentPassword) {
+    throw new Error("A senha atual está incorreta.");
+  }
+
+  credential.password = nextPassword;
 }

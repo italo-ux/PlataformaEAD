@@ -3,10 +3,12 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useForgotPassword } from "../../hooks/useAuthFlow";
 
 interface ForgotPasswordFormProps {
-  onSuccess?: () => void;
+  onSuccess?: (email: string) => void;
 }
 
-export default function ForgotPasswordForm({ onSuccess }: ForgotPasswordFormProps) {
+export default function ForgotPasswordForm({
+  onSuccess,
+}: ForgotPasswordFormProps) {
   const {
     values,
     handleChange,
@@ -22,7 +24,9 @@ export default function ForgotPasswordForm({ onSuccess }: ForgotPasswordFormProp
       <div className="w-full max-w-md">
         <div className="bg-white rounded-lg shadow-lg p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-[#333] mb-2">Recuperar senha</h1>
+            <h1 className="text-3xl font-bold text-[#333] mb-2">
+              Recuperar senha
+            </h1>
             <p className="text-gray-500 text-lg font-light">
               Digite seu e-mail para receber o código de recuperação
             </p>
@@ -47,7 +51,10 @@ export default function ForgotPasswordForm({ onSuccess }: ForgotPasswordFormProp
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="relative">
-              <label htmlFor="email" className="block text-sm font-semibold text-[#333] mb-3">
+              <label
+                htmlFor="email"
+                className="block text-sm font-semibold text-[#333] mb-3"
+              >
                 E-mail
               </label>
               <div className="relative flex items-center">
@@ -70,7 +77,9 @@ export default function ForgotPasswordForm({ onSuccess }: ForgotPasswordFormProp
                   }`}
                 />
               </div>
-              {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-500">{errors.email}</p>
+              )}
             </div>
 
             <button

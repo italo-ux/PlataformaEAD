@@ -9,7 +9,13 @@ export default function ForgotPasswordPage() {
   return (
     <>
       <Navbar user={null} hideLoginLink />
-      <ForgotPasswordForm onSuccess={() => navigate("/reset-password", { replace: true })} />
+      <ForgotPasswordForm
+        onSuccess={(email) =>
+          navigate(`/reset-password?email=${encodeURIComponent(email)}`, {
+            replace: true,
+          })
+        }
+      />
       <Footer />
     </>
   );

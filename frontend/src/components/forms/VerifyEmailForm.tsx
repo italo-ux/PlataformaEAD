@@ -3,7 +3,6 @@ import { faEnvelope } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import CodeInput from "./CodeInput";
 import { useVerifyEmail, useResendVerification } from "../../hooks/useAuthFlow";
-import { setAuthTokens } from "../../services/api";
 
 interface VerifyEmailFormProps {
   onSuccess?: () => void;
@@ -23,23 +22,20 @@ export default function VerifyEmailForm({ onSuccess }: VerifyEmailFormProps) {
     error,
     success,
   } = useVerifyEmail({
-    onSuccess: (tokens) => {
-      setAuthTokens(tokens.accessToken, tokens.refreshToken);
-      onSuccess?.();
-      navigate("/home");
-    },
-  });
-
-  const { handleSubmit: handleResendSubmit, loading: resendLoading } = useResendVerification({
     email,
     onSuccess: () => {
-      // Could show a toast/message here
+      onSuccess?.();
+      navigate("/login", { replace: true });
     },
   });
 
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleChange(e);
-  };
+  const { handleSubmit: handleResendSubmit, loading: resendLoading } =
+    useResendVerification({
+      email,
+      onSuccess: () => {
+        // Could show a toast/message here
+      },
+    });
 
   const handleCodeChange = (code: string) => {
     const event = {
@@ -58,7 +54,9 @@ export default function VerifyEmailForm({ onSuccess }: VerifyEmailFormProps) {
       <div className="w-full max-w-md">
         <div className="bg-white rounded-lg shadow-lg p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-[#333] mb-2">Verificar e-mail</h1>
+            <h1 className="text-3xl font-bold text-[#333] mb-2">
+              Verificar e-mail
+            </h1>
             <p className="text-gray-500 text-lg font-light">
               Digite o código de 6 dígitos enviado para seu e-mail
             </p>
@@ -83,7 +81,10 @@ export default function VerifyEmailForm({ onSuccess }: VerifyEmailFormProps) {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="relative">
-              <label htmlFor="email" className="block text-sm font-semibold text-[#333] mb-3">
+              <label
+                htmlFor="email"
+                className="block text-sm font-semibold text-[#333] mb-3"
+              >
                 E-mail
               </label>
               <div className="relative flex items-center">
@@ -96,7 +97,6 @@ export default function VerifyEmailForm({ onSuccess }: VerifyEmailFormProps) {
                   name="email"
                   type="email"
                   value={email}
-                  onChange={handleEmailChange}
                   readOnly
                   className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-[#333] cursor-not-allowed"
                 />
@@ -124,29 +124,29 @@ export default function VerifyEmailForm({ onSuccess }: VerifyEmailFormProps) {
             >
               {loading ? "Verificando..." : "Verificar e-mail"}
             </button>
-
-            <form onSubmit={handleResendCode} className="mt-4">
-              <button
-                type="submit"
-                disabled={resendLoading || success}
-                className="w-full text-[#4B6FFF] hover:text-blue-700 font-bold text-sm transition-colors duration-200 bg-none border-none cursor-pointer disabled:opacity-50"
-              >
-                {resendLoading ? "Reenviando..." : "Não recebeu? Reenviar código"}
-              </button>
-            </form>
-
-            <div className="text-center pt-6 border-t border-gray-200">
-              <span className="text-gray-600 text-sm">
-                Já tem conta?{" "}
-                <a
-                  href="/login"
-                  className="text-[#4B6FFF] hover:text-blue-700 font-bold transition-colors duration-200 ml-1"
-                >
-                  Faça login
-                </a>
-              </span>
-            </div>
           </form>
+
+          <form onSubmit={handleResendCode} className="mt-4">
+            <button
+              type="submit"
+              disabled={resendLoading || success}
+              className="w-full text-[#4B6FFF] hover:text-blue-700 font-bold text-sm transition-colors duration-200 bg-none border-none cursor-pointer disabled:opacity-50"
+            >
+              {resendLoading ? "Reenviando..." : "Não recebeu? Reenviar código"}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center border-t border-gray-200 pt-6">
+            <span className="text-gray-600 text-sm">
+              Já tem conta?{" "}
+              <a
+                href="/login"
+                className="text-[#4B6FFF] hover:text-blue-700 font-bold transition-colors duration-200 ml-1"
+              >
+                Faça login
+              </a>
+            </span>
+          </div>
         </div>
       </div>
     </div>

@@ -3,9 +3,7 @@ import { faEnvelope, faLock } from "@fortawesome/free-solid-svg-icons";
 import { NavLink } from "react-router-dom";
 import FormInput from "./FormInput";
 import SmilingRobot from "../../assets/login/smilingRobot.png";
-import { authService } from "../../services/authService";
-import { setAuthTokens } from "../../services/api";
-import { saveAuthenticatedUser } from "../../services/userService";
+import { loginUser, saveAuthenticatedUser } from "../../services/userService";
 import { useAuthForm } from "../../hooks/useAuthForm";
 import { loginSchema, flattenZodError } from "../../utils/validation";
 import MockCredentialsHint from "./MockCredentialsHint";
@@ -29,11 +27,11 @@ function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
   } = useAuthForm({
     initialValues: { email: "", password: "" },
     onSubmit: async (formValues) => {
-      const response = await authService.login(formValues.email, formValues.password);
-      setAuthTokens(response.data.tokens.accessToken, response.data.tokens.refreshToken);
-      saveAuthenticatedUser(response.data.user);
+      const user = await loginUser(formValues.email, formValues.password);
+      saveAuthenticatedUser(user);
     },
-    validate: (formValues) => flattenZodError(loginSchema.safeParse(formValues)),
+    validate: (formValues) =>
+      flattenZodError(loginSchema.safeParse(formValues)),
   });
 
   useEffect(() => {

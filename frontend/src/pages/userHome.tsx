@@ -26,6 +26,12 @@ const courseIcons: Record<number, LucideIcon> = {
   3: Sparkles,
   4: GraduationCap,
 };
+const courseGradients: Record<number, string> = {
+  1: "linear-gradient(90deg, #ef4444, #991b1b)",
+  2: "linear-gradient(90deg, #3b82f6, #1e3a8a)",
+  3: "linear-gradient(90deg, #a855f7, #581c87)",
+  4: "linear-gradient(90deg, #10b981, #065f46)",
+};
 
 function colorWithAlpha(hexColor: string, alpha: number) {
   const normalized = hexColor.replace("#", "");
@@ -72,8 +78,14 @@ export default function UserHome() {
                 <Sparkles size={16} />
                 Plataforma EAD Inovação Barueri
               </div>
-              <h1 className="text-4xl font-black leading-tight text-[#25304a] sm:text-5xl lg:text-6xl">
-                Aprenda tecnologia com trilhas práticas e acompanhamento real.
+              <h1 className="hero-title flex min-w-0 flex-wrap gap-x-[0.24em] text-3xl font-black leading-tight text-[#25304a] min-[360px]:text-4xl sm:text-5xl lg:text-6xl">
+                {"Aprenda tecnologia com trilhas práticas e acompanhamento real."
+                  .split(" ")
+                  .map((word, index) => (
+                    <span key={`${word}-${index}`} style={{ animationDelay: `${index * 70}ms` }}>
+                      {word}
+                    </span>
+                  ))}
               </h1>
               <p className="mt-5 max-w-xl text-lg leading-8 text-slate-600">
                 Continue seus cursos, acompanhe sua jornada e desenvolva
@@ -152,6 +164,10 @@ export default function UserHome() {
                     }
                   }}
                 >
+                  <div
+                    className="h-2"
+                    style={{ background: courseGradients[course.id] ?? "linear-gradient(90deg, #3b82f6, #1e3a8a)" }}
+                  />
                   <div className="relative h-44 overflow-hidden bg-slate-200">
                     <img
                       src={course.image}
@@ -177,6 +193,13 @@ export default function UserHome() {
                   </div>
 
                   <div className="p-5">
+                    <div className="mb-3 flex flex-wrap gap-1.5">
+                      {course.audiences.map((audience) => (
+                        <span key={audience} className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-700">
+                          {audience}
+                        </span>
+                      ))}
+                    </div>
                     <h3 className="line-clamp-2 text-lg font-black text-[#25304a] transition group-hover:text-blue-700">
                       {course.title}
                     </h3>
@@ -247,7 +270,7 @@ export default function UserHome() {
                 >
                   <div
                     className="h-2"
-                    style={{ backgroundColor: trail.accentColor }}
+                    style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${trail.accentColor} 72%, white), ${trail.accentColor}, color-mix(in srgb, ${trail.accentColor} 72%, black))` }}
                   />
                   <div className="relative h-36 overflow-hidden bg-slate-200">
                     <img

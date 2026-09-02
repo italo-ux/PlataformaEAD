@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { getApiErrorMessage } from "../services/api";
 
 interface UseAuthFormOptions<T = void> {
   initialValues: Record<string, string>;
@@ -71,9 +72,7 @@ export function useAuthForm<T = void>({
         setSuccess(true);
         onSuccess?.(result);
       } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Erro ao processar formulário";
-        setGeneralError(errorMessage);
+        setGeneralError(getApiErrorMessage(err));
       } finally {
         setLoading(false);
       }

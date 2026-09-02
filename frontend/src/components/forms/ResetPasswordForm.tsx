@@ -9,7 +9,9 @@ interface ResetPasswordFormProps {
   onSuccess?: () => void;
 }
 
-export default function ResetPasswordForm({ onSuccess }: ResetPasswordFormProps) {
+export default function ResetPasswordForm({
+  onSuccess,
+}: ResetPasswordFormProps) {
   const [searchParams] = useSearchParams();
   const email = searchParams.get("email") || "";
 
@@ -22,10 +24,6 @@ export default function ResetPasswordForm({ onSuccess }: ResetPasswordFormProps)
     error,
     success,
   } = useResetPassword({ email, onSuccess });
-
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleChange(e);
-  };
 
   const handleCodeChange = (code: string) => {
     // We need to update the code field in the form
@@ -41,7 +39,9 @@ export default function ResetPasswordForm({ onSuccess }: ResetPasswordFormProps)
       <div className="w-full max-w-md">
         <div className="bg-white rounded-lg shadow-lg p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-[#333] mb-2">Redefinir senha</h1>
+            <h1 className="text-3xl font-bold text-[#333] mb-2">
+              Redefinir senha
+            </h1>
             <p className="text-gray-500 text-lg font-light">
               Digite o código recebido por e-mail e sua nova senha
             </p>
@@ -66,7 +66,10 @@ export default function ResetPasswordForm({ onSuccess }: ResetPasswordFormProps)
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="relative">
-              <label htmlFor="email" className="block text-sm font-semibold text-[#333] mb-3">
+              <label
+                htmlFor="email"
+                className="block text-sm font-semibold text-[#333] mb-3"
+              >
                 E-mail
               </label>
               <div className="relative flex items-center">
@@ -79,7 +82,6 @@ export default function ResetPasswordForm({ onSuccess }: ResetPasswordFormProps)
                   name="email"
                   type="email"
                   value={email}
-                  onChange={handleEmailChange}
                   readOnly
                   className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-[#333] cursor-not-allowed"
                 />

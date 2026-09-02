@@ -10,6 +10,7 @@ import ProfessorCourseCreatePage from "./pages/ProfessorCourseCreatePage";
 import RegisterPage from "./pages/RegisterPage";
 import TrailPage from "./pages/TrailPage";
 import UserHome from "./pages/userHome";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
@@ -31,9 +32,13 @@ function App() {
         <Route path="/courses/:courseId" element={<CourseView />} />
         <Route path="/trilhas/:trailSlug" element={<TrailPage />} />
         <Route
-          path="/professor/cursos/novo"
-          element={<ProfessorCourseCreatePage />}
-        />
+          element={<ProtectedRoute allowedRoles={["professor", "admin"]} />}
+        >
+          <Route
+            path="/professor/cursos/novo"
+            element={<ProfessorCourseCreatePage />}
+          />
+        </Route>
         <Route path="/course" element={<Navigate to="/courses/1" replace />} />
         <Route path="/course/:courseId" element={<CourseView />} />
         <Route path="/quem-somos" element={<AboutPage />} />

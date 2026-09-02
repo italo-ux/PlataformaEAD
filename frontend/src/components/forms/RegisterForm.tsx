@@ -1,13 +1,17 @@
-import { useEffect, useState } from "react";
-import { faEnvelope, faLock, faUser } from "@fortawesome/free-solid-svg-icons";
+import { useState } from "react";
+import {
+  faCertificate,
+  faEnvelope,
+  faIdCard,
+  faLock,
+  faUser,
+} from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
 import FormInput from "./FormInput";
 import SmilingRobot from "../../assets/login/smilingRobot.png";
-import { authService } from "../../services/authService";
-import { setAuthTokens } from "../../services/api";
-import { saveAuthenticatedUser } from "../../services/userService";
+import { createUser } from "../../services/userService";
 import { useAuthForm } from "../../hooks/useAuthForm";
-import { registerSchema, flattenZodError } from "../../utils/validation";
+import { flattenZodError, registerSchema } from "../../utils/validation";
 import MockCredentialsHint from "./MockCredentialsHint";
 
 interface RegisterFormProps {
@@ -27,33 +31,38 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
     errors,
     error,
     success,
-  } = useAuthForm({
+  } = useAuthForm<string>({
     initialValues: {
       name: "",
       email: "",
+      cpf: "",
+      profileType: "cidadao",
+      verificationProof: "",
       password: "",
       confirmPassword: "",
     },
     onSubmit: async (formValues) => {
-      const response = await authService.register({
+      await createUser({
         name: formValues.name,
         email: formValues.email,
+        cpf: formValues.cpf,
+        profileType: formValues.profileType as
+          | "cidadao"
+          | "estagiario"
+          | "funcionario",
+        verificationProof: formValues.verificationProof,
         password: formValues.password,
       });
-      setAuthTokens(response.data.tokens.accessToken, response.data.tokens.refreshToken);
-      saveAuthenticatedUser(response.data.user);
-      // Navigate to verify-email with email in query params
-      navigate(`/verify-email?email=${encodeURIComponent(formValues.email)}`, { replace: true });
+      return formValues.email;
     },
-    validate: (formValues) => flattenZodError(registerSchema.safeParse(formValues)),
+    validate: (formValues) =>
+      flattenZodError(registerSchema.safeParse(formValues)),
+    onSuccess: (email) => {
+      navigate(`/verify-email?email=${encodeURIComponent(email)}`, {
+        replace: true,
+      });
+    },
   });
-
-  useEffect(() => {
-    if (!success) {
-      return;
-    }
-    // Navigation is handled in onSubmit now
-  }, [success]);
 
   const togglePasswordVisibility = () => {
     setShowPassword((current) => !current);
@@ -98,7 +107,7 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
             {success && (
               <div className="mb-6 p-4 bg-green-100 text-green-700 rounded-lg text-sm">
-                Conta criada! Verificando e-mail...
+                Conta criada! Redirecionando para a verificação do e-mail...
               </div>
             )}
 
@@ -126,6 +135,66 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
                 onChange={handleChange}
                 error={errors.email}
               />
+
+              <FormInput
+                id="cpf"
+                name="cpf"
+                label="CPF"
+                type="text"
+                placeholder="000.000.000-00"
+                icon={faIdCard}
+                value={values.cpf}
+                onChange={handleChange}
+                error={errors.cpf}
+              />
+
+              <fieldset>
+                <legend className="mb-3 block text-sm font-semibold text-[#333]">
+                  Tipo de perfil
+                </legend>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {[
+                    ["cidadao", "Cidadão"],
+                    ["estagiario", "Estagiário"],
+                    ["funcionario", "Funcionário"],
+                  ].map(([value, label]) => (
+                    <label
+                      key={value}
+                      className={`cursor-pointer rounded-lg border-2 px-3 py-3 text-center text-sm font-bold transition ${values.profileType === value ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600"}`}
+                    >
+                      <input
+                        className="sr-only"
+                        type="radio"
+                        name="profileType"
+                        value={value}
+                        checked={values.profileType === value}
+                        onChange={handleChange}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
+              {values.profileType !== "cidadao" && (
+                <div>
+                  <FormInput
+                    id="verificationProof"
+                    name="verificationProof"
+                    label="Comprovação institucional"
+                    type="text"
+                    placeholder="E-mail institucional ou código do certificado"
+                    icon={faCertificate}
+                    value={values.verificationProof}
+                    onChange={handleChange}
+                    error={errors.verificationProof}
+                  />
+                  <p className="mt-2 text-xs text-amber-700">
+                    Validação mockada: o documento ficará como pendente até a
+                    integração definitiva.
+                  </p>
+                </div>
+              )}
 
               <FormInput
                 id="password"
