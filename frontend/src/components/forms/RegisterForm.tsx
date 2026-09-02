@@ -1,9 +1,17 @@
-import { useEffect, useState } from "react";
-import { faCertificate, faEnvelope, faIdCard, faLock, faUser } from "@fortawesome/free-solid-svg-icons";
+import { useState } from "react";
+import {
+  faCertificate,
+  faEnvelope,
+  faIdCard,
+  faLock,
+  faUser,
+} from "@fortawesome/free-solid-svg-icons";
+import { useNavigate } from "react-router-dom";
 import FormInput from "./FormInput";
 import SmilingRobot from "../../assets/login/smilingRobot.png";
 import { createUser } from "../../services/userService";
 import { useAuthForm } from "../../hooks/useAuthForm";
+import { flattenZodError, registerSchema } from "../../utils/validation";
 import MockCredentialsHint from "./MockCredentialsHint";
 
 interface RegisterFormProps {
@@ -11,6 +19,7 @@ interface RegisterFormProps {
 }
 
 function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -22,7 +31,7 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
     errors,
     error,
     success,
-  } = useAuthForm({
+  } = useAuthForm<string>({
     initialValues: {
       name: "",
       email: "",
@@ -37,54 +46,23 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         name: formValues.name,
         email: formValues.email,
         cpf: formValues.cpf,
-        profileType: formValues.profileType as "cidadao" | "estagiario" | "funcionario",
+        profileType: formValues.profileType as
+          | "cidadao"
+          | "estagiario"
+          | "funcionario",
         verificationProof: formValues.verificationProof,
         password: formValues.password,
       });
+      return formValues.email;
     },
-    validate: (formValues) => {
-      const newErrors: Record<string, string> = {};
-
-      if (!formValues.name.trim()) newErrors.name = "Nome é obrigatório";
-      if (!formValues.email.trim()) newErrors.email = "Email é obrigatório";
-      if (formValues.cpf.replace(/\D/g, "").length !== 11) {
-        newErrors.cpf = "CPF deve ter 11 dígitos";
-      }
-      if (formValues.profileType !== "cidadao" && !formValues.verificationProof.trim()) {
-        newErrors.verificationProof = "Informe um e-mail institucional ou certificado";
-      }
-      if (!formValues.password) newErrors.password = "Senha é obrigatória";
-      if (!formValues.confirmPassword) {
-        newErrors.confirmPassword = "Confirme sua senha";
-      }
-
-      if (formValues.password && formValues.password.length < 6) {
-        newErrors.password = "A senha deve ter pelo menos 6 caracteres";
-      }
-
-      if (
-        formValues.password &&
-        formValues.confirmPassword &&
-        formValues.password !== formValues.confirmPassword
-      ) {
-        newErrors.confirmPassword = "As senhas não conferem";
-      }
-
-      return newErrors;
+    validate: (formValues) =>
+      flattenZodError(registerSchema.safeParse(formValues)),
+    onSuccess: (email) => {
+      navigate(`/verify-email?email=${encodeURIComponent(email)}`, {
+        replace: true,
+      });
     },
   });
-
-  useEffect(() => {
-    if (!success) {
-      return;
-    }
-
-    const redirectTimer = window.setTimeout(onSwitchToLogin, 900);
-
-    return () => {
-      window.clearTimeout(redirectTimer);
-    };
-  }, [success, onSwitchToLogin]);
 
   const togglePasswordVisibility = () => {
     setShowPassword((current) => !current);
@@ -129,7 +107,7 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
             {success && (
               <div className="mb-6 p-4 bg-green-100 text-green-700 rounded-lg text-sm">
-                Conta criada no mock com sucesso. Indo para o login...
+                Conta criada! Redirecionando para a verificação do e-mail...
               </div>
             )}
 
@@ -171,15 +149,27 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
               />
 
               <fieldset>
-                <legend className="mb-3 block text-sm font-semibold text-[#333]">Tipo de perfil</legend>
+                <legend className="mb-3 block text-sm font-semibold text-[#333]">
+                  Tipo de perfil
+                </legend>
                 <div className="grid gap-2 sm:grid-cols-3">
                   {[
                     ["cidadao", "Cidadão"],
                     ["estagiario", "Estagiário"],
                     ["funcionario", "Funcionário"],
                   ].map(([value, label]) => (
-                    <label key={value} className={`cursor-pointer rounded-lg border-2 px-3 py-3 text-center text-sm font-bold transition ${values.profileType === value ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600"}`}>
-                      <input className="sr-only" type="radio" name="profileType" value={value} checked={values.profileType === value} onChange={handleChange} />
+                    <label
+                      key={value}
+                      className={`cursor-pointer rounded-lg border-2 px-3 py-3 text-center text-sm font-bold transition ${values.profileType === value ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600"}`}
+                    >
+                      <input
+                        className="sr-only"
+                        type="radio"
+                        name="profileType"
+                        value={value}
+                        checked={values.profileType === value}
+                        onChange={handleChange}
+                      />
                       {label}
                     </label>
                   ))}
@@ -199,7 +189,10 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
                     onChange={handleChange}
                     error={errors.verificationProof}
                   />
-                  <p className="mt-2 text-xs text-amber-700">Validação mockada: o documento ficará como pendente até a integração definitiva.</p>
+                  <p className="mt-2 text-xs text-amber-700">
+                    Validação mockada: o documento ficará como pendente até a
+                    integração definitiva.
+                  </p>
                 </div>
               )}
 

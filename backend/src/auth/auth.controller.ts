@@ -35,4 +35,21 @@ export class AuthController {
     //pega os dados enviados pelo front e envia pro authservice
     return this.authService.verifyEmail(body.email, body.code);
   }
+
+  @Post('resend-verification')
+  async resendVerification(@Body() body: { email: string }) {
+    return this.authService.resendVerification(body.email);
+  }
+
+  @Post('forgot-password')
+  async forgotPassword(@Body() body: { email: string }) {
+    return this.authService.forgotPassword(body.email);
+  }
+
+  @Post('reset-password')
+  async resetPassword(
+    @Body() body: { email: string; code: string; password: string },
+  ) {
+    return this.authService.resetPassword(body.email, body.code, body.password);
+  }
 }

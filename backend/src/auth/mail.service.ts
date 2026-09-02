@@ -32,4 +32,20 @@ export class MailService {
       `,
     });
   }
+
+  async sendPasswordResetCode(email: string, code: string) {
+    await this.transporter.sendMail({
+      from: '"Plataforma EAD" <no-reply@plataformaead.com>',
+      to: email,
+      subject: 'Código para redefinição de senha',
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+          <h2>Redefinição de senha</h2>
+          <p>Seu código de recuperação é:</p>
+          <h1 style="color: #4B6FFF; letter-spacing: 5px;">${code}</h1>
+          <p>O código expira em 15 minutos e pode ser usado apenas uma vez.</p>
+        </div>
+      `,
+    });
+  }
 }

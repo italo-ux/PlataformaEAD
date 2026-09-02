@@ -10,6 +10,10 @@ import ProfessorCourseCreatePage from "./pages/ProfessorCourseCreatePage";
 import RegisterPage from "./pages/RegisterPage";
 import TrailPage from "./pages/TrailPage";
 import UserHome from "./pages/userHome";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
+import VerifyEmailPage from "./pages/VerifyEmailPage";
 
 function App() {
   return (
@@ -18,6 +22,9 @@ function App() {
         <Route path="/" element={<LoginPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/home" element={<UserHome />} />
         <Route path="/dashboard" element={<DashboardAluno />} />
         <Route path="/perfil" element={<ProfilePage />} />
@@ -25,9 +32,13 @@ function App() {
         <Route path="/courses/:courseId" element={<CourseView />} />
         <Route path="/trilhas/:trailSlug" element={<TrailPage />} />
         <Route
-          path="/professor/cursos/novo"
-          element={<ProfessorCourseCreatePage />}
-        />
+          element={<ProtectedRoute allowedRoles={["professor", "admin"]} />}
+        >
+          <Route
+            path="/professor/cursos/novo"
+            element={<ProfessorCourseCreatePage />}
+          />
+        </Route>
         <Route path="/course" element={<Navigate to="/courses/1" replace />} />
         <Route path="/course/:courseId" element={<CourseView />} />
         <Route path="/quem-somos" element={<AboutPage />} />
