@@ -7,12 +7,12 @@ import {
 const AUTH_USER_STORAGE_KEY = "ead.auth.user";  //nome da chave
 const DELETED_USERS_STORAGE_KEY = "ead.deleted.users";
 
-// Interface atualizada com o campo CPF 
+// Interface atualizada com o campo CPF
 export interface RegisterUserInput {
   name: string;
   email: string;
   password: string;
-  cpf: string; 
+  cpf: string;
   profileType: "cidadao" | "estagiario" | "funcionario";
   verificationProof?: string;
 }
@@ -39,7 +39,7 @@ function sanitizeUser(user: User): User {
 /*--------------------------------------- Função de login real --------------------------------------- */
 
 //usa promise para garantir que se o login der certo, essa função vai devolver o novo objeto User (Limpo)
-export async function loginUser(email: string, password: string): Promise<User> { 
+export async function loginUser(email: string, password: string): Promise<User> {
   const normalizedEmail = normalizeEmail(email);
   const deletedUserIds = JSON.parse(
     localStorage.getItem(DELETED_USERS_STORAGE_KEY) ?? "[]",
@@ -74,10 +74,10 @@ export async function loginUser(email: string, password: string): Promise<User> 
   localStorage.setItem("token", data.access_token);
 
   return {
-    id: data.user.id, 
-    name: data.user.name || data.user.email, 
+    id: data.user.id,
+    name: data.user.name || data.user.email,
     email: data.user.email,
-    role: data.user.role || "aluno", 
+    role: data.user.role || "aluno",
   };
 }
 
@@ -93,7 +93,7 @@ export async function createUser(userData: RegisterUserInput): Promise<User> {
     body: JSON.stringify({  //transformaobjeto de código em tetxo puro
       name: userData.name.trim(),
       email: normalizeEmail(userData.email),
-      password: userData.password, 
+      password: userData.password,
       cpf: userData.cpf, // Passando o CPF digitado na tela
       profileType: userData.profileType,
       verificationProof: userData.verificationProof,
@@ -111,7 +111,7 @@ export async function createUser(userData: RegisterUserInput): Promise<User> {
     id: data.id,
     name: userData.name.trim(),
     email: data.email,
-    role: "aluno", 
+    role: "aluno",
     profileType: userData.profileType,
     verificationStatus:
       userData.profileType === "cidadao" ? "nao_aplicavel" : "pendente",

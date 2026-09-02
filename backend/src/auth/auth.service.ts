@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -8,6 +12,12 @@ import { MailService } from './mail.service';
 
 @Injectable()
 export class AuthService {
+  private static readonly GENERIC_RECOVERY_MESSAGE =
+    'Se o e-mail estiver cadastrado, um código será enviado.';
+  private static readonly GENERIC_VERIFICATION_MESSAGE =
+    'Se a conta estiver pendente, um novo código será enviado.';
+  private static readonly RESET_CODE_TTL_MS = 15 * 60 * 1000;
+
   constructor(
     private jwtService: JwtService,
     @InjectRepository(User)
@@ -18,18 +28,17 @@ export class AuthService {
   // 1. REGISTRO (Cria usuário, gera o código OTP e envia o e-mail)
   async register(name: string, email: string, password: string, cpf: string) {
     const hash = await bcrypt.hash(password, 10);
+    const normalizedEmail = email.trim().toLowerCase();
 
     const user = this.userRepository.create({
       name,
-      email,
+      email: normalizedEmail,
       password_hash: hash,
       cpf,
     });
 
     // Gera o código de 6 dígitos
-    const verificationCode = Math.floor(
-      100000 + Math.random() * 900000,
-    ).toString();
+    const verificationCode = this.generateCode();
 
     user.verification_code = verificationCode;
 
@@ -50,7 +59,7 @@ export class AuthService {
   async verifyEmail(email: string, code: string) {
     // Busca o usuário no banco
     const user = await this.userRepository.findOne({
-      where: { email },
+      where: { email: email.trim().toLowerCase() },
     });
 
     // Primeiro: garante que o usuário existe no banco
@@ -75,7 +84,7 @@ export class AuthService {
   // 3. LOGIN (Confere e-mail, verificação e senha)
   async login(email: string, password: string) {
     const user = await this.userRepository.findOne({
-      where: { email },
+      where: { email: email.trim().toLowerCase() },
     });
 
     if (!user) {
@@ -103,8 +112,72 @@ export class AuthService {
       access_token: this.jwtService.sign(payload),
       user: {
         id: user.id,
+        name: user.name,
         email: user.email,
       },
     };
+  }
+
+  async resendVerification(email: string) {
+    const user = await this.userRepository.findOne({
+      where: { email: email.trim().toLowerCase() },
+    });
+
+    if (user && !user.is_verified) {
+      user.verification_code = this.generateCode();
+      await this.userRepository.save(user);
+      await this.mailService.sendVerificationCode(
+        user.email,
+        user.verification_code,
+      );
+    }
+
+    return { message: AuthService.GENERIC_VERIFICATION_MESSAGE };
+  }
+
+  async forgotPassword(email: string) {
+    const user = await this.userRepository.findOne({
+      where: { email: email.trim().toLowerCase() },
+    });
+
+    if (user?.is_verified) {
+      user.password_reset_code = this.generateCode();
+      user.password_reset_expires_at = new Date(
+        Date.now() + AuthService.RESET_CODE_TTL_MS,
+      );
+      await this.userRepository.save(user);
+      await this.mailService.sendPasswordResetCode(
+        user.email,
+        user.password_reset_code,
+      );
+    }
+
+    return { message: AuthService.GENERIC_RECOVERY_MESSAGE };
+  }
+
+  async resetPassword(email: string, code: string, password: string) {
+    const user = await this.userRepository.findOne({
+      where: { email: email.trim().toLowerCase() },
+    });
+    const resetCodeExpired =
+      !user?.password_reset_expires_at ||
+      user.password_reset_expires_at.getTime() < Date.now();
+
+    if (!user || user.password_reset_code !== code || resetCodeExpired) {
+      throw new BadRequestException(
+        'Código de recuperação inválido ou expirado',
+      );
+    }
+
+    user.password_hash = await bcrypt.hash(password, 10);
+    user.password_reset_code = null;
+    user.password_reset_expires_at = null;
+    await this.userRepository.save(user);
+
+    return { message: 'Senha alterada com sucesso.' };
+  }
+
+  private generateCode() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
   }
 }
