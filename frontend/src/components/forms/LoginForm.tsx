@@ -7,14 +7,16 @@ import { loginUser, saveAuthenticatedUser } from "../../services/userService";
 import { useAuthForm } from "../../hooks/useAuthForm";
 import { loginSchema, flattenZodError } from "../../utils/validation";
 import MockCredentialsHint from "./MockCredentialsHint";
+import type { User } from "../../data/userMock";
 
 interface LoginFormProps {
   onSwitchToRegister: () => void;
-  onSuccess?: () => void;
+  onSuccess?: (user: User) => void;
 }
 
 function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [authenticatedUser, setAuthenticatedUser] = useState<User | null>(null);
 
   const {
     values,
@@ -29,16 +31,17 @@ function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
     onSubmit: async (formValues) => {
       const user = await loginUser(formValues.email, formValues.password);
       saveAuthenticatedUser(user);
+      setAuthenticatedUser(user);
     },
     validate: (formValues) =>
       flattenZodError(loginSchema.safeParse(formValues)),
   });
 
   useEffect(() => {
-    if (success) {
-      onSuccess?.();
+    if (success && authenticatedUser) {
+      onSuccess?.(authenticatedUser);
     }
-  }, [success, onSuccess]);
+  }, [authenticatedUser, success, onSuccess]);
 
   const togglePasswordVisibility = () => {
     setShowPassword((current) => !current);
