@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const emailSchema = z
   .string()
+  .trim()
   .email("E-mail inválido")
   .min(1, "E-mail é obrigatório");
 

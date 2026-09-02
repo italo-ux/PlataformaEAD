@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { faEnvelope, faLock } from "@fortawesome/free-solid-svg-icons";
 import { NavLink } from "react-router-dom";
 import FormInput from "./FormInput";
@@ -6,7 +6,6 @@ import SmilingRobot from "../../assets/login/smilingRobot.png";
 import { loginUser, saveAuthenticatedUser } from "../../services/userService";
 import { useAuthForm } from "../../hooks/useAuthForm";
 import { loginSchema, flattenZodError } from "../../utils/validation";
-import MockCredentialsHint from "./MockCredentialsHint";
 import type { User } from "../../data/userMock";
 
 interface LoginFormProps {
@@ -16,7 +15,6 @@ interface LoginFormProps {
 
 function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
-  const [authenticatedUser, setAuthenticatedUser] = useState<User | null>(null);
 
   const {
     values,
@@ -25,23 +23,17 @@ function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
     loading,
     errors,
     error,
-    success,
-  } = useAuthForm({
+  } = useAuthForm<User>({
     initialValues: { email: "", password: "" },
     onSubmit: async (formValues) => {
       const user = await loginUser(formValues.email, formValues.password);
       saveAuthenticatedUser(user);
-      setAuthenticatedUser(user);
+      return user;
     },
     validate: (formValues) =>
       flattenZodError(loginSchema.safeParse(formValues)),
+    onSuccess,
   });
-
-  useEffect(() => {
-    if (success && authenticatedUser) {
-      onSuccess?.(authenticatedUser);
-    }
-  }, [authenticatedUser, success, onSuccess]);
 
   const togglePasswordVisibility = () => {
     setShowPassword((current) => !current);
@@ -128,7 +120,6 @@ function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
               </div>
             </form>
 
-            <MockCredentialsHint />
           </div>
 
           <div className="hidden lg:flex flex-col items-center justify-center">

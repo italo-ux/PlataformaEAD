@@ -12,7 +12,6 @@ import SmilingRobot from "../../assets/login/smilingRobot.png";
 import { createUser } from "../../services/userService";
 import { useAuthForm } from "../../hooks/useAuthForm";
 import { flattenZodError, registerSchema } from "../../utils/validation";
-import MockCredentialsHint from "./MockCredentialsHint";
 
 interface RegisterFormProps {
   onSwitchToLogin: () => void;
@@ -190,8 +189,8 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
                     error={errors.verificationProof}
                   />
                   <p className="mt-2 text-xs text-amber-700">
-                    Validação mockada: o documento ficará como pendente até a
-                    integração definitiva.
+                    Demonstração local: estes dados não são enviados ao servidor
+                    e não concedem permissões de professor ou administrador.
                   </p>
                 </div>
               )}
@@ -246,7 +245,6 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
               </div>
             </form>
 
-            <MockCredentialsHint />
           </div>
         </div>
       </div>

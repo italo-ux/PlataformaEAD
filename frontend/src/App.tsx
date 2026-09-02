@@ -38,8 +38,12 @@ function App() {
             path="/professor/cursos/novo"
             element={<ProfessorCourseCreatePage />}
           />
+          <Route
+            path="/courses/:courseId/editar"
+            element={<ProfessorCourseCreatePage />}
+          />
         </Route>
-        <Route path="/course" element={<Navigate to="/courses/1" replace />} />
+        <Route path="/course" element={<Navigate to="/courses" replace />} />
         <Route path="/course/:courseId" element={<CourseView />} />
         <Route path="/quem-somos" element={<AboutPage />} />
         <Route path="/feedback" element={<FeedbackPage />} />

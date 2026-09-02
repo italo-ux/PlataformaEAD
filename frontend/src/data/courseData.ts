@@ -11,7 +11,7 @@ export interface Lesson {
 }
 
 export interface Instructor {
-  id?: number;
+  id?: number | string;
   name: string;
   email?: string;
   bio: string;

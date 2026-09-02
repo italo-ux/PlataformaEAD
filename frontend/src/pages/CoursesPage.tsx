@@ -1,324 +1,55 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  ArrowLeft,
-  BookOpen,
-  Clock3,
-  Code2,
-  Gamepad2,
-  GraduationCap,
-  Palette,
-  Play,
-  SlidersHorizontal,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowLeft, BookOpen, Clock3, PlusCircle, Search } from "lucide-react";
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
-import {
-  formatCourseInstructorNames,
-  mockCourses,
-  type Course,
-} from "../data/courseData";
+import { canCreateCourses } from "../data/userMock";
+import courseService, { type Curso } from "../services/courseService";
 import { getAuthenticatedUser } from "../services/userService";
 
-type CourseFilter = "all" | "in-progress" | "not-started" | "completed";
-type CourseSort = "recommended" | "progress-desc" | "progress-asc" | "title";
-
-const courseIcons: Record<number, LucideIcon> = {
-  1: Gamepad2,
-  2: Code2,
-  3: Palette,
-  4: GraduationCap,
-};
-
-const courseCategories: Record<number, string> = {
-  1: "Tecnologia",
-  2: "Desenvolvimento",
-  3: "Design",
-  4: "Dados",
-};
-
-const courseCategoryGradients: Record<number, string> = {
-  1: "linear-gradient(90deg, #ef4444, #991b1b)",
-  2: "linear-gradient(90deg, #3b82f6, #1e3a8a)",
-  3: "linear-gradient(90deg, #a855f7, #581c87)",
-  4: "linear-gradient(90deg, #10b981, #065f46)",
-};
-
-const filterOptions: { label: string; value: CourseFilter }[] = [
-  { label: "Todos", value: "all" },
-  { label: "Em andamento", value: "in-progress" },
-  { label: "Não iniciados", value: "not-started" },
-  { label: "Concluídos", value: "completed" },
-];
-
-function normalizeSearchText(value: string) {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
-function matchesCourseFilter(course: Course, filter: CourseFilter) {
-  if (filter === "completed") {
-    return course.progress >= 100;
-  }
-
-  if (filter === "in-progress") {
-    return course.progress > 0 && course.progress < 100;
-  }
-
-  if (filter === "not-started") {
-    return course.progress === 0;
-  }
-
-  return true;
-}
-
-function CourseCard({
-  course,
-  onOpenCourse,
-}: {
-  course: Course;
-  onOpenCourse: (courseId: number) => void;
-}) {
-  const Icon = courseIcons[course.id] ?? BookOpen;
-
-  return (
-    <article
-      onClick={() => onOpenCourse(course.id)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          onOpenCourse(course.id);
-        }
-      }}
-      className="group cursor-pointer overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
-      role="button"
-      tabIndex={0}
-    >
-      <div
-        className="h-1.5"
-        style={{ background: courseCategoryGradients[course.id] ?? "linear-gradient(90deg, #3b82f6, #1e3a8a)" }}
-      />
-      <div className="relative h-40 overflow-hidden bg-slate-200">
-        <img
-          src={course.image}
-          alt={course.title}
-          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-        />
-        <div className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-lg bg-white/95 text-blue-600 shadow-sm">
-          <Icon size={18} />
-        </div>
-      </div>
-
-      <div className="p-4">
-        <div className="mb-2 flex flex-wrap gap-1">
-          {course.audiences.map((audience) => (
-            <span key={audience} className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-              {audience}
-            </span>
-          ))}
-        </div>
-        <p className="text-[11px] font-bold uppercase tracking-wide text-blue-600">
-          {courseCategories[course.id] ?? "Curso"}
-        </p>
-        <h2 className="mt-1 line-clamp-2 min-h-[2.5rem] text-sm font-black leading-5 text-[#25304a] transition group-hover:text-blue-700">
-          {course.title}
-        </h2>
-        <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">
-          {course.description}
-        </p>
-
-        <div className="mt-4 flex items-center justify-between gap-3 text-[11px] font-semibold text-slate-500">
-          <span className="inline-flex items-center gap-1">
-            <Clock3 size={13} />
-            {course.totalLessons} aulas
-          </span>
-          <span className="inline-flex items-center gap-1 text-blue-700">
-            Acessar curso
-            <Play size={13} className="fill-blue-700" />
-          </span>
-        </div>
-      </div>
-    </article>
-  );
+function includesSearch(curso: Curso, search: string) {
+  return `${curso.nome} ${curso.descricao ?? ""} ${curso.categoria ?? ""} ${curso.nivel ?? ""}`
+    .toLocaleLowerCase("pt-BR")
+    .includes(search.toLocaleLowerCase("pt-BR"));
 }
 
 export default function CoursesPage() {
   const navigate = useNavigate();
   const user = getAuthenticatedUser();
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [courseFilter, setCourseFilter] = useState<CourseFilter>("all");
-  const [courseSort, setCourseSort] = useState<CourseSort>("recommended");
+  const [courses, setCourses] = useState<Curso[]>([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const filteredCourses = useMemo(() => {
-    const normalizedSearch = normalizeSearchText(searchTerm.trim());
+  useEffect(() => {
+    courseService.listCourses()
+      .then(setCourses)
+      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Não foi possível carregar os cursos."))
+      .finally(() => setLoading(false));
+  }, []);
 
-    return [...mockCourses]
-      .filter((course) => {
-        const searchableContent = normalizeSearchText(
-          `${course.title} ${course.description} ${formatCourseInstructorNames(
-            course,
-          )}`,
-        );
-
-        return (
-          matchesCourseFilter(course, courseFilter) &&
-          (!normalizedSearch || searchableContent.includes(normalizedSearch))
-        );
-      })
-      .sort((currentCourse, nextCourse) => {
-        if (courseSort === "progress-desc") {
-          return nextCourse.progress - currentCourse.progress;
-        }
-
-        if (courseSort === "progress-asc") {
-          return currentCourse.progress - nextCourse.progress;
-        }
-
-        if (courseSort === "title") {
-          return currentCourse.title.localeCompare(nextCourse.title, "pt-BR");
-        }
-
-        return 0;
-      });
-  }, [courseFilter, courseSort, searchTerm]);
-
-  const foundCoursesText = `${filteredCourses.length} ${
-    filteredCourses.length === 1 ? "curso encontrado" : "cursos encontrados"
-  }`;
+  const filteredCourses = useMemo(
+    () => courses.filter((course) => includesSearch(course, search.trim())),
+    [courses, search],
+  );
 
   return (
     <div className="min-h-screen bg-[#f3f4f6] text-slate-950">
       <Navbar user={user} />
-
       <main>
-        <section className="bg-blue-600 text-white">
-          <div className="mx-auto flex max-w-7xl items-center gap-5 px-4 py-7 sm:px-6 lg:px-8">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border-2 border-white/80 text-white">
-              <BookOpen size={34} strokeWidth={2.1} />
-            </div>
-            <h1 className="text-2xl font-black leading-tight sm:text-3xl">
-              Cursos
-            </h1>
-          </div>
-        </section>
-
+        <section className="bg-blue-600 text-white"><div className="mx-auto flex max-w-7xl items-center gap-5 px-4 py-7 sm:px-6 lg:px-8"><BookOpen size={34} /><h1 className="text-2xl font-black sm:text-3xl">Cursos</h1></div></section>
         <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <button
-            type="button"
-            onClick={() => navigate("/home")}
-            className="flex w-fit items-center gap-2 text-xs font-medium text-gray-700 transition hover:text-blue-600"
-          >
-            <ArrowLeft size={14} />
-            Voltar para home
-          </button>
-
-          <div className="mb-6 mt-5 flex items-center justify-between gap-4">
-            <p className="text-sm font-bold text-slate-700">
-              {foundCoursesText}
-            </p>
-
-            <button
-              type="button"
-              onClick={() => setIsFilterOpen((current) => !current)}
-              className="inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm font-bold text-slate-700 transition hover:bg-white"
-              aria-expanded={isFilterOpen}
-              aria-controls="course-catalog-filters"
-              aria-label="Filtrar cursos"
-            >
-              Filtrar
-              <SlidersHorizontal size={22} strokeWidth={2.4} />
-            </button>
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+            <button type="button" onClick={() => navigate("/home")} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-blue-600"><ArrowLeft size={16} />Voltar para home</button>
+            {canCreateCourses(user) && <button type="button" onClick={() => navigate("/professor/cursos/novo")} className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"><PlusCircle size={18} />Novo curso</button>}
           </div>
-
-          {isFilterOpen && (
-            <div
-              id="course-catalog-filters"
-              className="mb-6 grid gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_auto_auto]"
-            >
-              <label className="grid gap-2 text-sm font-bold text-slate-700">
-                Buscar
-                <input
-                  type="search"
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Nome, descrição ou professor"
-                  className="h-11 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
-              </label>
-
-              <div className="grid gap-2 text-sm font-bold text-slate-700">
-                Status
-                <div
-                  className="grid grid-cols-2 overflow-hidden rounded-md border border-slate-200 sm:flex"
-                  role="group"
-                  aria-label="Filtrar cursos por status"
-                >
-                  {filterOptions.map((option) => {
-                    const isSelected = courseFilter === option.value;
-
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setCourseFilter(option.value)}
-                        aria-pressed={isSelected}
-                        className={`px-3 py-2 text-xs font-bold transition ${
-                          isSelected
-                            ? "bg-blue-600 text-white"
-                            : "bg-white text-slate-600 hover:bg-slate-50"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <label className="grid gap-2 text-sm font-bold text-slate-700">
-                Ordenar
-                <select
-                  value={courseSort}
-                  onChange={(event) =>
-                    setCourseSort(event.target.value as CourseSort)
-                  }
-                  className="h-11 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                >
-                  <option value="recommended">Recomendados</option>
-                  <option value="progress-desc">Maior progresso</option>
-                  <option value="progress-asc">Menor progresso</option>
-                  <option value="title">Título</option>
-                </select>
-              </label>
-            </div>
-          )}
-
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredCourses.map((course) => (
-              <CourseCard
-                key={course.id}
-                course={course}
-                onOpenCourse={(courseId) => navigate(`/courses/${courseId}`)}
-              />
-            ))}
-          </div>
-
-          {filteredCourses.length === 0 && (
-            <div className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-10 text-center">
-              <p className="font-bold text-[#25304a]">
-                Nenhum curso encontrado
-              </p>
-              <p className="mt-2 text-sm text-slate-500">
-                Ajuste os filtros para ver outros cursos disponíveis.
-              </p>
-            </div>
-          )}
+          <label className="mb-6 flex max-w-xl items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2"><Search size={18} className="text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nome, categoria ou nível" className="w-full outline-none" /></label>
+          {loading && <p className="text-slate-600">Carregando cursos...</p>}
+          {error && <div className="rounded-md bg-red-100 p-4 font-semibold text-red-700">{error}</div>}
+          {!loading && !error && <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{filteredCourses.map((course) => <article key={course.id} onClick={() => navigate(`/courses/${course.id}`)} className="cursor-pointer overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"><div className="h-40 bg-slate-200">{course.url_foto ? <img src={course.url_foto} alt={course.nome} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-blue-600"><BookOpen size={40} /></div>}</div><div className="p-4"><p className="text-xs font-bold uppercase text-blue-600">{course.categoria ?? "Curso"}</p><h2 className="mt-1 text-lg font-black text-[#25304a]">{course.nome}</h2><p className="mt-2 line-clamp-2 text-sm text-slate-500">{course.descricao ?? "Sem descrição disponível."}</p><p className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-slate-500"><Clock3 size={14} />{course.carga_horaria === null ? "Carga horária não informada" : `${course.carga_horaria} horas`}</p></div></article>)}</div>}
+          {!loading && !error && filteredCourses.length === 0 && <div className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-10 text-center"><p className="font-bold text-[#25304a]">Nenhum curso encontrado</p><p className="mt-2 text-sm text-slate-500">{courses.length === 0 ? "Ainda não há cursos cadastrados." : "Ajuste sua busca para encontrar outros cursos."}</p></div>}
         </section>
       </main>
-
       <Footer />
     </div>
   );

@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
 import { MailService } from './mail.service';
+import { randomInt } from 'node:crypto';
 
 @Injectable()
 export class AuthService {
@@ -68,7 +69,12 @@ export class AuthService {
     }
 
     // Segundo: compara o código enviado com o código guardado no banco
-    if (user.verification_code !== code) {
+    if (
+      user.is_verified ||
+      !/^\d{6}$/.test(code) ||
+      !user.verification_code ||
+      user.verification_code !== code
+    ) {
       throw new UnauthorizedException('Código de verificação inválido');
     }
 
@@ -114,6 +120,7 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
+        role: user.role,
       },
     };
   }
@@ -161,9 +168,15 @@ export class AuthService {
     });
     const resetCodeExpired =
       !user?.password_reset_expires_at ||
-      user.password_reset_expires_at.getTime() < Date.now();
+      user.password_reset_expires_at.getTime() <= Date.now();
 
-    if (!user || user.password_reset_code !== code || resetCodeExpired) {
+    if (
+      !user?.is_verified ||
+      !/^\d{6}$/.test(code) ||
+      !user.password_reset_code ||
+      user.password_reset_code !== code ||
+      resetCodeExpired
+    ) {
       throw new BadRequestException(
         'Código de recuperação inválido ou expirado',
       );
@@ -178,6 +191,6 @@ export class AuthService {
   }
 
   private generateCode() {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    return randomInt(100000, 1000000).toString();
   }
 }
