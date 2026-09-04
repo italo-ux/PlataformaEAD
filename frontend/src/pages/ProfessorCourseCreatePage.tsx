@@ -1,11 +1,12 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BookOpen, PlusCircle, Save } from "lucide-react";
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
 import { canCreateCourses } from "../data/userMock";
 import courseService, { type CursoInput } from "../services/courseService";
 import { getAuthenticatedUser } from "../services/userService";
+import CourseLessonsEditor from "../components/CourseLessonsEditor";
 
 const initialForm: Record<keyof CursoInput, string> = {
   nome: "",
@@ -22,6 +23,7 @@ const fieldClass =
 export default function ProfessorCourseCreatePage() {
   const navigate = useNavigate();
   const { courseId } = useParams();
+  const [searchParams] = useSearchParams();
   const user = getAuthenticatedUser();
   const isEditing = Boolean(courseId);
   const [form, setForm] = useState(initialForm);
@@ -30,6 +32,13 @@ export default function ProfessorCourseCreatePage() {
   const [error, setError] = useState("");
   const [loadFailed, setLoadFailed] = useState(false);
   const [courseOwnerId, setCourseOwnerId] = useState<string | null>(null);
+  const [status, setStatus] = useState("");
+
+  useEffect(() => {
+    if (searchParams.get("created") === "1") {
+      setStatus("Curso criado com sucesso. Agora adicione as aulas.");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!courseId) return;
@@ -92,6 +101,7 @@ export default function ProfessorCourseCreatePage() {
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
+    setStatus("");
     setSaving(true);
 
     const payload: CursoInput = { nome: form.nome.trim() };
@@ -104,11 +114,13 @@ export default function ProfessorCourseCreatePage() {
     }
 
     try {
-      const course =
-        isEditing && courseId
-          ? await courseService.updateCourse(courseId, payload)
-          : await courseService.createCourse(payload);
-      navigate(`/courses/${course.id}`);
+      if (isEditing && courseId) {
+        await courseService.updateCourse(courseId, payload);
+        setStatus("Curso atualizado com sucesso.");
+      } else {
+        const course = await courseService.createCourse(payload);
+        navigate(`/courses/${course.id}/editar?created=1`, { replace: true });
+      }
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -123,7 +135,7 @@ export default function ProfessorCourseCreatePage() {
   return (
     <div className="min-h-screen bg-[#f6f9ff] text-slate-950">
       <Navbar user={user} />
-      <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+      <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
         <div className="mb-8 flex items-end justify-between gap-4">
           <div>
             <p className="text-sm font-bold uppercase text-blue-600">
@@ -173,6 +185,11 @@ export default function ProfessorCourseCreatePage() {
             {error && (
               <div className="mb-6 rounded-lg bg-red-100 p-4 text-sm font-semibold text-red-700">
                 {error}
+              </div>
+            )}
+            {status && (
+              <div role="status" className="mb-6 rounded-lg bg-emerald-100 p-4 text-sm font-semibold text-emerald-700">
+                {status}
               </div>
             )}
 
@@ -263,6 +280,9 @@ export default function ProfessorCourseCreatePage() {
               </button>
             </div>
           </form>
+        )}
+        {isEditing && courseId && !loading && !loadFailed && (
+          <CourseLessonsEditor courseId={courseId} />
         )}
       </main>
       <Footer />
