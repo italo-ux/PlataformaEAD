@@ -98,6 +98,10 @@ function CourseTrailCard({
       role="button"
       tabIndex={0}
     >
+      <div
+        className="h-1.5"
+        style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${accentColor} 72%, white), ${accentColor}, color-mix(in srgb, ${accentColor} 72%, black))` }}
+      />
       <div className="relative h-36 overflow-hidden bg-slate-200">
         <img
           src={course.image}
@@ -110,6 +114,13 @@ function CourseTrailCard({
       </div>
 
       <div className="p-4">
+        <div className="mb-2 flex flex-wrap gap-1">
+          {course.audiences.map((audience) => (
+            <span key={audience} className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+              {audience}
+            </span>
+          ))}
+        </div>
         <p className="text-[11px] font-bold uppercase tracking-wide text-blue-600">
           {course.title.includes("Game") ? "Tecnologia" : "Software"}
         </p>

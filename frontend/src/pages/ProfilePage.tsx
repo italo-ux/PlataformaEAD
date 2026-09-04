@@ -9,6 +9,7 @@ import {
   Phone,
   Save,
   Shield,
+  Trash2,
   UserRound,
   X,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import type { User } from "../data/userMock";
 import {
   changeAuthenticatedUserPassword,
   clearAuthenticatedUser,
+  deleteAuthenticatedUser,
   getAuthenticatedUser,
   updateProfile,
 } from "../services/userService";
@@ -255,6 +257,7 @@ export default function ProfilePage() {
   const [passwordStatus, setPasswordStatus] = useState("");
   const [passwordGeneralError, setPasswordGeneralError] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [deleteConfirmationStep, setDeleteConfirmationStep] = useState<0 | 1 | 2>(0);
 
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -341,6 +344,21 @@ export default function ProfilePage() {
     setIsSaving(false);
   }
 };
+      setUser(updatedUser);
+      setFormValues(mapUserToFormValues(updatedUser));
+      setStatusMessage("Perfil atualizado apenas neste navegador; o servidor não foi alterado.");
+      setIsAvatarEditorOpen(false);
+      setIsEditingProfile(false);
+    } catch (error) {
+      setGeneralError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar o perfil.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleSubmitPassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -368,7 +386,8 @@ export default function ProfilePage() {
         nextPassword: "",
         confirmPassword: "",
       });
-      setPasswordStatus("Senha alterada no mock com sucesso.");
+      setIsPasswordModalOpen(false);
+      setStatusMessage("Senha alterada apenas na demonstração desta sessão.");
     } catch (error) {
       setPasswordGeneralError(
         error instanceof Error
@@ -410,6 +429,15 @@ export default function ProfilePage() {
     setIsPasswordModalOpen(false);
   };
 
+  const closeDeleteModal = () => {
+    setDeleteConfirmationStep(0);
+  };
+
+  const handleDeleteProfile = () => {
+    deleteAuthenticatedUser(user.id);
+    navigate("/login", { replace: true });
+  };
+
   const openProfileEditor = () => {
     setStatusMessage("");
     setGeneralError("");
@@ -432,6 +460,10 @@ export default function ProfilePage() {
         <section className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
           <div className="mb-8 border-b-2 border-slate-600 pb-3">
             <h1 className="text-3xl font-black text-slate-950">Meu perfil</h1>
+            <p className="mt-3 text-sm text-amber-800">
+              As edições desta tela são locais a este navegador. Elas não alteram
+              seus dados cadastrais no servidor.
+            </p>
           </div>
 
           <div className="mb-8 flex items-center gap-2 text-sm font-semibold text-slate-600">
@@ -674,9 +706,35 @@ export default function ProfilePage() {
               </button>
             )}
           </div>
+
+          <div className="mx-auto mt-8 max-w-3xl rounded-lg border border-red-200 bg-red-50 p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="font-black text-red-900">Remover perfil deste navegador</h2>
+                <p className="mt-1 text-sm text-red-700">
+                  Remove os dados locais do perfil e encerra esta sessão. Sua conta continua no servidor.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmationStep(1)}
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md border border-red-500 px-5 text-sm font-bold text-red-700 transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+              >
+                <Trash2 className="h-4 w-4" />
+                Remover perfil local
+              </button>
+            </div>
+          </div>
         </section>
 
-        {user.role === "admin" && <AdminDashboard />}
+        {user.role === "admin" && (
+          <>
+            <p className="mx-auto max-w-5xl px-4 py-3 text-sm text-amber-800">
+              Painel demonstrativo: os indicadores administrativos ainda usam dados simulados.
+            </p>
+            <AdminDashboard />
+          </>
+        )}
       </main>
 
       <Footer />
@@ -698,7 +756,7 @@ export default function ProfilePage() {
                   Alterar senha
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Atualização válida apenas no mock desta sessão.
+                  Demonstração local. Para alterar a senha real, use "Esqueci a senha" na tela de login.
                 </p>
               </div>
               <button
@@ -763,6 +821,70 @@ export default function ProfilePage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirmationStep > 0 && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-modal-title"
+        >
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-red-100 text-red-700">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                className="flex h-9 w-9 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500"
+                aria-label="Fechar confirmação de exclusão"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <h2 id="delete-modal-title" className="mt-4 text-xl font-black text-slate-950">
+              {deleteConfirmationStep === 1
+                ? "Deseja remover seu perfil local?"
+                : "Última confirmação"}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              {deleteConfirmationStep === 1
+                ? "Esta ação remove apenas dados deste navegador. Sua conta no servidor não será excluída."
+                : "Você será desconectado, mas poderá entrar novamente com sua conta."}
+            </p>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 px-5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400"
+              >
+                Cancelar
+              </button>
+              {deleteConfirmationStep === 1 ? (
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmationStep(2)}
+                  className="inline-flex h-10 items-center justify-center rounded-md bg-red-600 px-5 text-sm font-bold text-white transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  Sim, continuar
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleDeleteProfile}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-red-600 px-5 text-sm font-bold text-white transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Remover dados locais e sair
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

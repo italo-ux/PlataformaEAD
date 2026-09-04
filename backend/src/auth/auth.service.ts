@@ -7,12 +7,19 @@ import {
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThan, Repository } from 'typeorm';
 import { User } from './user.entity';
 import { MailService } from './mail.service';
+import { randomInt } from 'node:crypto';
 
 @Injectable()
 export class AuthService {
+  private static readonly GENERIC_RECOVERY_MESSAGE =
+    'Se o e-mail estiver cadastrado, um código será enviado.';
+  private static readonly GENERIC_VERIFICATION_MESSAGE =
+    'Se a conta estiver pendente, um novo código será enviado.';
+  private static readonly RESET_CODE_TTL_MS = 15 * 60 * 1000;
+
   constructor(
     private jwtService: JwtService,
     @InjectRepository(User)
@@ -37,18 +44,17 @@ export class AuthService {
   /*------------ REGISTRO (Cria usuário, gera o código OTP e envia o e-mail  ------------*/
   async register(name: string, email: string, password: string, cpf: string) {
     const hash = await bcrypt.hash(password, 10);
+    const normalizedEmail = email.trim().toLowerCase();
 
     const user = this.userRepository.create({
       name,
-      email,
+      email: normalizedEmail,
       password_hash: hash,
       cpf,
     });
 
-    // gera o código de 6 dígitos
-    const verificationCode = Math.floor(
-      100000 + Math.random() * 900000,
-    ).toString();
+    // Gera o código de 6 dígitos
+    const verificationCode = this.generateCode();
 
     user.verification_code = verificationCode;
 
@@ -68,7 +74,7 @@ export class AuthService {
   async verifyEmail(email: string, code: string) {
     // Busca o usuário no banco
     const user = await this.userRepository.findOne({
-      where: { email },
+      where: { email: email.trim().toLowerCase() },
     });
 
     // garante que o suuáro eista no banco
@@ -93,7 +99,7 @@ export class AuthService {
   // LOGIN
   async login(email: string, password: string) {
     const user = await this.userRepository.findOne({
-      where: { email },
+      where: { email: email.trim().toLowerCase() },
     });
 
     if (!user) {
@@ -126,6 +132,7 @@ export class AuthService {
       access_token: this.jwtService.sign(payload),
       user: {
         id: user.id,
+        name: user.name,
         email: user.email,
         name: user.name,
       },

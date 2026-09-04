@@ -29,8 +29,34 @@ psql -U seu_usuario -d plataforma_ead -f database/schema.sql
 ### 3️⃣ Ou Executar Migrations em Ordem
 
 ```bash
-psql -U seu_usuario -d plataforma_ead -f database/migrations/1_initial_schema.sql
+psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/1_initial_schema.sql
+psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/2_course_lessons.sql
+psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/3_roles_and_course_ownership.sql
+psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/4_password_recovery.sql
 ```
+
+> Use somente os scripts desta versão: a migração 3 histórica era destrutiva.
+> A versão integrada é transacional e não remove dados. Ela aborta se cursos
+> ou aulas tiverem proprietários ausentes/inválidos. Faça backup antes de qualquer
+> aplicação e forneça um mapeamento explícito de cada registro para um usuário
+> existente; o script não inventa proprietários. A migração 4 adiciona os campos
+> de recuperação de senha. Scripts já aplicados não precisam ser repetidos;
+> bancos que já têm papéis e propriedade devem aplicar somente a migração 4.
+> Nenhuma migração foi executada no banco existente durante esta integração.
+
+Para diagnosticar cursos legados, depois de confirmar que a coluna
+`id_instrutor` existe, consulte registros com proprietário nulo ou ausente:
+
+```sql
+SELECT c.id, c.id_instrutor
+FROM cursos c LEFT JOIN users u ON u.id = c.id_instrutor
+WHERE c.id_instrutor IS NULL OR u.id IS NULL;
+```
+
+Se a coluna não existir, todos os cursos precisam de mapeamento antes de impor
+a restrição. Faça a inclusão da coluna e o preenchimento aprovado em uma
+transação de manutenção separada. A mesma verificação vale para `aulas`.
+Não remova registros nem atribua todos a um administrador para contornar o erro.
 
 ### 4️⃣ Popular com Dados de Teste
 
@@ -40,41 +66,48 @@ psql -U seu_usuario -d plataforma_ead -f database/seeds/seed.sql
 
 ## 📊 Tabelas Principais
 
-### `usuarios`
+### `users`
 
-- Armazena informações de usuários (alunos, instrutores, admins)
-- Campos: `id`, `email`, `senha`, `nome`, `sobrenome`, `tipo_usuario`, etc.
+- Armazena contas de alunos, professores e administradores.
+- Campos principais: `id`, `name`, `email`, `password_hash`, `cpf`,
+  `is_verified`, `verification_code`, `password_reset_code`,
+  `password_reset_expires_at` e `role`.
 
 ### `cursos`
 
 - Cursos criados por instrutores
-- Campos: `id`, `titulo`, `descricao`, `instrutor_id`, `categoria`, `nivel`, etc.
+- Campos: `id`, `nome`, `descricao`, `id_instrutor`, `categoria`, `nivel`, etc.
 
 ### `aulas`
 
 - Aulas que compõem os cursos
-- Campos: `id`, `curso_id`, `titulo`, `video_url`, `duracao_minutos`, etc.
+- Campos: `id`, `id_curso`, `id_instrutor`, `titulo`, `url_video`,
+  `duracao_minutos`, `ordem`, etc.
 
-### `inscricoes`
+### `matricula`
 
 - Controla quais alunos estão inscritos em quais cursos
-- Campos: `usuario_id`, `curso_id`, `progresso_percentual`, etc.
+- Campos: `id_usuario`, `id_curso`, `progresso`, `conclusao`, etc.
 
-### `progresso_aulas`
+### Relações de conteúdo
 
-- Rastreia o progresso de cada aluno em cada aula
-- Campos: `usuario_id`, `aula_id`, `concluida`, `tempo_assistido_minutos`, etc.
+- `usuario_curso`: vínculo e conclusão de cursos por usuário.
+- `usuario_trilha`: progresso e conclusão de trilhas por usuário.
+- `trilha_curso`: ordenação dos cursos dentro de uma trilha.
 
-## 🔐 Credenciais Padrão de Teste
+## 🔐 Papéis de usuário
 
-Após rodar o seed.sql, use estas credenciais:
+O cadastro público sempre cria usuários com papel `aluno`. Depois de confirmar
+o e-mail do usuário, um operador autorizado pode promover a conta diretamente
+no banco:
 
-| Email                    | Senha         | Tipo      |
-| ------------------------ | ------------- | --------- |
-| admin@plataforma.com     | admin123      | Admin     |
-| instrutor@plataforma.com | instructor123 | Instrutor |
-| aluno@plataforma.com     | aluno123      | Aluno     |
-| aluno2@plataforma.com    | aluno123      | Aluno     |
+```sql
+UPDATE users SET role = 'professor' WHERE email = 'professor@example.com';
+UPDATE users SET role = 'admin' WHERE email = 'admin@example.com';
+```
+
+Substitua os endereços de exemplo. Nunca aceite `role` no cadastro público e
+nunca mantenha senhas ou credenciais reais em seeds versionados.
 
 ## 🔄 Fluxo de Desenvolvimento
 
@@ -108,10 +141,15 @@ Criar `.env`:
 ```
 DB_HOST=localhost
 DB_PORT=5432
-DB_USERNAME=seu_usuario
+DB_USER=seu_usuario
 DB_PASSWORD=sua_senha
-DB_DATABASE=plataforma_ead
+DB_NAME=plataforma_ead
+DB_SYNCHRONIZE=false
 ```
+
+Mantenha `DB_SYNCHRONIZE=false` quando usar as migrations. O modo automático
+só deve ser habilitado explicitamente em um banco de desenvolvimento
+descartável.
 
 ## 📞 Suporte
 

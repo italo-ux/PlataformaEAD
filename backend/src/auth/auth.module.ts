@@ -10,6 +10,12 @@ import { MailService } from './mail.service';
 import { UsuarioController, ProfileController } from '../usuario.controller';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
+const jwtSecret = process.env.JWT_SECRET;
+
+if (!jwtSecret) {
+  throw new Error('JWT_SECRET deve ser configurado para iniciar a API.');
+}
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([User]),
@@ -22,6 +28,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         secret: configService.get<string>('JWT_SECRET') || 'default_secret', // mesma lógica do JwtStrategy
         signOptions: { expiresIn: '1h' },
       }),
+    PassportModule, //habilita o uso de AuthGuard
+    //configura o módulo JWT, definindo a chave secreta e o tempo de expiração dos tokens:
+    JwtModule.register({
+      secret: jwtSecret,
+      signOptions: { expiresIn: '1h' }, // token expira em 1 hora
     }),
   ],
   controllers: [AuthController, UsuarioController, ProfileController],

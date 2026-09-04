@@ -16,6 +16,7 @@ interface FormInputProps {
   onTogglePassword?: () => void;
   error?: string;
   required?: boolean;
+  disabled?: boolean;
 }
 
 export default function FormInput({
@@ -32,6 +33,7 @@ export default function FormInput({
   onTogglePassword,
   error,
   required = true,
+  disabled = false,
 }: FormInputProps) {
   const inputType = isPasswordField
     ? showPassword
@@ -60,19 +62,21 @@ export default function FormInput({
           value={value}
           onChange={onChange}
           required={required}
+          disabled={disabled}
           className={`w-full pl-12 ${
             isPasswordField ? "pr-12" : "pr-4"
           } py-3 bg-white border-2 rounded-lg text-[#333] placeholder-gray-400 transition-all duration-300 focus:outline-none focus:shadow-lg hover:border-gray-300 ${
             error
               ? "border-red-500 focus:border-red-500"
               : "border-gray-200 focus:border-[#4B6FFF]"
-          }`}
+          } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
         />
         {isPasswordField && onTogglePassword && (
           <button
             type="button"
             onClick={onTogglePassword}
-            className="absolute right-4 text-gray-400 hover:text-[#4B6FFF] transition-colors duration-200"
+            disabled={disabled}
+            className="absolute right-4 text-gray-400 hover:text-[#4B6FFF] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Toggle password visibility"
           >
             <FontAwesomeIcon

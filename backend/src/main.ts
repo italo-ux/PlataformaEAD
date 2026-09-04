@@ -1,4 +1,6 @@
-import { NestFactory } from '@nestjs/core'; // Inicia a aplicação NestJS
+import 'dotenv/config';
+import { NestFactory } from '@nestjs/core'; //inicia a aplicação nestjs
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 

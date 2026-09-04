@@ -1,14 +1,16 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { faEnvelope, faLock } from "@fortawesome/free-solid-svg-icons";
+import { NavLink } from "react-router-dom";
 import FormInput from "./FormInput";
 import SmilingRobot from "../../assets/login/smilingRobot.png";
 import { loginUser, saveAuthenticatedUser } from "../../services/userService";
 import { useAuthForm } from "../../hooks/useAuthForm";
-import MockCredentialsHint from "./MockCredentialsHint";
+import { loginSchema, flattenZodError } from "../../utils/validation";
+import type { User } from "../../data/userMock";
 
 interface LoginFormProps {
   onSwitchToRegister: () => void;
-  onSuccess?: () => void;
+  onSuccess?: (user: User) => void;
 }
 
 function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
@@ -21,26 +23,17 @@ function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
     loading,
     errors,
     error,
-    success,
-  } = useAuthForm({
+  } = useAuthForm<User>({
     initialValues: { email: "", password: "" },
     onSubmit: async (formValues) => {
       const user = await loginUser(formValues.email, formValues.password);
       saveAuthenticatedUser(user);
+      return user;
     },
-    validate: (formValues) => {
-      const newErrors: Record<string, string> = {};
-      if (!formValues.email) newErrors.email = "Email é obrigatório";
-      if (!formValues.password) newErrors.password = "Senha é obrigatória";
-      return newErrors;
-    },
+    validate: (formValues) =>
+      flattenZodError(loginSchema.safeParse(formValues)),
+    onSuccess,
   });
-
-  useEffect(() => {
-    if (success) {
-      onSuccess?.();
-    }
-  }, [success, onSuccess]);
 
   const togglePasswordVisibility = () => {
     setShowPassword((current) => !current);
@@ -97,7 +90,12 @@ function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
               />
 
               <p className="text-right text-sm text-gray-500">
-                Recuperação de senha será ligada ao backend real.
+                <NavLink
+                  to="/forgot-password"
+                  className="text-[#4B6FFF] hover:text-blue-700 font-medium transition-colors duration-200"
+                >
+                  Esqueci a senha
+                </NavLink>
               </p>
 
               <button
@@ -122,7 +120,6 @@ function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
               </div>
             </form>
 
-            <MockCredentialsHint />
           </div>
 
           <div className="hidden lg:flex flex-col items-center justify-center">

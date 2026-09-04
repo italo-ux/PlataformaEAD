@@ -1,420 +1,291 @@
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { PlusCircle } from "lucide-react";
-import CoursePlayer from "../components/CoursePlayer";
-import Footer from "../components/Footer/Footer";
-import LessonSidebar from "../components/LessonSidebar";
-import Navbar from "../components/Navbar/Navbar";
-import ProgressSection from "../components/ProgressSection";
-import TabsSection from "../components/TabsSection";
 import {
-  formatCourseInstructorNames,
-  getCourseInstructors,
-  getMockCourseById,
-  getRelatedMockCourses,
-  type Lesson,
-} from "../data/courseData";
-import courseService from "../services/courseService";
+  ArrowLeft,
+  BookOpen,
+  Clock3,
+  ListVideo,
+  Pencil,
+  Play,
+  Trash2,
+} from "lucide-react";
+import Footer from "../components/Footer/Footer";
+import Navbar from "../components/Navbar/Navbar";
+import courseService, { type Aula, type Curso } from "../services/courseService";
+import {
+  isCourseStarted,
+  markCourseAsStarted,
+} from "../services/courseProgressService";
 import { getAuthenticatedUser } from "../services/userService";
 
-const emptyLessonForm = {
-  title: "",
-  duration: "",
-  content: "",
-  videoName: "",
-  videoUrl: "",
-};
+function getYoutubeEmbedUrl(videoUrl: string) {
+  try {
+    const url = new URL(videoUrl);
+    const host = url.hostname.replace(/^www\./, "");
+    let videoId = "";
 
-function canManageCourseLessons(
-  user: ReturnType<typeof getAuthenticatedUser>,
-  course: NonNullable<ReturnType<typeof getMockCourseById>>,
-) {
-  if (!user) {
-    return false;
+    if (host === "youtu.be") {
+      videoId = url.pathname.split("/").filter(Boolean)[0] ?? "";
+    } else if (host === "youtube.com" || host === "m.youtube.com") {
+      if (url.pathname === "/watch") videoId = url.searchParams.get("v") ?? "";
+      else {
+        const parts = url.pathname.split("/").filter(Boolean);
+        if (["embed", "shorts", "live"].includes(parts[0])) {
+          videoId = parts[1] ?? "";
+        }
+      }
+    }
+
+    return /^[A-Za-z0-9_-]{6,}$/.test(videoId)
+      ? `https://www.youtube-nocookie.com/embed/${videoId}`
+      : null;
+  } catch {
+    return null;
   }
+}
 
-  if (user.role === "admin") {
-    return true;
-  }
-
-  if (user.role !== "professor") {
-    return false;
-  }
-
-  return getCourseInstructors(course).some(
-    (instructor) =>
-      instructor.id === user.id ||
-      instructor.email?.toLowerCase() === user.email.toLowerCase(),
-  );
+function formatDuration(minutes: number | null) {
+  if (minutes === null) return "Duração não informada";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes ? `${hours}h ${remainingMinutes}min` : `${hours}h`;
 }
 
 export default function CourseView() {
   const navigate = useNavigate();
   const { courseId } = useParams();
   const user = getAuthenticatedUser();
-  const parsedCourseId = Number(courseId);
-  const course = Number.isInteger(parsedCourseId)
-    ? getMockCourseById(parsedCourseId)
-    : null;
-  const [, setLessonListVersion] = useState(0);
-  const [lessonSelection, setLessonSelection] = useState<{
-    courseId: number | null;
-    lessonId: number | null;
-  }>({ courseId: null, lessonId: null });
-  const [isLessonFormOpen, setIsLessonFormOpen] = useState(false);
-  const [lessonForm, setLessonForm] = useState(emptyLessonForm);
-  const [lessonFormError, setLessonFormError] = useState("");
-  const [lessonFormStatus, setLessonFormStatus] = useState("");
-  const [isSavingLesson, setIsSavingLesson] = useState(false);
-  const selectedLessonId =
-    lessonSelection.courseId === course?.id ? lessonSelection.lessonId : null;
+  const userId = user?.id;
+  const [course, setCourse] = useState<Curso | null>(null);
+  const [lessons, setLessons] = useState<Aula[]>([]);
+  const [currentLessonId, setCurrentLessonId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [started, setStarted] = useState(false);
+
+  useEffect(() => {
+    if (!courseId) return;
+    Promise.all([
+      courseService.getCourse(courseId),
+      courseService.listLessons(courseId),
+    ])
+      .then(([courseData, lessonData]) => {
+        setCourse(courseData);
+        setLessons(lessonData);
+        setCurrentLessonId(lessonData[0]?.id ?? null);
+        setStarted(userId ? isCourseStarted(userId, courseData.id) : false);
+      })
+      .catch((reason: unknown) =>
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "Não foi possível carregar o curso.",
+        ),
+      )
+      .finally(() => setLoading(false));
+  }, [courseId, userId]);
 
   const currentLesson =
-    course?.lessons.find((lesson) => lesson.id === selectedLessonId) ??
-    course?.lessons[0] ??
-    null;
-  const currentLessonIndex =
-    course && currentLesson
-      ? course.lessons.findIndex((lesson) => lesson.id === currentLesson.id)
-      : -1;
+    lessons.find((lesson) => lesson.id === currentLessonId) ?? lessons[0];
+  const embedUrl = currentLesson
+    ? getYoutubeEmbedUrl(currentLesson.url_video)
+    : null;
+  const canManageCourse = Boolean(
+    course &&
+      user &&
+      (user.role === "admin" ||
+        (user.role === "professor" &&
+          course.id_instrutor === String(user.id))),
+  );
 
-  const handleSelectLesson = (lesson: Lesson) => {
-    setLessonSelection({
-      courseId: course?.id ?? null,
-      lessonId: lesson.id,
-    });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  const handleStart = () => {
+    if (!course || !userId) return;
+    markCourseAsStarted(userId, course.id);
+    setStarted(true);
   };
 
-  const handlePreviousLesson = () => {
-    if (course && currentLessonIndex > 0) {
-      handleSelectLesson(course.lessons[currentLessonIndex - 1]);
-    }
-  };
-
-  const handleNextLesson = () => {
-    if (course && currentLessonIndex < course.lessons.length - 1) {
-      handleSelectLesson(course.lessons[currentLessonIndex + 1]);
-    }
-  };
-
-  const handleLessonFormChange = (
-    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
-    const { name, value } = event.target;
-
-    setLessonForm((current) => ({
-      ...current,
-      [name]: value,
-    }));
-    setLessonFormError("");
-    setLessonFormStatus("");
-  };
-
-  const handleLessonVideoChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-
-    if (!file) {
-      setLessonForm((current) => ({
-        ...current,
-        videoName: "",
-        videoUrl: "",
-      }));
-      return;
-    }
-
-    if (!file.type.startsWith("video/")) {
-      setLessonFormError("Selecione um arquivo de vídeo válido.");
-      event.target.value = "";
-      return;
-    }
-
-    setLessonForm((current) => {
-      if (current.videoUrl) {
-        URL.revokeObjectURL(current.videoUrl);
-      }
-
-      return {
-        ...current,
-        videoName: file.name,
-        videoUrl: URL.createObjectURL(file),
-      };
-    });
-    setLessonFormError("");
-    setLessonFormStatus("");
-  };
-
-  const handleSubmitLesson = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!course) {
-      return;
-    }
-
-    setLessonFormError("");
-    setLessonFormStatus("");
-    setIsSavingLesson(true);
-
+  const handleDelete = async () => {
+    if (!course || !window.confirm(`Excluir o curso "${course.nome}"?`)) return;
+    setDeleting(true);
     try {
-      const createdLesson = await courseService.createLesson(course.id, {
-        title: lessonForm.title,
-        duration: lessonForm.duration,
-        content: lessonForm.content,
-        videoName: lessonForm.videoName,
-        videoUrl: lessonForm.videoUrl,
-      });
-
-      setLessonForm(emptyLessonForm);
-      setLessonFormStatus("Aula adicionada ao curso com sucesso.");
-      setLessonListVersion((current) => current + 1);
-      handleSelectLesson(createdLesson);
-    } catch (error) {
-      setLessonFormError(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível adicionar a aula.",
+      await courseService.deleteCourse(course.id);
+      navigate("/courses");
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Não foi possível excluir o curso.",
       );
     } finally {
-      setIsSavingLesson(false);
+      setDeleting(false);
     }
   };
-
-  if (!course) {
-    return (
-      <div className="flex min-h-screen flex-col bg-[#f7f7f7]">
-        <Navbar user={user} />
-        <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center px-4 py-16 text-center">
-          <h1 className="text-3xl font-black text-[#25304a]">
-            Curso nao encontrado
-          </h1>
-          <p className="mt-3 text-gray-600">
-            Este curso não existe na lista mockada atual.
-          </p>
-          <button
-            onClick={() => navigate("/courses")}
-            className="mt-8 rounded-md bg-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700"
-          >
-            Voltar para cursos
-          </button>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  const relatedCourses = getRelatedMockCourses(course.id);
-  const canAddLesson = canManageCourseLessons(user, course);
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f7f7f7]">
       <Navbar user={user} />
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
+        <button
+          type="button"
+          onClick={() => navigate("/courses")}
+          className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-blue-600"
+        >
+          <ArrowLeft size={16} />Voltar para cursos
+        </button>
 
-      <main className="mx-auto w-full max-w-[1120px] flex-1 px-4 py-7 sm:px-6 lg:px-8">
-        <div className="grid gap-6 lg:grid-cols-[1fr_330px] lg:items-start">
-          <div className="space-y-4">
-            {currentLesson && (
-              <CoursePlayer
-                title={course.title}
-                currentLesson={currentLesson.title}
-                lessonContent={currentLesson.content}
-                lessonDuration={currentLesson.duration}
-                lessonVideoName={currentLesson.videoName}
-                lessonVideoUrl={currentLesson.videoUrl}
-                image={course.image}
-                onBack={() => navigate("/courses")}
-              />
-            )}
-
-            <ProgressSection
-              progress={course.progress}
-              completedLessons={course.completedLessons}
-              totalLessons={course.totalLessons}
-            />
+        {loading && <p>Carregando curso...</p>}
+        {error && (
+          <div className="mb-6 rounded-md bg-red-100 p-4 font-semibold text-red-700">
+            {error}
           </div>
+        )}
 
-          <aside className="space-y-4 pt-7">
-            {canAddLesson && (
-              <div className="rounded-md border border-blue-100 bg-white p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-black text-gray-900">
-                      Gerenciar aulas
-                    </p>
-                    <p className="mt-1 text-xs leading-5 text-gray-500">
-                      {user?.role === "admin"
-                        ? "Acesso administrativo as aulas adicionadas."
-                        : `Professor responsável: ${formatCourseInstructorNames(course)}.`}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setIsLessonFormOpen((currentValue) => !currentValue)
-                    }
-                    className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-blue-600 px-3 text-xs font-bold text-white transition hover:bg-blue-700"
-                  >
-                    <PlusCircle className="h-4 w-4" />
-                    Aula
-                  </button>
+        {course && (
+          <div className="space-y-8">
+            <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="grid lg:grid-cols-[320px_1fr]">
+                <div className="min-h-56 bg-slate-200">
+                  {course.url_foto ? (
+                    <img
+                      src={course.url_foto}
+                      alt={course.nome}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full min-h-56 items-center justify-center text-blue-600">
+                      <BookOpen size={72} />
+                    </div>
+                  )}
                 </div>
-
-                {isLessonFormOpen && (
-                  <form onSubmit={handleSubmitLesson} className="mt-4 space-y-3">
-                    {lessonFormError && (
-                      <div className="rounded-md bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
-                        {lessonFormError}
+                <div className="p-6 sm:p-8">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-bold uppercase tracking-wide text-blue-600">
+                        {course.categoria ?? "Curso"}
+                      </p>
+                      <h1 className="mt-2 text-3xl font-black text-[#25304a]">
+                        {course.nome}
+                      </h1>
+                    </div>
+                    {user && (
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={handleStart}
+                          disabled={started}
+                          className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-default disabled:bg-emerald-600"
+                        >
+                          <Play size={16} className="fill-current" />
+                          {started ? "Curso iniciado" : "Iniciar curso"}
+                        </button>
+                        {canManageCourse && (
+                          <>
+                            <button
+                              onClick={() =>
+                                navigate(`/courses/${course.id}/editar`)
+                              }
+                              className="inline-flex items-center gap-2 rounded-md border border-blue-200 px-3 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50"
+                            >
+                              <Pencil size={16} />Gerenciar
+                            </button>
+                            <button
+                              onClick={handleDelete}
+                              disabled={deleting}
+                              className="inline-flex items-center gap-2 rounded-md bg-red-600 px-3 py-2 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-60"
+                            >
+                              <Trash2 size={16} />
+                              {deleting ? "Excluindo..." : "Excluir"}
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
-                    {lessonFormStatus && (
-                      <div className="rounded-md bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
-                        {lessonFormStatus}
-                      </div>
-                    )}
-
+                  </div>
+                  <p className="mt-6 whitespace-pre-wrap leading-7 text-slate-600">
+                    {course.descricao ?? "Sem descrição disponível."}
+                  </p>
+                  <dl className="mt-8 grid gap-4 border-t border-slate-200 pt-6 sm:grid-cols-3">
                     <div>
-                      <label
-                        htmlFor="lesson-title"
-                        className="mb-1 block text-xs font-bold text-gray-700"
-                      >
-                        Título da aula
-                      </label>
-                      <input
-                        id="lesson-title"
-                        name="title"
-                        value={lessonForm.title}
-                        onChange={handleLessonFormChange}
-                        placeholder="Ex: Introducao ao modulo"
-                        className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                        required
-                      />
+                      <dt className="text-xs font-bold uppercase text-slate-500">Carga horária</dt>
+                      <dd className="mt-1 inline-flex items-center gap-1 font-bold text-slate-800">
+                        <Clock3 size={16} />
+                        {course.carga_horaria === null
+                          ? "Não informada"
+                          : `${course.carga_horaria} horas`}
+                      </dd>
                     </div>
-
-                    <div>
-                      <label
-                        htmlFor="lesson-duration"
-                        className="mb-1 block text-xs font-bold text-gray-700"
-                      >
-                        Duração
-                      </label>
-                      <input
-                        id="lesson-duration"
-                        name="duration"
-                        value={lessonForm.duration}
-                        onChange={handleLessonFormChange}
-                        placeholder="Ex: 12:30"
-                        className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="lesson-content"
-                        className="mb-1 block text-xs font-bold text-gray-700"
-                      >
-                        Conteúdo
-                      </label>
-                      <textarea
-                        id="lesson-content"
-                        name="content"
-                        value={lessonForm.content}
-                        onChange={handleLessonFormChange}
-                        placeholder="Descreva o conteúdo, material ou orientação da aula"
-                        className="min-h-24 w-full resize-y rounded-md border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="lesson-video"
-                        className="mb-1 block text-xs font-bold text-gray-700"
-                      >
-                        Vídeo local da aula
-                      </label>
-                      <input
-                        id="lesson-video"
-                        type="file"
-                        accept="video/*"
-                        onChange={handleLessonVideoChange}
-                        className="block w-full cursor-pointer rounded-md border border-gray-200 text-xs text-gray-600 file:mr-3 file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-xs file:font-bold file:text-blue-700 hover:file:bg-blue-100"
-                      />
-                      {lessonForm.videoName && (
-                        <p className="mt-2 truncate text-xs font-semibold text-slate-500">
-                          Selecionado: {lessonForm.videoName}
-                        </p>
-                      )}
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={isSavingLesson}
-                      className="inline-flex h-10 w-full items-center justify-center rounded-md bg-blue-600 px-4 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isSavingLesson ? "Salvando..." : "Adicionar aula"}
-                    </button>
-                  </form>
-                )}
+                    <div><dt className="text-xs font-bold uppercase text-slate-500">Categoria</dt><dd className="mt-1 font-bold text-slate-800">{course.categoria ?? "Não informada"}</dd></div>
+                    <div><dt className="text-xs font-bold uppercase text-slate-500">Nível</dt><dd className="mt-1 font-bold text-slate-800">{course.nivel ?? "Não informado"}</dd></div>
+                  </dl>
+                </div>
               </div>
-            )}
+            </article>
 
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={handlePreviousLesson}
-                disabled={currentLessonIndex <= 0}
-                className="rounded-md border border-blue-600 bg-white px-4 py-2 text-xs font-semibold text-blue-600 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Item anterior
-              </button>
-              <button
-                onClick={handleNextLesson}
-                disabled={currentLessonIndex >= course.lessons.length - 1}
-                className="rounded-md bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Próximo item
-              </button>
-            </div>
+            <section>
+              <div className="mb-4 flex items-center gap-3">
+                <ListVideo className="text-blue-600" />
+                <div>
+                  <h2 className="text-2xl font-black text-[#25304a]">Aulas do curso</h2>
+                  <p className="text-sm text-slate-500">{lessons.length} {lessons.length === 1 ? "aula" : "aulas"}</p>
+                </div>
+              </div>
 
-            <LessonSidebar
-              title="Conteudo do Curso"
-              lessons={course.lessons}
-              currentLessonId={currentLesson?.id}
-              onSelectLesson={handleSelectLesson}
-            />
-          </aside>
-        </div>
+              {currentLesson ? (
+                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+                  <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                    {embedUrl ? (
+                      <iframe
+                        className="aspect-video w-full bg-black"
+                        src={embedUrl}
+                        title={currentLesson.titulo}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <div className="flex aspect-video items-center justify-center bg-slate-900 px-6 text-center font-semibold text-white">
+                        A URL desta aula não pôde ser reconhecida como vídeo do YouTube.
+                      </div>
+                    )}
+                    <div className="p-6">
+                      <p className="text-xs font-bold uppercase text-blue-600">Aula {currentLesson.ordem}</p>
+                      <h3 className="mt-1 text-xl font-black text-[#25304a]">{currentLesson.titulo}</h3>
+                      <p className="mt-2 text-sm font-semibold text-slate-500">{formatDuration(currentLesson.duracao_minutos)}</p>
+                      <div className="mt-5 border-t border-slate-100 pt-5">
+                        <h4 className="font-black text-slate-800">Conteúdo da aula</h4>
+                        <p className="mt-2 whitespace-pre-wrap leading-7 text-slate-600">{currentLesson.descricao ?? "Esta aula ainda não possui conteúdo complementar."}</p>
+                      </div>
+                    </div>
+                  </div>
 
-        <section className="mt-7 max-w-[760px]">
-          <TabsSection
-            about={course.about}
-            instructors={getCourseInstructors(course)}
-          />
-        </section>
-
-        <section className="mt-6 max-w-[760px]">
-          <h2 className="mb-3 px-1 text-lg font-black text-gray-900">
-            Cursos relacionados
-          </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {relatedCourses.map((relatedCourse) => (
-              <button
-                key={relatedCourse.id}
-                onClick={() => navigate(`/courses/${relatedCourse.id}`)}
-                className="overflow-hidden rounded-sm bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-              >
-                <img
-                  src={relatedCourse.image}
-                  alt={relatedCourse.title}
-                  className="h-16 w-full object-cover"
-                />
-                <p className="px-3 py-2 text-xs font-bold text-gray-900">
-                  {relatedCourse.title}
-                </p>
-              </button>
-            ))}
+                  <aside className="h-fit overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                    <h3 className="border-b border-slate-100 px-4 py-3 font-black text-slate-800">Conteúdo</h3>
+                    <div className="max-h-[520px] overflow-y-auto p-2">
+                      {lessons.map((lesson) => (
+                        <button
+                          key={lesson.id}
+                          type="button"
+                          onClick={() => setCurrentLessonId(lesson.id)}
+                          className={`mb-1 flex w-full gap-3 rounded-lg p-3 text-left transition ${lesson.id === currentLesson.id ? "bg-blue-50 text-blue-700" : "hover:bg-slate-50"}`}
+                        >
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-black text-blue-700">{lesson.ordem}</span>
+                          <span className="min-w-0"><span className="block font-bold">{lesson.titulo}</span><span className="mt-1 block text-xs text-slate-500">{formatDuration(lesson.duracao_minutos)}</span></span>
+                        </button>
+                      ))}
+                    </div>
+                  </aside>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
+                  <ListVideo className="mx-auto text-slate-400" size={40} />
+                  <p className="mt-3 font-bold text-slate-700">Nenhuma aula cadastrada</p>
+                  <p className="mt-1 text-sm text-slate-500">As aulas com vídeos do YouTube aparecerão aqui.</p>
+                </div>
+              )}
+            </section>
           </div>
-        </section>
+        )}
       </main>
-
       <Footer />
     </div>
   );
