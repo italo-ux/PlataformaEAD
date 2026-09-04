@@ -6,7 +6,7 @@ import FeedbackPage from "./pages/FeedbackPage";
 import DashboardAluno from "./pages/DashboardAluno";
 import LoginPage from "./pages/LoginPage";
 import ProfilePage from "./pages/ProfilePage";
-import ProfessorCourseCreatePage from "./pages/ProfessorCourseCreatePage";
+import  {ProfessorCourseCreatePage } from "./pages/ProfessorCourseCreatePage";
 import RegisterPage from "./pages/RegisterPage";
 import TrailPage from "./pages/TrailPage";
 import UserHome from "./pages/userHome";

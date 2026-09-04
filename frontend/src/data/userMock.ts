@@ -94,19 +94,23 @@ export function isUserRole(role: unknown): role is UserRole {
 }
 
 export function canAccessCourses(user: User | null) {
-  return Boolean(user && rolePermissions[user.role].canAccessCourses);
+  if (!user || !user.role) return false;
+  return Boolean(rolePermissions[user.role]?.canAccessCourses);
 }
 
 export function canAccessPerformance(user: User | null) {
-  return Boolean(user && rolePermissions[user.role].canAccessPerformance);
+  if (!user || !user.role) return false;
+  return Boolean(rolePermissions[user.role]?.canAccessPerformance);
 }
 
 export function canCreateCourses(user: User | null) {
-  return Boolean(user && rolePermissions[user.role].canCreateCourses);
+  if (!user || !user.role) return false;
+  return Boolean(rolePermissions[user.role]?.canCreateCourses);
 }
 
 export function canCreateTeachers(user: User | null) {
-  return Boolean(user && rolePermissions[user.role].canCreateTeachers);
+  if (!user || !user.role) return false;
+  return Boolean(rolePermissions[user.role]?.canCreateTeachers);
 }
 
 export const mockUser = mockUserCredentials[0].user;

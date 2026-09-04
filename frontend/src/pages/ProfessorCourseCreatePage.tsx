@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useState, useEffect, type ChangeEvent, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import {
   BookOpen,
@@ -42,17 +42,38 @@ function mapTeacherToInstructor(teacher: User): Instructor {
     bio: "Professor da Plataforma EAD Inovação. Bio temporária até o backend enviar o perfil completo.",
   };
 }
+  
+/*--------------------------------------- Buscar Professores --------------------------------------- */
 
-export default function ProfessorCourseCreatePage() {
+export function ProfessorCourseCreatePage() {
   const navigate = useNavigate();
   const user = getAuthenticatedUser();
-  const registeredTeachers = getRegisteredTeachers();
+
+  // 1. Criamos um ESTADO para guardar a lista real de professores vindos da API
+  const [registeredTeachers, setRegisteredTeachers] = useState<User[]>([]);
+
   const [formValues, setFormValues] = useState(initialFormState);
-  const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>(() =>
-    user?.role === "professor" ? [user.id] : [],
+  const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>(() =>
+    user?.role === "professor" ? [String(user.id)] : [],
   );
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // 2. O useEffect faz a busca assim que a tela abre no navegador
+  useEffect(() => {
+    async function fetchTeachers() {
+      try {
+        const teachersData = await getRegisteredTeachers();
+        setRegisteredTeachers(teachersData); // Guarda os professores no estado!
+      } catch (err) {
+        console.error("Erro ao carregar professores:", err);
+      }
+    }
+
+    if (user?.role === "admin") {
+      fetchTeachers();
+    }
+  }, [user]);
 
   if (!user || !canCreateCourses(user)) {
     return <Navigate to={user ? "/home" : "/login"} replace />;
@@ -69,7 +90,7 @@ export default function ProfessorCourseCreatePage() {
     setError("");
   };
 
-  const handleToggleTeacher = (teacherId: number) => {
+  const handleToggleTeacher = (teacherId: string) => {
     setSelectedTeacherIds((currentIds) =>
       currentIds.includes(teacherId)
         ? currentIds.filter((currentId) => currentId !== teacherId)
@@ -87,10 +108,12 @@ export default function ProfessorCourseCreatePage() {
       .split(/\r?\n/)
       .map((lessonTitle) => lessonTitle.trim())
       .filter(Boolean);
+
+    // 3. Agora registeredTeachers é um Array (User[]), então o .filter funciona!
     const selectedTeachers =
       user.role === "admin"
         ? registeredTeachers.filter((teacher) =>
-            selectedTeacherIds.includes(teacher.id),
+            selectedTeacherIds.includes(String(teacher.id)),
           )
         : [user];
 
@@ -101,8 +124,6 @@ export default function ProfessorCourseCreatePage() {
     }
 
     try {
-      // Este payload simula o contrato do backend: dados do curso, instrutor
-      // autenticado e aulas iniciais enviadas pelo professor/admin.
       const createdCourse = await courseService.createCourse({
         title: formValues.title,
         description: formValues.description,
@@ -115,12 +136,13 @@ export default function ProfessorCourseCreatePage() {
       navigate(`/courses/${createdCourse.id}`);
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "Erro ao criar curso mockado";
+        err instanceof Error ? err.message : "Erro ao criar curso";
       setError(errorMessage);
     } finally {
       setSaving(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-[#f6f9ff] text-slate-950">

@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent } from "react"; //getAuthenticatedUser());
 import { Navigate, useNavigate } from "react-router-dom";
 import {
   Camera,
@@ -20,7 +20,7 @@ import {
   changeAuthenticatedUserPassword,
   clearAuthenticatedUser,
   getAuthenticatedUser,
-  updateAuthenticatedUserProfile,
+  updateProfile,
 } from "../services/userService";
 
 interface ProfileFormValues {
@@ -136,7 +136,7 @@ function validatePassword(values: PasswordFormValues): PasswordErrors {
   }
 
   if (values.nextPassword !== values.confirmPassword) {
-    errors.confirmPassword = "As senhas nao conferem.";
+    errors.confirmPassword = "As senhas não conferem.";
   }
 
   return errors;
@@ -301,45 +301,46 @@ export default function ProfilePage() {
     });
   };
 
-  const handleSubmitProfile = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setStatusMessage("");
-    setGeneralError("");
+ const handleSubmitProfile = async (event: FormEvent<HTMLFormElement>) => {
+  event.preventDefault();
+  setStatusMessage("");
+  setGeneralError("");
 
-    const validationErrors = validateProfile(formValues);
+  const validationErrors = validateProfile(formValues);
 
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      return;
-    }
+  if (Object.keys(validationErrors).length > 0) {
+    setErrors(validationErrors);
+    return;
+  }
 
-    setErrors({});
-    setIsSaving(true);
+  setErrors({});
+  setIsSaving(true);
 
-    try {
-      const updatedUser = await updateAuthenticatedUserProfile(user.id, {
-        name: `${formValues.firstName.trim()} ${formValues.lastName.trim()}`,
-        email: formValues.email,
-        cpf: formValues.cpf,
-        phone: formValues.phone,
-        avatar: formValues.avatar,
-      });
+  try {
+    //  Chame a função 'updateProfile' enviando todos os dados necessários
+    const updatedUser = await updateProfile({
+      name: `${formValues.firstName.trim()} ${formValues.lastName.trim()}`,
+      phone: formValues.phone,
+      avatar: formValues.avatar,
+    });
 
-      setUser(updatedUser);
-      setFormValues(mapUserToFormValues(updatedUser));
-      setStatusMessage("Perfil atualizado no mock com sucesso.");
-      setIsAvatarEditorOpen(false);
-      setIsEditingProfile(false);
-    } catch (error) {
-      setGeneralError(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível salvar o perfil.",
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  };
+    //  Atualiza a tela com as informações retornadas da API/Storage
+    setUser(updatedUser);
+    setFormValues(mapUserToFormValues(updatedUser));
+
+    setStatusMessage("Perfil atualizado com sucesso!");
+    setIsAvatarEditorOpen(false);
+    setIsEditingProfile(false);
+  } catch (error) {
+    setGeneralError(
+      error instanceof Error
+        ? error.message
+        : "Não foi possível salvar o perfil.",
+    );
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   const handleSubmitPassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -358,7 +359,6 @@ export default function ProfilePage() {
 
     try {
       await changeAuthenticatedUserPassword(
-        user.id,
         passwordValues.currentPassword,
         passwordValues.nextPassword,
       );
@@ -648,7 +648,7 @@ export default function ProfilePage() {
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-blue-600 px-6 text-sm font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <Save className="h-4 w-4" />
-                    {isSaving ? "Salvando..." : "Salvar edicoes"}
+                    {isSaving ? "Salvando..." : "Salvar edições"}
                   </button>
                 </div>
               </div>
@@ -673,7 +673,7 @@ export default function ProfilePage() {
                 Voltar
               </button>
             )}
-              </div>
+          </div>
         </section>
 
         {user.role === "admin" && <AdminDashboard />}
