@@ -6,9 +6,10 @@ import {
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThan, Repository } from 'typeorm';
 import { User } from './user.entity';
 import { MailService } from './mail.service';
+import { randomInt } from 'node:crypto';
 
 @Injectable()
 export class AuthService {
@@ -68,7 +69,12 @@ export class AuthService {
     }
 
     // Segundo: compara o código enviado com o código guardado no banco
-    if (user.verification_code !== code) {
+    if (
+      user.is_verified ||
+      !/^\d{6}$/.test(code) ||
+      !user.verification_code ||
+      user.verification_code !== code
+    ) {
       throw new UnauthorizedException('Código de verificação inválido');
     }
 
@@ -114,6 +120,7 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
+        role: user.role,
       },
     };
   }
@@ -156,28 +163,37 @@ export class AuthService {
   }
 
   async resetPassword(email: string, code: string, password: string) {
-    const user = await this.userRepository.findOne({
-      where: { email: email.trim().toLowerCase() },
-    });
-    const resetCodeExpired =
-      !user?.password_reset_expires_at ||
-      user.password_reset_expires_at.getTime() < Date.now();
-
-    if (!user || user.password_reset_code !== code || resetCodeExpired) {
+    if (!/^\d{6}$/.test(code)) {
       throw new BadRequestException(
         'Código de recuperação inválido ou expirado',
       );
     }
 
-    user.password_hash = await bcrypt.hash(password, 10);
-    user.password_reset_code = null;
-    user.password_reset_expires_at = null;
-    await this.userRepository.save(user);
+    const passwordHash = await bcrypt.hash(password, 10);
+    const result = await this.userRepository.update(
+      {
+        email: email.trim().toLowerCase(),
+        is_verified: true,
+        password_reset_code: code,
+        password_reset_expires_at: MoreThan(new Date()),
+      },
+      {
+        password_hash: passwordHash,
+        password_reset_code: null,
+        password_reset_expires_at: null,
+      },
+    );
+
+    if (result.affected !== 1) {
+      throw new BadRequestException(
+        'Código de recuperação inválido ou expirado',
+      );
+    }
 
     return { message: 'Senha alterada com sucesso.' };
   }
 
   private generateCode() {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    return randomInt(100000, 1000000).toString();
   }
 }

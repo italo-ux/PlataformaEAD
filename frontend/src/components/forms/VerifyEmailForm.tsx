@@ -29,12 +29,15 @@ export default function VerifyEmailForm({ onSuccess }: VerifyEmailFormProps) {
     },
   });
 
-  const { handleSubmit: handleResendSubmit, loading: resendLoading } =
+  const {
+    handleSubmit: handleResendSubmit,
+    loading: resendLoading,
+    success: resendSuccess,
+    error: resendError,
+    errors: resendErrors,
+  } =
     useResendVerification({
       email,
-      onSuccess: () => {
-        // Could show a toast/message here
-      },
     });
 
   const handleCodeChange = (code: string) => {
@@ -127,6 +130,16 @@ export default function VerifyEmailForm({ onSuccess }: VerifyEmailFormProps) {
           </form>
 
           <form onSubmit={handleResendCode} className="mt-4">
+            {resendSuccess && (
+              <p role="status" className="mb-3 text-sm text-green-700">
+                Se a conta estiver pendente, um novo código será enviado.
+              </p>
+            )}
+            {(resendError || Object.keys(resendErrors).length > 0) && (
+              <p role="alert" className="mb-3 text-sm text-red-700">
+                {resendError || Object.values(resendErrors).join(" ")}
+              </p>
+            )}
             <button
               type="submit"
               disabled={resendLoading || success}

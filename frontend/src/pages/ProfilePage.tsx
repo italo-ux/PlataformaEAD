@@ -330,7 +330,7 @@ export default function ProfilePage() {
 
       setUser(updatedUser);
       setFormValues(mapUserToFormValues(updatedUser));
-      setStatusMessage("Perfil atualizado no mock com sucesso.");
+      setStatusMessage("Perfil atualizado apenas neste navegador; o servidor não foi alterado.");
       setIsAvatarEditorOpen(false);
       setIsEditingProfile(false);
     } catch (error) {
@@ -372,7 +372,7 @@ export default function ProfilePage() {
         confirmPassword: "",
       });
       setIsPasswordModalOpen(false);
-      setStatusMessage("Senha alterada com sucesso.");
+      setStatusMessage("Senha alterada apenas na demonstração desta sessão.");
     } catch (error) {
       setPasswordGeneralError(
         error instanceof Error
@@ -445,6 +445,10 @@ export default function ProfilePage() {
         <section className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
           <div className="mb-8 border-b-2 border-slate-600 pb-3">
             <h1 className="text-3xl font-black text-slate-950">Meu perfil</h1>
+            <p className="mt-3 text-sm text-amber-800">
+              As edições desta tela são locais a este navegador. Elas não alteram
+              seus dados cadastrais no servidor.
+            </p>
           </div>
 
           <div className="mb-8 flex items-center gap-2 text-sm font-semibold text-slate-600">
@@ -691,9 +695,9 @@ export default function ProfilePage() {
           <div className="mx-auto mt-8 max-w-3xl rounded-lg border border-red-200 bg-red-50 p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="font-black text-red-900">Excluir perfil</h2>
+                <h2 className="font-black text-red-900">Remover perfil deste navegador</h2>
                 <p className="mt-1 text-sm text-red-700">
-                  Remove sua conta e encerra a sessão neste dispositivo.
+                  Remove os dados locais do perfil e encerra esta sessão. Sua conta continua no servidor.
                 </p>
               </div>
               <button
@@ -702,13 +706,20 @@ export default function ProfilePage() {
                 className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md border border-red-500 px-5 text-sm font-bold text-red-700 transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500"
               >
                 <Trash2 className="h-4 w-4" />
-                Excluir meu perfil
+                Remover perfil local
               </button>
             </div>
           </div>
         </section>
 
-        {user.role === "admin" && <AdminDashboard />}
+        {user.role === "admin" && (
+          <>
+            <p className="mx-auto max-w-5xl px-4 py-3 text-sm text-amber-800">
+              Painel demonstrativo: os indicadores administrativos ainda usam dados simulados.
+            </p>
+            <AdminDashboard />
+          </>
+        )}
       </main>
 
       <Footer />
@@ -730,7 +741,7 @@ export default function ProfilePage() {
                   Alterar senha
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Atualização válida apenas no mock desta sessão.
+                  Demonstração local. Para alterar a senha real, use "Esqueci a senha" na tela de login.
                 </p>
               </div>
               <button
@@ -823,13 +834,13 @@ export default function ProfilePage() {
 
             <h2 id="delete-modal-title" className="mt-4 text-xl font-black text-slate-950">
               {deleteConfirmationStep === 1
-                ? "Deseja excluir seu perfil?"
+                ? "Deseja remover seu perfil local?"
                 : "Última confirmação"}
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               {deleteConfirmationStep === 1
-                ? "Esta ação remove o acesso à conta. Você ainda terá uma segunda confirmação antes da exclusão."
-                : "Tem certeza absoluta? A exclusão é permanente e você será desconectado imediatamente."}
+                ? "Esta ação remove apenas dados deste navegador. Sua conta no servidor não será excluída."
+                : "Você será desconectado, mas poderá entrar novamente com sua conta."}
             </p>
 
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
@@ -855,7 +866,7 @@ export default function ProfilePage() {
                   className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-red-600 px-5 text-sm font-bold text-white transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
                 >
                   <Trash2 className="h-4 w-4" />
-                  Excluir perfil definitivamente
+                  Remover dados locais e sair
                 </button>
               )}
             </div>

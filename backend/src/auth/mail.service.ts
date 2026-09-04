@@ -1,25 +1,43 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { Transporter } from 'nodemailer';
 
 @Injectable()
 export class MailService {
-  private transporter: Transporter;
+  private readonly logger = new Logger(MailService.name);
+  private transporter?: Transporter;
 
   constructor() {
-    this.transporter = nodemailer.createTransport({
-      host: 'sandbox.smtp.mailtrap.io',
-      port: 2525,
-      auth: {
-        user: '29d493953b0c56',
-        pass: '91094334c26a44',
-      },
-    });
+    const host = process.env.SMTP_HOST;
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+
+    if (host && user && pass) {
+      this.transporter = nodemailer.createTransport({
+        host,
+        port: Number(process.env.SMTP_PORT ?? 587),
+        auth: { user, pass },
+      });
+      return;
+    }
+
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('SMTP configuration is required in production.');
+    }
+
+    this.logger.warn(
+      'SMTP is not configured; verification codes will be logged in development.',
+    );
   }
 
   async sendVerificationCode(email: string, code: string) {
+    if (!this.transporter) {
+      this.logger.log(`Verification code for ${email}: ${code}`);
+      return;
+    }
+
     await this.transporter.sendMail({
-      from: '"Plataforma EAD" <no-reply@plataformaead.com>',
+      from: process.env.SMTP_FROM ?? '"Plataforma EAD" <no-reply@localhost>',
       to: email,
       subject: 'Código de Verificação de E-mail',
       html: `
@@ -34,8 +52,13 @@ export class MailService {
   }
 
   async sendPasswordResetCode(email: string, code: string) {
+    if (!this.transporter) {
+      this.logger.log(`Password reset code for ${email}: ${code}`);
+      return;
+    }
+
     await this.transporter.sendMail({
-      from: '"Plataforma EAD" <no-reply@plataformaead.com>',
+      from: process.env.SMTP_FROM ?? '"Plataforma EAD" <no-reply@localhost>',
       to: email,
       subject: 'Código para redefinição de senha',
       html: `

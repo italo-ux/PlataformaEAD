@@ -9,13 +9,19 @@ import { User } from './user.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MailService } from './mail.service';
 
+const jwtSecret = process.env.JWT_SECRET;
+
+if (!jwtSecret) {
+  throw new Error('JWT_SECRET deve ser configurado para iniciar a API.');
+}
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([User]),
     PassportModule, //habilita o uso de AuthGuard
     //configura o módulo JWT, definindo a chave secreta e o tempo de expiração dos tokens:
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'default_secret', // depois colocar em .env
+      secret: jwtSecret,
       signOptions: { expiresIn: '1h' }, // token expira em 1 hora
     }),
   ],
