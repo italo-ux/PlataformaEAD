@@ -66,30 +66,34 @@ psql -U seu_usuario -d plataforma_ead -f database/seeds/seed.sql
 
 ## 📊 Tabelas Principais
 
-### `usuarios`
+### `users`
 
-- Armazena informações de usuários (alunos, instrutores, admins)
-- Campos: `id`, `email`, `senha`, `nome`, `sobrenome`, `tipo_usuario`, etc.
+- Armazena contas de alunos, professores e administradores.
+- Campos principais: `id`, `name`, `email`, `password_hash`, `cpf`,
+  `is_verified`, `verification_code`, `password_reset_code`,
+  `password_reset_expires_at` e `role`.
 
 ### `cursos`
 
 - Cursos criados por instrutores
-- Campos: `id`, `titulo`, `descricao`, `instrutor_id`, `categoria`, `nivel`, etc.
+- Campos: `id`, `nome`, `descricao`, `id_instrutor`, `categoria`, `nivel`, etc.
 
 ### `aulas`
 
 - Aulas que compõem os cursos
-- Campos: `id`, `curso_id`, `titulo`, `video_url`, `duracao_minutos`, etc.
+- Campos: `id`, `id_curso`, `id_instrutor`, `titulo`, `url_video`,
+  `duracao_minutos`, `ordem`, etc.
 
-### `inscricoes`
+### `matricula`
 
 - Controla quais alunos estão inscritos em quais cursos
-- Campos: `usuario_id`, `curso_id`, `progresso_percentual`, etc.
+- Campos: `id_usuario`, `id_curso`, `progresso`, `conclusao`, etc.
 
-### `progresso_aulas`
+### Relações de conteúdo
 
-- Rastreia o progresso de cada aluno em cada aula
-- Campos: `usuario_id`, `aula_id`, `concluida`, `tempo_assistido_minutos`, etc.
+- `usuario_curso`: vínculo e conclusão de cursos por usuário.
+- `usuario_trilha`: progresso e conclusão de trilhas por usuário.
+- `trilha_curso`: ordenação dos cursos dentro de uma trilha.
 
 ## 🔐 Papéis de usuário
 

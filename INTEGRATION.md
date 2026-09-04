@@ -6,7 +6,9 @@
   `3c33d1fd537daa4afc39e94a7a507de8f7c04446`.
 - Base remota inicial: `86bb29bdcdcde67085b211163d5825a5de271e15`.
 - Integração: `codex/integrar-local-main`, reunindo os dois históricos.
-- A main local, o banco existente e o PR #18 não foram alterados.
+- A main local e o banco existente não foram alterados. O PR #18 não foi
+  incorporado: sua listagem administrativa foi reimplementada com segurança
+  nesta branch e o PR antigo deve ser fechado como substituído.
 
 ## O que foi combinado
 
@@ -18,11 +20,20 @@ proteção de rotas e telas de perfil.
 Os contratos de autenticação foram unidos, sem refresh tokens. Cadastro público
 aceita apenas `name`, `email`, `password`, `cpf`; login retorna
 `{ access_token, user: { id, name, email, role } }`.
-Os códigos de recuperação têm seis dígitos, prazo de quinze minutos e são limpos
-após uso. Os testes verificam também expiração e reutilização.
+Os códigos de recuperação têm seis dígitos, prazo de quinze minutos e são
+consumidos por atualização condicional atômica. Os testes verificam expiração,
+reutilização e duas tentativas concorrentes com o mesmo código.
 
-Curso/aula continua no contrato português `/cursos` e UUIDs. A camada duplicada
-sem consumidores para `/courses` foi removida, junto com React Query sem uso.
+Administradores autenticados podem consultar `GET /usuarios?page=1&limit=50`.
+O limite aceito é de 1 a 100 e a resposta paginada contém somente `id`, `name`,
+`email`, `role` e `is_verified`; CPF, hashes e códigos internos nunca são
+serializados. Alunos e professores recebem `403` e requisições sem JWT recebem
+`401`.
+
+Curso/aula continua no contrato português `/cursos` e UUIDs. O editor permite
+criar, editar, ordenar e excluir aulas depois que o curso recebe seu UUID. A
+camada duplicada sem consumidores para `/courses` foi removida, junto com React
+Query sem uso.
 Axios e fetch compartilham `VITE_API_URL`; o bearer token usa a chave `token`.
 Cookies de autenticação não são utilizados.
 
@@ -54,10 +65,11 @@ Veja `backend/database/README.md` para os comandos e diagnóstico de dados legad
 Comandos de aceite: `npm ci`, build e lint nos dois projetos; `npm test`
 no frontend/backend e `npm run test:e2e -- --runInBand` no backend.
 
-Cobertura: 15 testes de interface, 29 testes unitários de backend e 11 testes HTTP
+Cobertura: 19 testes de interface, 31 testes unitários de backend e 13 testes HTTP
 com repositórios em memória. Nenhum usa o banco existente ou envia e-mails reais.
 Inclui login por papel, token ausente/inválido/expirado, recarga de permissões do
-usuário, isolamento de propriedade, verificação/reenvio e recuperação de senha.
+usuário, isolamento de propriedade, gestão de aulas, listagem administrativa,
+verificação/reenvio e recuperação de senha.
 
 As instalações reportam avisos de auditoria de dependências (10 no frontend e
 12 no backend), e o build frontend mantém aviso de bundle grande. Não foram
