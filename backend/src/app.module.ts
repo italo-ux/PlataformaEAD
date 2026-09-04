@@ -7,6 +7,7 @@ import { User } from './auth/user.entity'; //entidade que representa o banco de 
 import { CursosModule } from './cursos/cursos.module';
 import { Curso } from './cursos/curso.entity';
 import { Aula } from './cursos/aula.entity';
+import { UsuariosModule } from './usuarios/usuarios.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { Aula } from './cursos/aula.entity';
     }),
     AuthModule,
     CursosModule,
+    UsuariosModule,
   ],
   controllers: [AppController],
   providers: [AppService],

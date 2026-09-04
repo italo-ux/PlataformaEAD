@@ -22,6 +22,8 @@ import { Roles } from '../src/auth/roles.decorator';
 import { RolesGuard } from '../src/auth/roles.guard';
 import { UserRole } from '../src/auth/user-role.enum';
 import { User } from '../src/auth/user.entity';
+import { UsuariosController } from '../src/usuarios/usuarios.controller';
+import { UsuariosService } from '../src/usuarios/usuarios.service';
 
 const secret = 'isolated-auth-flow-test-secret';
 const password = 'Password1!';
@@ -82,17 +84,66 @@ describe('Integrated auth HTTP flow (no database or SMTP)', () => {
         ),
       findOneBy: ({ id }: { id: string }) =>
         Promise.resolve(users.get(id) ?? null),
+      update: (
+        criteria: {
+          email: string;
+          is_verified: boolean;
+          password_reset_code: string;
+          password_reset_expires_at: { value: Date };
+        },
+        partial: Partial<User>,
+      ) => {
+        const user = [...users.values()].find(
+          (candidate) =>
+            candidate.email === criteria.email &&
+            candidate.is_verified === criteria.is_verified &&
+            candidate.password_reset_code === criteria.password_reset_code &&
+            Boolean(
+              candidate.password_reset_expires_at &&
+              candidate.password_reset_expires_at >
+                criteria.password_reset_expires_at.value,
+            ),
+        );
+        if (!user) {
+          return Promise.resolve({ affected: 0, generatedMaps: [], raw: [] });
+        }
+        Object.assign(user, partial);
+        users.set(user.id, user);
+        return Promise.resolve({ affected: 1, generatedMaps: [], raw: [] });
+      },
+      findAndCount: ({
+        skip = 0,
+        take = 50,
+      }: {
+        skip?: number;
+        take?: number;
+      }) => {
+        const sortedUsers = [...users.values()].sort(
+          (left, right) =>
+            left.name.localeCompare(right.name) ||
+            left.id.localeCompare(right.id),
+        );
+        return Promise.resolve([
+          sortedUsers.slice(skip, skip + take),
+          sortedUsers.length,
+        ]);
+      },
     };
     const module = await Test.createTestingModule({
       imports: [
         PassportModule,
         JwtModule.register({ secret, signOptions: { expiresIn: '1h' } }),
       ],
-      controllers: [AuthController, ProtectedTestController],
+      controllers: [
+        AuthController,
+        ProtectedTestController,
+        UsuariosController,
+      ],
       providers: [
         AuthService,
         JwtStrategy,
         RolesGuard,
+        UsuariosService,
         { provide: getRepositoryToken(User), useValue: repository },
         { provide: MailService, useValue: mail },
       ],
@@ -250,6 +301,89 @@ describe('Integrated auth HTTP flow (no database or SMTP)', () => {
       .post('/auth/login')
       .send({ email: user.email, password: newPassword })
       .expect(201);
+  });
+
+  it('allows exactly one concurrent HTTP reset with the same code', async () => {
+    const user = await register();
+    await verify(user);
+    await request(app.getHttpServer())
+      .post('/auth/forgot-password')
+      .send({ email: user.email })
+      .expect(201);
+    const code = user.password_reset_code!;
+
+    const attempts = await Promise.all([
+      request(app.getHttpServer())
+        .post('/auth/reset-password')
+        .send({ email: user.email, code, password: newPassword }),
+      request(app.getHttpServer())
+        .post('/auth/reset-password')
+        .send({ email: user.email, code, password: 'AnotherPassword3!' }),
+    ]);
+
+    expect(attempts.map(({ status }) => status).sort()).toEqual([201, 400]);
+    const acceptedPassword =
+      attempts[0].status === 201 ? newPassword : 'AnotherPassword3!';
+    await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: user.email, password: acceptedPassword })
+      .expect(201);
+  });
+
+  it('lists paginated safe user data only for administrators', async () => {
+    const admin = await register();
+    await verify(admin);
+    const login = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: admin.email, password })
+      .expect(201);
+    const token = (login.body as { access_token: string }).access_token;
+
+    await request(app.getHttpServer()).get('/usuarios').expect(401);
+    await request(app.getHttpServer())
+      .get('/usuarios')
+      .auth(token, { type: 'bearer' })
+      .expect(403);
+    admin.role = UserRole.PROFESSOR;
+    await request(app.getHttpServer())
+      .get('/usuarios')
+      .auth(token, { type: 'bearer' })
+      .expect(403);
+
+    users.set('user-2', {
+      ...admin,
+      id: 'user-2',
+      name: 'Zeta User',
+      email: 'zeta@example.com',
+      role: UserRole.ALUNO,
+    });
+    admin.role = UserRole.ADMIN;
+    const response = await request(app.getHttpServer())
+      .get('/usuarios?page=2&limit=1')
+      .auth(token, { type: 'bearer' })
+      .expect(200);
+
+    expect(response.body).toEqual({
+      items: [
+        {
+          id: 'user-2',
+          name: 'Zeta User',
+          email: 'zeta@example.com',
+          role: UserRole.ALUNO,
+          is_verified: true,
+        },
+      ],
+      page: 2,
+      limit: 1,
+      total: 2,
+    });
+    expect(response.text).not.toContain('password_hash');
+    expect(response.text).not.toContain('cpf');
+    expect(response.text).not.toContain('verification_code');
+    await request(app.getHttpServer())
+      .get('/usuarios?limit=101')
+      .auth(token, { type: 'bearer' })
+      .expect(400);
   });
 
   it('rejects missing/invalid/expired JWTs and uses the current database role', async () => {

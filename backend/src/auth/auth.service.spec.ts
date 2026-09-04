@@ -16,7 +16,7 @@ describe('AuthService', () => {
   let service: AuthService;
   let sign: jest.Mock;
   let repository: jest.Mocked<
-    Pick<Repository<User>, 'findOne' | 'save' | 'create'>
+    Pick<Repository<User>, 'findOne' | 'save' | 'create' | 'update'>
   >;
   let mailService: jest.Mocked<
     Pick<MailService, 'sendVerificationCode' | 'sendPasswordResetCode'>
@@ -43,6 +43,7 @@ describe('AuthService', () => {
       findOne: jest.fn(),
       save: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
     };
     mailService = {
       sendVerificationCode: jest.fn(),
@@ -110,33 +111,42 @@ describe('AuthService', () => {
   });
 
   it('resets the password and consumes a valid code', async () => {
-    const user = makeUser({
-      password_reset_code: '123456',
-      password_reset_expires_at: new Date(Date.now() + 60_000),
-    });
-    repository.findOne.mockResolvedValue(user);
+    const user = makeUser();
     (bcrypt.hash as jest.Mock).mockResolvedValue('new-hash');
+    repository.update.mockResolvedValue({
+      affected: 1,
+      generatedMaps: [],
+      raw: [],
+    });
 
     await expect(
       service.resetPassword(user.email, '123456', 'NovaSenha1!'),
     ).resolves.toEqual({ message: 'Senha alterada com sucesso.' });
 
-    expect(user.password_hash).toBe('new-hash');
-    expect(user.password_reset_code).toBeNull();
-    expect(user.password_reset_expires_at).toBeNull();
-    expect(repository.save).toHaveBeenCalledWith(user);
+    expect(repository.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: user.email,
+        is_verified: true,
+        password_reset_code: '123456',
+      }),
+      {
+        password_hash: 'new-hash',
+        password_reset_code: null,
+        password_reset_expires_at: null,
+      },
+    );
   });
 
   it.each([
-    ['wrong code', '654321', new Date(Date.now() + 60_000)],
-    ['expired code', '123456', new Date(Date.now() - 60_000)],
-  ])('rejects a reset with %s', async (_case, code, expiresAt) => {
-    repository.findOne.mockResolvedValue(
-      makeUser({
-        password_reset_code: '123456',
-        password_reset_expires_at: expiresAt,
-      }),
-    );
+    ['wrong code', '654321'],
+    ['expired code', '123456'],
+  ])('rejects a reset with %s', async (_case, code) => {
+    repository.update.mockResolvedValue({
+      affected: 0,
+      generatedMaps: [],
+      raw: [],
+    });
+    jest.mocked(bcrypt.hash).mockResolvedValue('unused-hash' as never);
 
     await expect(
       service.resetPassword('user@example.com', code, 'NovaSenha1!'),
@@ -229,17 +239,35 @@ describe('AuthService', () => {
   });
 
   it('rejects a consumed recovery code', async () => {
-    const user = makeUser({
-      password_reset_code: '123456',
-      password_reset_expires_at: new Date(Date.now() + 60_000),
-    });
-    repository.findOne.mockResolvedValue(user);
+    const user = makeUser();
     jest.mocked(bcrypt.hash).mockResolvedValue('new-hash' as never);
+    repository.update
+      .mockResolvedValueOnce({ affected: 1, generatedMaps: [], raw: [] })
+      .mockResolvedValueOnce({ affected: 0, generatedMaps: [], raw: [] });
     await service.resetPassword(user.email, '123456', 'Password1!');
     await expect(
       service.resetPassword(user.email, '123456', 'OtherPass1!'),
     ).rejects.toBeInstanceOf(BadRequestException);
-    expect(bcrypt.hash).toHaveBeenCalledTimes(1);
+    expect(bcrypt.hash).toHaveBeenCalledTimes(2);
+  });
+
+  it('allows exactly one concurrent reset with the same code', async () => {
+    jest.mocked(bcrypt.hash).mockResolvedValue('new-hash' as never);
+    repository.update
+      .mockResolvedValueOnce({ affected: 1, generatedMaps: [], raw: [] })
+      .mockResolvedValueOnce({ affected: 0, generatedMaps: [], raw: [] });
+
+    const results = await Promise.allSettled([
+      service.resetPassword('user@example.com', '123456', 'Password1!'),
+      service.resetPassword('user@example.com', '123456', 'OtherPass1!'),
+    ]);
+
+    expect(results.filter(({ status }) => status === 'fulfilled')).toHaveLength(
+      1,
+    );
+    expect(results.filter(({ status }) => status === 'rejected')).toHaveLength(
+      1,
+    );
   });
 
   it('expires recovery codes at exactly fifteen minutes', async () => {
@@ -252,6 +280,12 @@ describe('AuthService', () => {
       expect(user.password_reset_expires_at?.getTime()).toBe(now + 15 * 60_000);
       const code = user.password_reset_code!;
       clock.mockReturnValue(now + 15 * 60_000);
+      repository.update.mockResolvedValue({
+        affected: 0,
+        generatedMaps: [],
+        raw: [],
+      });
+      jest.mocked(bcrypt.hash).mockResolvedValue('unused-hash' as never);
       await expect(
         service.resetPassword(user.email, code, 'Password1!'),
       ).rejects.toBeInstanceOf(BadRequestException);
