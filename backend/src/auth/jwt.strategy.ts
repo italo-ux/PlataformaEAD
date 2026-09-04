@@ -3,6 +3,11 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { ConfigService } from '@nestjs/config';
+
+@Injectable()
+export class JwtStrategy extends PassportStrategy(Strategy) {
+  constructor(private readonly configService: ConfigService) {
 import { JwtFromRequestFunction } from 'passport-jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -23,8 +28,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     super({
-      jwtFromRequest: extractor,
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
+      secretOrKey: configService.get<string>('JWT_SECRET') || 'default_secret',
+    });
+  }
+
+  validate(payload: { sub: string; email: string }) {
+    console.log('--- JWT PAYLOAD DECODIFICADO COM SUCESSO: ---', payload);
+    return { id: payload.sub, email: payload.email };
       secretOrKey: jwtSecret,
     });
   }

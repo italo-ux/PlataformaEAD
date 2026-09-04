@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent } from "react"; //getAuthenticatedUser());
 import { Navigate, useNavigate } from "react-router-dom";
 import {
   Camera,
@@ -22,7 +22,7 @@ import {
   clearAuthenticatedUser,
   deleteAuthenticatedUser,
   getAuthenticatedUser,
-  updateAuthenticatedUserProfile,
+  updateProfile,
 } from "../services/userService";
 
 interface ProfileFormValues {
@@ -138,7 +138,7 @@ function validatePassword(values: PasswordFormValues): PasswordErrors {
   }
 
   if (values.nextPassword !== values.confirmPassword) {
-    errors.confirmPassword = "As senhas nao conferem.";
+    errors.confirmPassword = "As senhas não conferem.";
   }
 
   return errors;
@@ -304,30 +304,46 @@ export default function ProfilePage() {
     });
   };
 
-  const handleSubmitProfile = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setStatusMessage("");
-    setGeneralError("");
+ const handleSubmitProfile = async (event: FormEvent<HTMLFormElement>) => {
+  event.preventDefault();
+  setStatusMessage("");
+  setGeneralError("");
 
-    const validationErrors = validateProfile(formValues);
+  const validationErrors = validateProfile(formValues);
 
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      return;
-    }
+  if (Object.keys(validationErrors).length > 0) {
+    setErrors(validationErrors);
+    return;
+  }
 
-    setErrors({});
-    setIsSaving(true);
+  setErrors({});
+  setIsSaving(true);
 
-    try {
-      const updatedUser = await updateAuthenticatedUserProfile(user.id, {
-        name: `${formValues.firstName.trim()} ${formValues.lastName.trim()}`,
-        email: formValues.email,
-        cpf: formValues.cpf,
-        phone: formValues.phone,
-        avatar: formValues.avatar,
-      });
+  try {
+    //  Chame a função 'updateProfile' enviando todos os dados necessários
+    const updatedUser = await updateProfile({
+      name: `${formValues.firstName.trim()} ${formValues.lastName.trim()}`,
+      phone: formValues.phone,
+      avatar: formValues.avatar,
+    });
 
+    //  Atualiza a tela com as informações retornadas da API/Storage
+    setUser(updatedUser);
+    setFormValues(mapUserToFormValues(updatedUser));
+
+    setStatusMessage("Perfil atualizado com sucesso!");
+    setIsAvatarEditorOpen(false);
+    setIsEditingProfile(false);
+  } catch (error) {
+    setGeneralError(
+      error instanceof Error
+        ? error.message
+        : "Não foi possível salvar o perfil.",
+    );
+  } finally {
+    setIsSaving(false);
+  }
+};
       setUser(updatedUser);
       setFormValues(mapUserToFormValues(updatedUser));
       setStatusMessage("Perfil atualizado apenas neste navegador; o servidor não foi alterado.");
@@ -361,7 +377,6 @@ export default function ProfilePage() {
 
     try {
       await changeAuthenticatedUserPassword(
-        user.id,
         passwordValues.currentPassword,
         passwordValues.nextPassword,
       );

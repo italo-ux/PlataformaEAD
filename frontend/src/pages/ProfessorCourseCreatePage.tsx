@@ -1,3 +1,15 @@
+import { useState, useEffect, type ChangeEvent, type FormEvent } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
+import {
+  BookOpen,
+  CheckCircle2,
+  FileText,
+  Image,
+  ListChecks,
+  PlusCircle,
+  UserRound,
+  Users,
+} from "lucide-react";
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BookOpen, PlusCircle, Save } from "lucide-react";
@@ -18,13 +30,36 @@ const initialForm: Record<keyof CursoInput, string> = {
 };
 
 const fieldClass =
-  "w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-3 text-slate-900 transition focus:border-blue-600 focus:outline-none";
+  "w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-3 text-slate-900 placeholder-gray-400 transition focus:border-blue-600 focus:outline-none focus:shadow-lg";
 
-export default function ProfessorCourseCreatePage() {
+const labelClass = "mb-2 block text-sm font-bold text-[#25304a]";
+
+function mapTeacherToInstructor(teacher: User): Instructor {
+  return {
+    id: teacher.id,
+    name: teacher.name,
+    email: teacher.email,
+    image: teacher.avatar,
+    bio: "Professor da Plataforma EAD Inovação. Bio temporária até o backend enviar o perfil completo.",
+  };
+}
+  
+/*--------------------------------------- Buscar Professores --------------------------------------- */
+
+export function ProfessorCourseCreatePage() {
   const navigate = useNavigate();
   const { courseId } = useParams();
   const [searchParams] = useSearchParams();
   const user = getAuthenticatedUser();
+
+  // 1. Criamos um ESTADO para guardar a lista real de professores vindos da API
+  const [registeredTeachers, setRegisteredTeachers] = useState<User[]>([]);
+
+  const [formValues, setFormValues] = useState(initialFormState);
+  const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>(() =>
+    user?.role === "professor" ? [String(user.id)] : [],
+  );
+  const [error, setError] = useState("");
   const isEditing = Boolean(courseId);
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(isEditing);
@@ -40,6 +75,24 @@ export default function ProfessorCourseCreatePage() {
     }
   }, [searchParams]);
 
+  // 2. O useEffect faz a busca assim que a tela abre no navegador
+  useEffect(() => {
+    async function fetchTeachers() {
+      try {
+        const teachersData = await getRegisteredTeachers();
+        setRegisteredTeachers(teachersData); // Guarda os professores no estado!
+      } catch (err) {
+        console.error("Erro ao carregar professores:", err);
+      }
+    }
+
+    if (user?.role === "admin") {
+      fetchTeachers();
+    }
+  }, [user]);
+
+  if (!user || !canCreateCourses(user)) {
+    return <Navigate to={user ? "/home" : "/login"} replace />;
   useEffect(() => {
     if (!courseId) return;
 
@@ -95,6 +148,20 @@ export default function ProfessorCourseCreatePage() {
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = event.target;
+    setFormValues((currentValues) => ({
+      ...currentValues,
+      [name]: value,
+    }));
+    setError("");
+  };
+
+  const handleToggleTeacher = (teacherId: string) => {
+    setSelectedTeacherIds((currentIds) =>
+      currentIds.includes(teacherId)
+        ? currentIds.filter((currentId) => currentId !== teacherId)
+        : [...currentIds, teacherId],
+    );
+    setError("");
     setForm((current) => ({ ...current, [name]: value }));
   };
 
@@ -131,6 +198,7 @@ export default function ProfessorCourseCreatePage() {
       setSaving(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-[#f6f9ff] text-slate-950">

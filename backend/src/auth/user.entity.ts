@@ -1,5 +1,10 @@
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
-import { UserRole } from './user-role.enum';
+//arquivo de ponte entre código e tabela no banco de dados
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  DeleteDateColumn,
+} from 'typeorm';
 
 @Entity('users')
 export class User {
@@ -29,6 +34,11 @@ export class User {
   @Column({ nullable: true }) // Isso diz ao banco que tudo bem não mandar o CPF por enquanto
   cpf!: string;
 
+  @Column({ nullable: true })
+  phone?: string; //número do celular
+
+  @DeleteDateColumn({ name: 'deleted_at', nullable: true })
+  deletedAt?: Date; // coluna que desativa a conta do usuário
   @Column({
     type: 'enum',
     enum: UserRole,

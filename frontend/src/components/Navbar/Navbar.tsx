@@ -14,8 +14,44 @@ import {
   canCreateCourses,
   type User,
 } from "../../data/userMock";
-import { clearAuthenticatedUser } from "../../services/userService";
+import { clearAuthenticatedUser, getAuthenticatedUser } from "../../services/userService";
 import Navlinks from "./NavLinks";
+
+/*atualizar e logar */
+export function Header() {
+  const [user, setUser] = useState<User | null>(() => getAuthenticatedUser());
+
+  useEffect(() => {
+    function handleAuthChange() {
+      // Atualiza o estado com o usuário recém-salvo no localStorage
+      setUser(getAuthenticatedUser());
+    }
+
+    // Escuta as mudanças acionadas pelo login/logout
+    window.addEventListener("auth-change", handleAuthChange);
+
+    return () => {
+      window.removeEventListener("auth-change", handleAuthChange);
+    };
+  }, []);
+
+  return (
+    <header>
+      {/* Exemplo de exibição condicional */}
+      {user ? (
+        <div>
+          <span>Olá, {user.name}</span>
+          <a href="/profile">Meu Perfil</a>
+        </div>
+      ) : (
+        <div>
+          <a href="/login">Login</a>
+          <a href="/register">Cadastre-se</a>
+        </div>
+      )}
+    </header>
+  );
+}
 
 const transparentActionClass =
   "inline-flex items-center justify-center whitespace-nowrap rounded-md border border-blue-500 bg-transparent px-4 py-2 text-sm font-semibold text-blue-500 transition hover:bg-blue-500 hover:text-white xl:px-7 xl:text-lg";
@@ -49,8 +85,8 @@ function Navbar({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const isLoggedIn = Boolean(user);
-  const showPerformanceLink = canAccessPerformance(user);
-  const showCreateCourseLink = canCreateCourses(user);
+  const showPerformanceLink = Boolean(user && canAccessPerformance?.(user));
+  const showCreateCourseLink = Boolean(user && canCreateCourses?.(user));
 
   useEffect(() => {
     if (!isUserMenuOpen) {
