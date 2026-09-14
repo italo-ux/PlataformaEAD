@@ -4,6 +4,7 @@ import {
   faEnvelope,
   faIdCard,
   faLock,
+  faLocationDot,
   faUser,
 } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
@@ -35,6 +36,7 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
       name: "",
       email: "",
       cpf: "",
+      cep: "",
       profileType: "cidadao",
       verificationProof: "",
       password: "",
@@ -45,10 +47,9 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         name: formValues.name,
         email: formValues.email,
         cpf: formValues.cpf,
+        cep: formValues.cep,
         profileType: formValues.profileType as
-          | "cidadao"
-          | "estagiario"
-          | "funcionario",
+          "cidadao" | "estagiario" | "funcionario",
         verificationProof: formValues.verificationProof,
         password: formValues.password,
       });
@@ -147,6 +148,18 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
                 error={errors.cpf}
               />
 
+              <FormInput
+                id="cep"
+                name="cep"
+                label="CEP"
+                type="text"
+                placeholder="00000-000"
+                icon={faLocationDot}
+                value={values.cep}
+                onChange={handleChange}
+                error={errors.cep}
+              />
+
               <fieldset>
                 <legend className="mb-3 block text-sm font-semibold text-[#333]">
                   Tipo de perfil
@@ -226,7 +239,7 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
               <button
                 type="submit"
                 disabled={loading || success}
-                className="w-full bg-[#4B6FFF] text-white font-bold text-lg py-4 rounded-lg transition-all duration-300 hover:bg-blue-700 hover:shadow-xl transform hover:-translate-y-1 active:translate-y-0 cursor-pointer disabled:opacity-50"
+                className="w-full bg-[#447cfc] text-white font-bold text-lg py-4 rounded-lg transition-all duration-300 hover:bg-blue-700 hover:shadow-xl transform hover:-translate-y-1 active:translate-y-0 cursor-pointer disabled:opacity-50"
               >
                 {loading ? "Criando conta..." : "Registrar"}
               </button>
@@ -237,14 +250,13 @@ function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
                   <button
                     type="button"
                     onClick={onSwitchToLogin}
-                    className="text-[#4B6FFF] hover:text-blue-700 font-bold transition-colors duration-200 ml-1 bg-none border-none cursor-pointer"
+                    className="text-[#447cfc] hover:text-blue-700 font-bold transition-colors duration-200 ml-1 bg-none border-none cursor-pointer"
                   >
                     Faça login
                   </button>
                 </span>
               </div>
             </form>
-
           </div>
         </div>
       </div>

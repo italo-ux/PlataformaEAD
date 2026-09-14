@@ -1,16 +1,19 @@
 import { Navigate, Outlet } from "react-router-dom";
 import type { UserRole } from "../data/userMock";
-import { getAuthenticatedUser } from "../services/userService";
+import { useAuth } from "../context/auth-context";
 
 interface ProtectedRouteProps {
   allowedRoles: UserRole[];
 }
 
 export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
-  const token = localStorage.getItem("token");
-  const user = getAuthenticatedUser();
+  const { loading, user } = useAuth();
 
-  if (!token || !user) {
+  if (loading) {
+    return <div className="p-8 text-center text-slate-600">Restaurando sessão...</div>;
+  }
+
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 

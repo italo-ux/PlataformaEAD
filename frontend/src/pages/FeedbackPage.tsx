@@ -1,5 +1,5 @@
 // Importação hooks do React
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 //Importação de components
 import Navbar from "../components/Navbar/Navbar";
@@ -11,40 +11,13 @@ import { getAuthenticatedUser } from "../services/userService";
 //Ícones da lucide-react
 import {
   CheckCircle2,
-  GraduationCap,
   MessageSquareText,
   Send,
   Star,
-  ThumbsUp
 } from "lucide-react";
 
 //Categorias para feedback
 const categories = ["Curso", "Plataforma", "Professor", "Suporte"];
-
-//Feedbacks de simulação para a página
-const feedbacks = [
-  {
-    name: "Mariana Costa",
-    course: "Web Development Avançaado",
-    rating: 5,
-    text: "As aulas são objetivas e o progresso ajuda muito a manter o ritmo de estudo!"
-    ,category: "Curso"
-  },
-  {
-    name: "Rafael Lima",
-    course: "Curso de Game Development",
-    rating: 4,
-    text: "Gostei da didática e dos exemplos práticos. Seria ótimo ter mais exercícios ao final dos módulos."
-    ,category: "Professor"
-  },
-  {
-    name: "Camila Rocha",
-    course: "Introdução a Programação",
-    rating: 5,
-    text: "A plataforma ficou simples de navegar e consigo retomar exatamente de onde parei!"
-    ,category: "Plataforma"
-  }
-];
 
 // Component principal feedback
 export default function FeedbackPage() {
@@ -56,17 +29,6 @@ export default function FeedbackPage() {
   const [selectedCategory, setSelectedCategory] = useState(categories[0]);
   //Exibição da mensagem depois de enviada
   const [submitted, setSubmitted] = useState(false);
-  const [adminCategory, setAdminCategory] = useState("Todos");
-  const visibleFeedbacks = user?.role === "admin" && adminCategory !== "Todos"
-    ? feedbacks.filter((feedback) => feedback.category === adminCategory)
-    : feedbacks;
-
-  //Cálculo das avaliações
-  const averageRating = useMemo(() => {
-    const total = feedbacks.reduce((sum, feedback) => sum + feedback.rating, 0);
-    return (total / feedbacks.length).toFixed(1);
-  }, []);
-
   //Envio do formulário/feedback
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -84,7 +46,7 @@ export default function FeedbackPage() {
         <section className="bg-white border-y border-blue-100">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
             {/*Grid principal */}
-            <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+            <div>
               {/*Texto inicial */}
               <div>
                 {/*Badge */}
@@ -103,33 +65,12 @@ export default function FeedbackPage() {
                   comunidade de alunos.
                 </p>
               </div>
-              {/*Cards estatísticas */}
-              <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-3">
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 min-[360px]:p-3 sm:p-4">
-                  <Star className="text-amber-500 fill-amber-500" size={24} />
-                  <p className="mt-3 text-2xl font-bold text-gray-950">
-                    {averageRating}
-                  </p>
-                  <p className="text-sm text-gray-500">média geral</p>
-                </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 min-[360px]:p-3 sm:p-4">
-                  <ThumbsUp className="text-emerald-600" size={24} />
-                  <p className="mt-3 text-2xl font-bold text-gray-950">97%</p>
-                  <p className="text-sm text-gray-500">satisfação</p>
-                </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 min-[360px]:p-3 sm:p-4">
-                  <GraduationCap className="text-blue-600" size={24} />
-                  <p className="mt-3 text-2xl font-bold text-gray-950">18</p>
-                  <p className="text-sm text-gray-500">cursos avaliados</p>
-                </div>
-              </div>
             </div>
           </div>
         </section>
 
         {/*Principal */}
-        <section className="max-w-7xl mx-auto w-full px-3 min-[360px]:px-4 sm:px-6 lg:px-8 py-10">
-          <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
+        <section className="mx-auto w-full max-w-2xl px-3 py-10 min-[360px]:px-4 sm:px-6">
 
             {/*Formulário */}
             <form
@@ -243,68 +184,6 @@ export default function FeedbackPage() {
               )}
             </form>
 
-            {/*Lista de outros feedbacks */}
-            <div className="space-y-4">
-              <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
-                <h2 className="text-2xl font-bold text-gray-950">
-                  Feedbacks recentes
-                </h2>
-                <p className="mt-1 text-gray-600">
-                  {user?.role === "admin"
-                    ? "Filtre as avaliações por tipo para priorizar melhorias."
-                    : "Veja o que outros alunos estão comentando!"}
-                </p>
-                {user?.role === "admin" && (
-                  <div className="mt-4 flex flex-wrap gap-2" aria-label="Filtrar feedbacks por tipo">
-                    {["Todos", ...categories].map((category) => (
-                      <button
-                        key={category}
-                        type="button"
-                        onClick={() => setAdminCategory(category)}
-                        className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${adminCategory === category ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-blue-50"}`}
-                      >
-                        {category} ({category === "Todos" ? feedbacks.length : feedbacks.filter((item) => item.category === category).length})
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {visibleFeedbacks.map((feedback) => (
-                <article
-                  key={`${feedback.name}-${feedback.course}`}
-                  className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    {/*Dados dos alunos */}
-                    <div>
-                      <h3 className="font-bold text-gray-950">
-                        {feedback.name}
-                      </h3>
-                      <p className="text-sm text-gray-500">{feedback.course}</p>
-                      <span className="mt-2 inline-flex rounded-full bg-blue-50 px-2 py-1 text-[11px] font-bold text-blue-700">{feedback.category}</span>
-                    </div>
-                    {/*Estrelas dadas pelo aluno */}
-                    <div className="flex gap-1" aria-label={`${feedback.rating} estrelas`}>
-                      {[1, 2, 3, 4, 5].map((value) => (
-                        <Star
-                          key={value}
-                          size={18}
-                          className={
-                            value <= feedback.rating
-                              ? "fill-amber-500 text-amber-500"
-                              : "text-gray-300"
-                          }
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  {/*Comentário/feedback do aluno */}
-                  <p className="mt-4 text-gray-700">{feedback.text}</p>
-                </article>
-              ))}
-            </div>
-          </div>
         </section>
       </main>
 

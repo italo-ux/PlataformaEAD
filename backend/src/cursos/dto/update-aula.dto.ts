@@ -40,8 +40,8 @@ export class UpdateAulaDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(0)
-  duracao_minutos?: number;
+  @Min(1)
+  duracao_segundos?: number;
 
   @IsOptional()
   @Type(() => Number)

@@ -5,7 +5,7 @@ function NavLink({ children, to }: { children: ReactNode; to: string }) {
   return (
     <RouterNavLink
       to={to}
-      className="border-b-2 text-sm font-semibold text-blue-500 transition hover:text-blue-700 xl:text-lg"
+      className="border-b border-transparent text-sm font-medium tracking-wide text-slate-600 transition hover:border-blue-500 hover:text-blue-700 xl:text-base"
     >
       {children}
     </RouterNavLink>

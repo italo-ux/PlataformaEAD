@@ -73,7 +73,7 @@ export default function ForgotPasswordForm({
                   className={`w-full pl-12 pr-4 py-3 bg-white border-2 rounded-lg text-[#333] placeholder-gray-400 transition-all duration-300 focus:outline-none focus:shadow-lg hover:border-gray-300 ${
                     errors.email
                       ? "border-red-500 focus:border-red-500"
-                      : "border-gray-200 focus:border-[#4B6FFF]"
+                      : "border-gray-200 focus:border-[#447cfc]"
                   }`}
                 />
               </div>
@@ -85,7 +85,7 @@ export default function ForgotPasswordForm({
             <button
               type="submit"
               disabled={loading || success}
-              className="w-full bg-[#4B6FFF] text-white font-bold text-lg py-4 rounded-lg transition-all duration-300 hover:bg-blue-700 hover:shadow-xl transform hover:-translate-y-1 active:translate-y-0 cursor-pointer disabled:opacity-50"
+              className="w-full bg-[#447cfc] text-white font-bold text-lg py-4 rounded-lg transition-all duration-300 hover:bg-blue-700 hover:shadow-xl transform hover:-translate-y-1 active:translate-y-0 cursor-pointer disabled:opacity-50"
             >
               {loading ? "Enviando..." : "Enviar código"}
             </button>
@@ -95,7 +95,7 @@ export default function ForgotPasswordForm({
                 Lembrou a senha?{" "}
                 <a
                   href="/login"
-                  className="text-[#4B6FFF] hover:text-blue-700 font-bold transition-colors duration-200 ml-1"
+                  className="text-[#447cfc] hover:text-blue-700 font-bold transition-colors duration-200 ml-1"
                 >
                   Faça login
                 </a>

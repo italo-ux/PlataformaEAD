@@ -1,19 +1,11 @@
-# Tela de cursos mockada
+# Tela de curso
 
-## Rotas
+`/courses/:courseId` consome `GET /cursos/:courseId/jornada`.
 
-- `/courses` lista os cursos locais.
-- `/courses/:courseId` abre um curso pelo ID mockado.
-- `/course` redireciona para `/courses/1` por compatibilidade.
-- `/professor/cursos/novo` é reservada a professor/admin e redireciona a
-  sessão atual de aluno.
-
-## Fonte dos dados
-
-- Cursos, aulas e trilhas: `src/data/courseData.ts`.
-- Operações mockadas de cursos: `src/services/courseService.ts`.
-- Login, cadastro e sessão: `src/services/userService.tsx`, usando a API real.
-
-Os cursos criados no fluxo mockado desaparecem após recarregar a página. A API
-de autenticação atual não fornece papéis; portanto todos os usuários reais são
-tratados como alunos até que o backend implemente professor/admin.
+- Aluno sem matrícula vê a chamada para iniciar.
+- Aluno matriculado recebe somente a URL das aulas liberadas.
+- A YouTube IFrame API envia posições sequenciais; o backend deriva a cobertura
+  usando a duração persistida no cadastro e o tempo de sessão, limitado a 2x.
+- Ao concluir 90%, a próxima aula é liberada na resposta da mesma operação.
+- Professor e administrador recebem modo de pré-visualização, sem matrícula.
+- Curso concluído exibe download do certificado verificável.

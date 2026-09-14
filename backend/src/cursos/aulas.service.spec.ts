@@ -6,6 +6,7 @@ import { Aula } from './aula.entity';
 import { AulasService } from './aulas.service';
 import { Curso } from './curso.entity';
 import { CursosService } from './cursos.service';
+import { Matricula } from '../jornada/matricula.entity';
 
 describe('AulasService', () => {
   const actor: AuthenticatedUser = {
@@ -23,6 +24,10 @@ describe('AulasService', () => {
     descricao: null,
     url_video: 'https://youtu.be/example',
     duracao_minutos: 10,
+    duracao_segundos: 600,
+    youtube_video_id: 'dQw4w9WgXcQ',
+    youtube_embeddable: true,
+    youtube_validado_em: new Date('2026-09-13T12:00:00.000Z'),
     ordem: 1,
     curso: course,
     id_instrutor: actor.userId,
@@ -39,11 +44,21 @@ describe('AulasService', () => {
   const cursosService = {
     findManageable: jest.fn(),
   } as unknown as jest.Mocked<CursosService>;
-  const service = new AulasService(repository, cursosService);
+  const enrollmentsRepository = {
+    existsBy: jest.fn(),
+  } as unknown as jest.Mocked<Repository<Matricula>>;
+  const service = new AulasService(
+    repository,
+    enrollmentsRepository,
+    cursosService,
+  );
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    enrollmentsRepository.existsBy.mockResolvedValue(false);
+  });
 
-  it('valida a propriedade do curso antes de criar uma aula', async () => {
+  it('valida a existência do curso antes de criar uma aula', async () => {
     cursosService.findManageable.mockResolvedValue(course);
     repository.count.mockResolvedValue(0);
     repository.create.mockReturnValue(lesson);
@@ -52,7 +67,11 @@ describe('AulasService', () => {
     await expect(
       service.create(
         course.id,
-        { titulo: lesson.titulo, url_video: lesson.url_video },
+        {
+          titulo: lesson.titulo,
+          url_video: 'https://youtu.be/dQw4w9WgXcQ',
+          duracao_segundos: lesson.duracao_segundos!,
+        },
         actor,
       ),
     ).resolves.toEqual(lesson);
@@ -62,7 +81,7 @@ describe('AulasService', () => {
     );
   });
 
-  it('valida a propriedade antes de atualizar e remover uma aula', async () => {
+  it('valida a existência do curso antes de atualizar e remover uma aula', async () => {
     cursosService.findManageable.mockResolvedValue(course);
     repository.findOne.mockResolvedValue(lesson);
     repository.merge.mockReturnValue(lesson);
@@ -73,5 +92,10 @@ describe('AulasService', () => {
     await service.remove(course.id, lesson.id, actor);
 
     expect(cursosService.findManageable).toHaveBeenCalledTimes(2);
+    expect(cursosService.findManageable).toHaveBeenNthCalledWith(
+      1,
+      course.id,
+      actor,
+    );
   });
 });

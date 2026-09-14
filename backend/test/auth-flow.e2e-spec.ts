@@ -9,6 +9,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { randomUUID } from 'node:crypto';
 import { Server } from 'node:http';
 import * as jwt from 'jsonwebtoken';
@@ -24,6 +25,8 @@ import { UserRole } from '../src/auth/user-role.enum';
 import { User } from '../src/auth/user.entity';
 import { UsuariosController } from '../src/usuarios/usuarios.controller';
 import { UsuariosService } from '../src/usuarios/usuarios.service';
+import { Address } from '../src/auth/address.entity';
+import { CepService } from '../src/auth/cep.service';
 
 const secret = 'isolated-auth-flow-test-secret';
 const password = 'Password1!';
@@ -42,6 +45,7 @@ class ProtectedTestController {
 describe('Integrated auth HTTP flow (no database or SMTP)', () => {
   let app: INestApplication<Server>;
   let users: Map<string, User>;
+  let addresses: Map<string, Address>;
   let previousSecret: string | undefined;
   const mail = {
     sendVerificationCode: jest.fn(),
@@ -52,13 +56,28 @@ describe('Integrated auth HTTP flow (no database or SMTP)', () => {
     email: 'test@example.com',
     password,
     cpf: '12345678901',
+    cep: '01001000',
   };
 
   beforeEach(async () => {
     previousSecret = process.env.JWT_SECRET;
     process.env.JWT_SECRET = secret;
     users = new Map();
+    addresses = new Map();
     jest.clearAllMocks();
+    const addressRepository = {
+      create: (data: Partial<Address>) =>
+        ({
+          id: randomUUID(),
+          created_at: new Date(),
+          updated_at: new Date(),
+          ...data,
+        }) as Address,
+      save: (address: Address) => {
+        addresses.set(address.id, address);
+        return Promise.resolve(address);
+      },
+    };
     const repository = {
       create: (data: Partial<User>): User => ({
         id: randomUUID(),
@@ -71,40 +90,64 @@ describe('Integrated auth HTTP flow (no database or SMTP)', () => {
         verification_code: null,
         password_reset_code: null,
         password_reset_expires_at: null,
+        phone: null,
+        avatar: null,
+        must_change_email: false,
+        must_change_password: false,
         ...data,
       }),
       save: (user: User) => {
         users.set(user.id, user);
         return Promise.resolve(user);
       },
-      findOne: ({ where }: { where: { email: string } }) =>
+      findOne: ({
+        where,
+      }: {
+        where: {
+          email: string;
+          is_verified?: boolean;
+          password_reset_code?: string;
+          password_reset_expires_at?: { value: Date };
+        };
+      }) =>
         Promise.resolve(
-          [...users.values()].find((user) => user.email === where.email) ??
-            null,
+          [...users.values()].find(
+            (user) =>
+              user.email === where.email &&
+              (where.is_verified === undefined ||
+                user.is_verified === where.is_verified) &&
+              (where.password_reset_code === undefined ||
+                user.password_reset_code === where.password_reset_code) &&
+              (where.password_reset_expires_at === undefined ||
+                Boolean(
+                  user.password_reset_expires_at &&
+                  user.password_reset_expires_at >
+                    where.password_reset_expires_at.value,
+                )),
+          ) ?? null,
         ),
       findOneBy: ({ id }: { id: string }) =>
         Promise.resolve(users.get(id) ?? null),
       update: (
         criteria: {
-          email: string;
+          id: string;
           is_verified: boolean;
           password_reset_code: string;
           password_reset_expires_at: { value: Date };
         },
         partial: Partial<User>,
       ) => {
-        const user = [...users.values()].find(
-          (candidate) =>
-            candidate.email === criteria.email &&
-            candidate.is_verified === criteria.is_verified &&
-            candidate.password_reset_code === criteria.password_reset_code &&
-            Boolean(
-              candidate.password_reset_expires_at &&
-              candidate.password_reset_expires_at >
-                criteria.password_reset_expires_at.value,
-            ),
-        );
-        if (!user) {
+        const user = users.get(criteria.id);
+        const matches =
+          user &&
+          user.is_verified === criteria.is_verified &&
+          user.password_reset_code === criteria.password_reset_code &&
+          Boolean(
+            user.password_reset_expires_at &&
+            user.password_reset_expires_at >
+              criteria.password_reset_expires_at.value,
+          );
+        if (!user || !matches) {
           return Promise.resolve({ affected: 0, generatedMaps: [], raw: [] });
         }
         Object.assign(user, partial);
@@ -129,9 +172,25 @@ describe('Integrated auth HTTP flow (no database or SMTP)', () => {
         ]);
       },
     };
+    Object.assign(repository, {
+      manager: {
+        transaction: (
+          callback: (manager: {
+            save: (entity: User | Address) => Promise<User | Address>;
+          }) => Promise<User>,
+        ) =>
+          callback({
+            save: (entity: User | Address) =>
+              'email' in entity
+                ? repository.save(entity)
+                : addressRepository.save(entity),
+          }),
+      },
+    });
     const module = await Test.createTestingModule({
       imports: [
         PassportModule,
+        ThrottlerModule.forRoot([{ ttl: 60_000, limit: 10 }]),
         JwtModule.register({ secret, signOptions: { expiresIn: '1h' } }),
       ],
       controllers: [
@@ -145,6 +204,21 @@ describe('Integrated auth HTTP flow (no database or SMTP)', () => {
         RolesGuard,
         UsuariosService,
         { provide: getRepositoryToken(User), useValue: repository },
+        { provide: getRepositoryToken(Address), useValue: addressRepository },
+        {
+          provide: CepService,
+          useValue: {
+            findAddress: jest.fn().mockResolvedValue({
+              cep: input.cep,
+              rua: 'Praça da Sé',
+              bairro: 'Sé',
+              cidade: 'São Paulo',
+              uf: 'SP',
+              estado: 'São Paulo',
+              complemento: null,
+            }),
+          },
+        },
         { provide: MailService, useValue: mail },
       ],
     }).compile();
@@ -160,7 +234,7 @@ describe('Integrated auth HTTP flow (no database or SMTP)', () => {
   });
 
   afterEach(async () => {
-    await app.close();
+    if (app) await app.close();
     if (previousSecret === undefined) delete process.env.JWT_SECRET;
     else process.env.JWT_SECRET = previousSecret;
   });
@@ -194,6 +268,14 @@ describe('Integrated auth HTTP flow (no database or SMTP)', () => {
     expect(user.email).toBe(input.email);
     expect(user.cpf).toBe(input.cpf);
     expect(user.role).toBe(UserRole.ALUNO);
+    expect([...addresses.values()][0]).toMatchObject({
+      id_usuario: user.id,
+      cep: input.cep,
+      rua: 'Praça da Sé',
+      cidade: 'São Paulo',
+      uf: 'SP',
+    });
+    expect([...addresses.values()][0]).not.toHaveProperty('numero');
     await request(app.getHttpServer())
       .post('/auth/login')
       .send(input)
@@ -224,7 +306,11 @@ describe('Integrated auth HTTP flow (no database or SMTP)', () => {
       id: user.id,
       name: input.name,
       email: input.email,
+      cpf: input.cpf,
+      phone: null,
       role: UserRole.ALUNO,
+      mustChangeEmail: false,
+      mustChangePassword: false,
     });
     expect(jwt.verify(body.access_token, secret)).toMatchObject({
       sub: user.id,
@@ -261,6 +347,28 @@ describe('Integrated auth HTTP flow (no database or SMTP)', () => {
       .expect(201);
     expect(verified.body).toEqual(missing.body);
     expect(mail.sendVerificationCode).toHaveBeenCalledTimes(1);
+  });
+
+  it('rate limits repeated public password reset attempts', async () => {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await request(app.getHttpServer())
+        .post('/auth/reset-password')
+        .send({
+          email: 'missing@example.com',
+          code: '123456',
+          password: newPassword,
+        })
+        .expect(400);
+    }
+
+    await request(app.getHttpServer())
+      .post('/auth/reset-password')
+      .send({
+        email: 'missing@example.com',
+        code: '123456',
+        password: newPassword,
+      })
+      .expect(429);
   });
 
   it('resets a password once and permits login only with the new password', async () => {
@@ -384,6 +492,114 @@ describe('Integrated auth HTTP flow (no database or SMTP)', () => {
       .get('/usuarios?limit=101')
       .auth(token, { type: 'bearer' })
       .expect(400);
+  });
+
+  it('lets an administrator update initial credentials and create professors or admins', async () => {
+    const admin = await register();
+    await verify(admin);
+    admin.role = UserRole.ADMIN;
+    admin.must_change_email = true;
+    admin.must_change_password = true;
+
+    const login = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: admin.email, password })
+      .expect(201);
+    const loginBody = login.body as {
+      access_token: string;
+      user: {
+        role: UserRole;
+        mustChangeEmail: boolean;
+        mustChangePassword: boolean;
+      };
+    };
+    expect(loginBody.user).toMatchObject({
+      role: UserRole.ADMIN,
+      mustChangeEmail: true,
+      mustChangePassword: true,
+    });
+    const token = loginBody.access_token;
+
+    const unchangedProfile = await request(app.getHttpServer())
+      .patch('/usuarios/me')
+      .auth(token, { type: 'bearer' })
+      .send({ email: admin.email })
+      .expect(200);
+    expect(
+      (unchangedProfile.body as { mustChangeEmail: boolean }).mustChangeEmail,
+    ).toBe(true);
+
+    const changedEmail = 'admin.changed@example.com';
+    await request(app.getHttpServer())
+      .patch('/usuarios/me')
+      .auth(token, { type: 'bearer' })
+      .send({
+        name: 'Administrador Alterado',
+        email: changedEmail,
+        cpf: '98765432100',
+        phone: '11988887777',
+      })
+      .expect(200)
+      .expect(({ body }) =>
+        expect(body).toMatchObject({
+          email: changedEmail,
+          mustChangeEmail: false,
+          mustChangePassword: true,
+        }),
+      );
+
+    const changedPassword = await request(app.getHttpServer())
+      .patch('/usuarios/me/password')
+      .auth(token, { type: 'bearer' })
+      .send({ currentPassword: password, newPassword })
+      .expect(200);
+    expect(
+      (changedPassword.body as { mustChangePassword: boolean })
+        .mustChangePassword,
+    ).toBe(false);
+
+    for (const role of [UserRole.PROFESSOR, UserRole.ADMIN]) {
+      const managedEmail = `${role}@example.com`;
+      const response = await request(app.getHttpServer())
+        .post('/usuarios')
+        .auth(token, { type: 'bearer' })
+        .send({
+          name: `Managed ${role}`,
+          email: managedEmail,
+          password: 'Temporary3!',
+          cpf: role === UserRole.ADMIN ? '11122233344' : '55566677788',
+          role,
+        })
+        .expect(201);
+      expect(response.body).toMatchObject({
+        email: managedEmail,
+        role,
+        is_verified: true,
+      });
+
+      const managedLogin = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: managedEmail, password: 'Temporary3!' })
+        .expect(201);
+      expect(
+        (managedLogin.body as { user: Record<string, unknown> }).user,
+      ).toMatchObject({
+        role,
+        mustChangeEmail: false,
+        mustChangePassword: true,
+      });
+    }
+
+    const finalLogin = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: changedEmail, password: newPassword })
+      .expect(201);
+    expect(
+      (finalLogin.body as { user: Record<string, unknown> }).user,
+    ).toMatchObject({
+      mustChangeEmail: false,
+      mustChangePassword: false,
+    });
   });
 
   it('rejects missing/invalid/expired JWTs and uses the current database role', async () => {

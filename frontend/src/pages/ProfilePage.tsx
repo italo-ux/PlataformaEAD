@@ -1,7 +1,6 @@
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import {
-  Camera,
   CheckCircle2,
   KeyRound,
   Lock,
@@ -9,19 +8,18 @@ import {
   Phone,
   Save,
   Shield,
-  Trash2,
   UserRound,
   X,
 } from "lucide-react";
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
-import AdminDashboard from "../components/AdminDashboard";
+import AdminUserManagement from "../components/AdminUserManagement";
+import AdminTrailManagement from "../components/AdminTrailManagement";
+import CollapsibleSection from "../components/CollapsibleSection";
 import type { User } from "../data/userMock";
+import { useAuth } from "../context/auth-context";
 import {
   changeAuthenticatedUserPassword,
-  clearAuthenticatedUser,
-  deleteAuthenticatedUser,
-  getAuthenticatedUser,
   updateAuthenticatedUserProfile,
 } from "../services/userService";
 
@@ -31,7 +29,6 @@ interface ProfileFormValues {
   email: string;
   cpf: string;
   phone: string;
-  avatar: string;
 }
 
 interface PasswordFormValues {
@@ -72,25 +69,11 @@ function mapUserToFormValues(user: User | null): ProfileFormValues {
     email: user?.email ?? "",
     cpf: user?.cpf ?? "",
     phone: user?.phone ?? "",
-    avatar: user?.avatar ?? "",
   };
 }
 
 function onlyDigits(value: string) {
   return value.replace(/\D/g, "");
-}
-
-function isValidImageUrl(value: string) {
-  if (!value.trim()) {
-    return true;
-  }
-
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 
 function validateProfile(values: ProfileFormValues): FormErrors {
@@ -119,10 +102,6 @@ function validateProfile(values: ProfileFormValues): FormErrors {
     errors.phone = "Informe um celular com DDD.";
   }
 
-  if (!isValidImageUrl(values.avatar)) {
-    errors.avatar = "Use uma URL de imagem iniciada por http ou https.";
-  }
-
   return errors;
 }
 
@@ -133,8 +112,15 @@ function validatePassword(values: PasswordFormValues): PasswordErrors {
     errors.currentPassword = "Informe a senha atual.";
   }
 
-  if (values.nextPassword.length < 6) {
-    errors.nextPassword = "A nova senha deve ter pelo menos 6 caracteres.";
+  if (values.nextPassword.length < 8) {
+    errors.nextPassword = "A nova senha deve ter pelo menos 8 caracteres.";
+  } else if (
+    !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])[\s\S]+$/.test(
+      values.nextPassword,
+    )
+  ) {
+    errors.nextPassword =
+      "Use maiúscula, minúscula, número e caractere especial.";
   }
 
   if (values.nextPassword !== values.confirmPassword) {
@@ -237,16 +223,21 @@ function PasswordInput({
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const [user, setUser] = useState<User | null>(() => getAuthenticatedUser());
+  const { user: sessionUser, logout } = useAuth();
+  const [user, setUser] = useState<User | null>(sessionUser);
   const [formValues, setFormValues] = useState<ProfileFormValues>(() =>
-    mapUserToFormValues(getAuthenticatedUser()),
+    mapUserToFormValues(sessionUser),
   );
+
+  useEffect(() => {
+    setUser(sessionUser);
+    setFormValues(mapUserToFormValues(sessionUser));
+  }, [sessionUser]);
   const [errors, setErrors] = useState<FormErrors>({});
   const [statusMessage, setStatusMessage] = useState("");
   const [generalError, setGeneralError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [isAvatarEditorOpen, setIsAvatarEditorOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [passwordValues, setPasswordValues] = useState<PasswordFormValues>({
     currentPassword: "",
@@ -257,7 +248,6 @@ export default function ProfilePage() {
   const [passwordStatus, setPasswordStatus] = useState("");
   const [passwordGeneralError, setPasswordGeneralError] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [deleteConfirmationStep, setDeleteConfirmationStep] = useState<0 | 1 | 2>(0);
 
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -325,13 +315,11 @@ export default function ProfilePage() {
         email: formValues.email,
         cpf: formValues.cpf,
         phone: formValues.phone,
-        avatar: formValues.avatar,
       });
 
       setUser(updatedUser);
       setFormValues(mapUserToFormValues(updatedUser));
-      setStatusMessage("Perfil atualizado apenas neste navegador; o servidor não foi alterado.");
-      setIsAvatarEditorOpen(false);
+      setStatusMessage("Perfil atualizado com sucesso.");
       setIsEditingProfile(false);
     } catch (error) {
       setGeneralError(
@@ -360,19 +348,21 @@ export default function ProfilePage() {
     setIsChangingPassword(true);
 
     try {
-      await changeAuthenticatedUserPassword(
+      const updatedUser = await changeAuthenticatedUserPassword(
         user.id,
         passwordValues.currentPassword,
         passwordValues.nextPassword,
       );
 
+      setUser(updatedUser);
+      setFormValues(mapUserToFormValues(updatedUser));
       setPasswordValues({
         currentPassword: "",
         nextPassword: "",
         confirmPassword: "",
       });
       setIsPasswordModalOpen(false);
-      setStatusMessage("Senha alterada apenas na demonstração desta sessão.");
+      setStatusMessage("Senha alterada com sucesso.");
     } catch (error) {
       setPasswordGeneralError(
         error instanceof Error
@@ -385,7 +375,7 @@ export default function ProfilePage() {
   };
 
   const handleLogout = () => {
-    clearAuthenticatedUser();
+    logout();
     navigate("/login");
   };
 
@@ -414,15 +404,6 @@ export default function ProfilePage() {
     setIsPasswordModalOpen(false);
   };
 
-  const closeDeleteModal = () => {
-    setDeleteConfirmationStep(0);
-  };
-
-  const handleDeleteProfile = () => {
-    deleteAuthenticatedUser(user.id);
-    navigate("/login", { replace: true });
-  };
-
   const openProfileEditor = () => {
     setStatusMessage("");
     setGeneralError("");
@@ -433,7 +414,6 @@ export default function ProfilePage() {
     setFormValues(mapUserToFormValues(user));
     setErrors({});
     setGeneralError("");
-    setIsAvatarEditorOpen(false);
     setIsEditingProfile(false);
   };
 
@@ -446,8 +426,7 @@ export default function ProfilePage() {
           <div className="mb-8 border-b-2 border-slate-600 pb-3">
             <h1 className="text-3xl font-black text-slate-950">Meu perfil</h1>
             <p className="mt-3 text-sm text-amber-800">
-              As edições desta tela são locais a este navegador. Elas não alteram
-              seus dados cadastrais no servidor.
+              As alterações são salvas na sua conta e valem no próximo acesso.
             </p>
           </div>
 
@@ -477,15 +456,7 @@ export default function ProfilePage() {
             <div className="mx-auto max-w-3xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
                 <div className="flex h-28 w-28 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-4xl font-bold text-white shadow-lg shadow-blue-600/20">
-                  {formValues.avatar ? (
-                    <img
-                      src={formValues.avatar}
-                      alt={`${displayName} avatar`}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <span>{getInitials(displayName)}</span>
-                  )}
+                  <span>{getInitials(displayName)}</span>
                 </div>
 
                 <div className="min-w-0 flex-1 text-center sm:text-left">
@@ -546,41 +517,9 @@ export default function ProfilePage() {
           {isEditingProfile && (
             <form onSubmit={handleSubmitProfile}>
               <div className="mb-10 flex flex-col items-center gap-4">
-                <div className="relative">
-                  <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-4xl font-bold text-white shadow-lg shadow-blue-600/20">
-                    {formValues.avatar ? (
-                      <img
-                        src={formValues.avatar}
-                        alt={`${displayName} avatar`}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <span>{getInitials(displayName)}</span>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsAvatarEditorOpen((current) => !current)}
-                    className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-blue-600 shadow transition hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    aria-label="Editar imagem do perfil"
-                  >
-                    <Camera className="h-4 w-4" />
-                  </button>
+                <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-4xl font-bold text-white shadow-lg shadow-blue-600/20">
+                  <span>{getInitials(displayName)}</span>
                 </div>
-
-                {isAvatarEditorOpen && (
-                  <div className="w-full max-w-xl">
-                    <TextInput
-                      icon={Camera}
-                      label="URL da imagem"
-                      name="avatar"
-                      placeholder="https://exemplo.com/avatar.jpg"
-                      value={formValues.avatar}
-                      onChange={handleProfileChange}
-                      error={errors.avatar}
-                    />
-                  </div>
-                )}
               </div>
 
               <div className="mx-auto grid max-w-3xl gap-5 md:grid-cols-2">
@@ -692,32 +631,22 @@ export default function ProfilePage() {
             )}
           </div>
 
-          <div className="mx-auto mt-8 max-w-3xl rounded-lg border border-red-200 bg-red-50 p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="font-black text-red-900">Remover perfil deste navegador</h2>
-                <p className="mt-1 text-sm text-red-700">
-                  Remove os dados locais do perfil e encerra esta sessão. Sua conta continua no servidor.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDeleteConfirmationStep(1)}
-                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md border border-red-500 px-5 text-sm font-bold text-red-700 transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500"
-              >
-                <Trash2 className="h-4 w-4" />
-                Remover perfil local
-              </button>
-            </div>
-          </div>
         </section>
 
         {user.role === "admin" && (
           <>
-            <p className="mx-auto max-w-5xl px-4 py-3 text-sm text-amber-800">
-              Painel demonstrativo: os indicadores administrativos ainda usam dados simulados.
-            </p>
-            <AdminDashboard />
+            <CollapsibleSection
+              title="Gerenciar trilhas"
+              description="Crie trilhas e organize os cursos disponíveis."
+            >
+              <AdminTrailManagement embedded />
+            </CollapsibleSection>
+            <CollapsibleSection
+              title="Cadastrar equipe"
+              description="Cadastre professores e outros administradores."
+            >
+              <AdminUserManagement embedded />
+            </CollapsibleSection>
           </>
         )}
       </main>
@@ -741,7 +670,7 @@ export default function ProfilePage() {
                   Alterar senha
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Demonstração local. Para alterar a senha real, use "Esqueci a senha" na tela de login.
+                  Informe a senha atual e escolha uma nova senha segura.
                 </p>
               </div>
               <button
@@ -810,69 +739,6 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {deleteConfirmationStep > 0 && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-modal-title"
-        >
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-red-100 text-red-700">
-                <Trash2 className="h-5 w-5" />
-              </div>
-              <button
-                type="button"
-                onClick={closeDeleteModal}
-                className="flex h-9 w-9 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500"
-                aria-label="Fechar confirmação de exclusão"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <h2 id="delete-modal-title" className="mt-4 text-xl font-black text-slate-950">
-              {deleteConfirmationStep === 1
-                ? "Deseja remover seu perfil local?"
-                : "Última confirmação"}
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              {deleteConfirmationStep === 1
-                ? "Esta ação remove apenas dados deste navegador. Sua conta no servidor não será excluída."
-                : "Você será desconectado, mas poderá entrar novamente com sua conta."}
-            </p>
-
-            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={closeDeleteModal}
-                className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 px-5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400"
-              >
-                Cancelar
-              </button>
-              {deleteConfirmationStep === 1 ? (
-                <button
-                  type="button"
-                  onClick={() => setDeleteConfirmationStep(2)}
-                  className="inline-flex h-10 items-center justify-center rounded-md bg-red-600 px-5 text-sm font-bold text-white transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
-                >
-                  Sim, continuar
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleDeleteProfile}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-red-600 px-5 text-sm font-bold text-white transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Remover dados locais e sair
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

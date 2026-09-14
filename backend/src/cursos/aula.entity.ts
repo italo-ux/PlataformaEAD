@@ -34,6 +34,18 @@ export class Aula {
   @Column({ type: 'integer', nullable: true })
   duracao_minutos!: number | null;
 
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  youtube_video_id!: string | null;
+
+  @Column({ type: 'integer', nullable: true })
+  duracao_segundos!: number | null;
+
+  @Column({ type: 'boolean', nullable: true })
+  youtube_embeddable!: boolean | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  youtube_validado_em!: Date | null;
+
   @Column({ type: 'integer' })
   ordem!: number;
 }

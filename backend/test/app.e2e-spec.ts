@@ -15,9 +15,11 @@ import { UserRole } from '../src/auth/user-role.enum';
 import { Aula } from '../src/cursos/aula.entity';
 import { AulasController } from '../src/cursos/aulas.controller';
 import { AulasService } from '../src/cursos/aulas.service';
-import { Curso } from '../src/cursos/curso.entity';
+import { Curso, CursoStatus } from '../src/cursos/curso.entity';
 import { CursosController } from '../src/cursos/cursos.controller';
 import { CursosService } from '../src/cursos/cursos.service';
+import { Matricula } from '../src/jornada/matricula.entity';
+import { DataSource } from 'typeorm';
 
 const testSecret = 'e2e-test-secret';
 const courseId = '11111111-1111-4111-8111-111111111111';
@@ -34,7 +36,14 @@ describe('Cursos authorization (e2e)', () => {
   let lessons: Aula[];
   const repository = {
     create: jest.fn(
-      (data: Partial<Curso>) => ({ id: courseId, aulas: [], ...data }) as Curso,
+      (data: Partial<Curso>) =>
+        ({
+          id: courseId,
+          aulas: [],
+          status: CursoStatus.RASCUNHO,
+          publicado_em: null,
+          ...data,
+        }) as Curso,
     ),
     save: jest.fn((course: Curso) => {
       const index = courses.findIndex((item) => item.id === course.id);
@@ -42,13 +51,19 @@ describe('Cursos authorization (e2e)', () => {
       else courses.push(course);
       return Promise.resolve(course);
     }),
-    find: jest.fn(() =>
+    find: jest.fn(({ where }: { where?: { status?: CursoStatus } } = {}) =>
       Promise.resolve(
-        [...courses].sort((a, b) => a.nome.localeCompare(b.nome)),
+        courses
+          .filter((course) => !where?.status || course.status === where.status)
+          .sort((a, b) => a.nome.localeCompare(b.nome)),
       ),
     ),
-    findOneBy: jest.fn(({ id }: { id: string }) =>
-      Promise.resolve(courses.find((course) => course.id === id) ?? null),
+    findOneBy: jest.fn(({ id, status }: { id: string; status?: CursoStatus }) =>
+      Promise.resolve(
+        courses.find(
+          (course) => course.id === id && (!status || course.status === status),
+        ) ?? null,
+      ),
     ),
     merge: jest.fn((course: Curso, data: Partial<Curso>) =>
       Object.assign(course, data),
@@ -99,6 +114,31 @@ describe('Cursos authorization (e2e)', () => {
       return Promise.resolve(lesson);
     }),
   };
+  const enrollmentRepository = {
+    existsBy: jest.fn().mockResolvedValue(false),
+  };
+  const deleteLessonsQuery = {
+    delete: jest.fn().mockReturnThis(),
+    from: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    execute: jest.fn(() => {
+      lessons = [];
+      return Promise.resolve({});
+    }),
+  };
+  const transactionManager = {
+    delete: jest.fn().mockResolvedValue({}),
+    createQueryBuilder: jest.fn().mockReturnValue(deleteLessonsQuery),
+    remove: jest.fn((_target: typeof Curso, course: Curso) =>
+      repository.remove(course),
+    ),
+  };
+  const dataSource = {
+    transaction: jest.fn(
+      (work: (manager: typeof transactionManager) => unknown) =>
+        Promise.resolve(work(transactionManager)),
+    ),
+  };
 
   beforeEach(async () => {
     courses = [];
@@ -109,8 +149,13 @@ describe('Cursos authorization (e2e)', () => {
         CursosService,
         AulasService,
         RolesGuard,
+        { provide: DataSource, useValue: dataSource },
         { provide: getRepositoryToken(Curso), useValue: repository },
         { provide: getRepositoryToken(Aula), useValue: lessonRepository },
+        {
+          provide: getRepositoryToken(Matricula),
+          useValue: enrollmentRepository,
+        },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -157,7 +202,9 @@ describe('Cursos authorization (e2e)', () => {
     await app.init();
   });
 
-  afterEach(async () => app.close());
+  afterEach(async () => {
+    if (app) await app.close();
+  });
 
   const token = (userId: string, role: UserRole) =>
     jwt.sign({ sub: userId, email: `${role}@example.com`, role }, testSecret);
@@ -174,7 +221,7 @@ describe('Cursos authorization (e2e)', () => {
   const lessonPayload = {
     titulo: 'Introdução',
     url_video: 'https://youtu.be/dQw4w9WgXcQ',
-    duracao_minutos: 10,
+    duracao_segundos: 600,
   };
 
   const createOwnedCourse = async () => {
@@ -191,10 +238,21 @@ describe('Cursos authorization (e2e)', () => {
       );
   };
 
-  it('permite CRUD ao professor proprietário e mantém leituras públicas', async () => {
+  it('permite CRUD ao professor criador e exige login nas leituras', async () => {
     await createOwnedCourse();
-    await request(app.getHttpServer()).get('/cursos').expect(200);
-    await request(app.getHttpServer()).get(`/cursos/${courseId}`).expect(200);
+    await request(app.getHttpServer()).get('/cursos').expect(401);
+    await request(app.getHttpServer())
+      .get('/cursos')
+      .set(authorization(studentId, UserRole.ALUNO))
+      .expect(200);
+    await request(app.getHttpServer())
+      .get(`/cursos/${courseId}`)
+      .set(authorization(studentId, UserRole.ALUNO))
+      .expect(404);
+    await request(app.getHttpServer())
+      .get(`/cursos/${courseId}`)
+      .set(authorization(professorId, UserRole.PROFESSOR))
+      .expect(200);
     await request(app.getHttpServer())
       .patch(`/cursos/${courseId}`)
       .set(authorization(professorId, UserRole.PROFESSOR))
@@ -225,18 +283,22 @@ describe('Cursos authorization (e2e)', () => {
       .expect(403);
   });
 
-  it('bloqueia outro professor e permite administrador', async () => {
+  it('bloqueia outro professor e permite que o administrador gerencie cursos', async () => {
     await createOwnedCourse();
     await request(app.getHttpServer())
       .patch(`/cursos/${courseId}`)
       .set(authorization(otherProfessorId, UserRole.PROFESSOR))
-      .send({ nome: 'Não permitido' })
+      .send({ nome: 'Atualizado por outro professor' })
       .expect(403);
     await request(app.getHttpServer())
       .patch(`/cursos/${courseId}`)
       .set(authorization(adminId, UserRole.ADMIN))
       .send({ nome: 'Atualizado pelo admin' })
       .expect(200);
+    await request(app.getHttpServer())
+      .delete(`/cursos/${courseId}`)
+      .set(authorization(otherProfessorId, UserRole.PROFESSOR))
+      .expect(403);
     await request(app.getHttpServer())
       .delete(`/cursos/${courseId}`)
       .set(authorization(adminId, UserRole.ADMIN))
@@ -249,18 +311,28 @@ describe('Cursos authorization (e2e)', () => {
       .set(authorization(professorId, UserRole.PROFESSOR))
       .send({ nome: '', carga_horaria: -1 })
       .expect(400);
-    await request(app.getHttpServer()).get('/cursos/id-invalido').expect(400);
+    await request(app.getHttpServer())
+      .get('/cursos/id-invalido')
+      .set(authorization(studentId, UserRole.ALUNO))
+      .expect(400);
   });
 
   it('retorna 404 para UUID válido inexistente', async () => {
-    await request(app.getHttpServer()).get(`/cursos/${missingId}`).expect(404);
+    await request(app.getHttpServer())
+      .get(`/cursos/${missingId}`)
+      .set(authorization(studentId, UserRole.ALUNO))
+      .expect(404);
   });
 
-  it('aplica papéis e propriedade nas escritas de aulas', async () => {
+  it('reserva a rota de aulas à gestão e permite alterações por professor/admin', async () => {
     await createOwnedCourse();
     const lessonsUrl = `/cursos/${courseId}/aulas`;
 
-    await request(app.getHttpServer()).get(lessonsUrl).expect(200, []);
+    await request(app.getHttpServer()).get(lessonsUrl).expect(401);
+    await request(app.getHttpServer())
+      .get(lessonsUrl)
+      .set(authorization(studentId, UserRole.ALUNO))
+      .expect(403);
     await request(app.getHttpServer())
       .post(lessonsUrl)
       .send(lessonPayload)
@@ -275,7 +347,6 @@ describe('Cursos authorization (e2e)', () => {
       .set(authorization(otherProfessorId, UserRole.PROFESSOR))
       .send(lessonPayload)
       .expect(403);
-
     await request(app.getHttpServer())
       .post(lessonsUrl)
       .set(authorization(professorId, UserRole.PROFESSOR))
@@ -306,13 +377,9 @@ describe('Cursos authorization (e2e)', () => {
       .send({ titulo: 'Outro professor não pode editar' })
       .expect(403);
     await request(app.getHttpServer())
-      .delete(`${lessonsUrl}/${lessonId}`)
-      .set(authorization(otherProfessorId, UserRole.PROFESSOR))
-      .expect(403);
-    await request(app.getHttpServer())
       .patch(`${lessonsUrl}/${lessonId}`)
       .set(authorization(professorId, UserRole.PROFESSOR))
-      .send({ titulo: 'Introdução atualizada' })
+      .send({ titulo: 'Atualizada pelo proprietário' })
       .expect(200);
     await request(app.getHttpServer())
       .delete(`${lessonsUrl}/${lessonId}`)

@@ -1,5 +1,22 @@
 @import "tailwindcss";
 
+@theme {
+  --font-weight-bold: 500;
+  --font-weight-extrabold: 600;
+  --font-weight-black: 600;
+  --color-blue-50: #f4f7ff;
+  --color-blue-100: #e8efff;
+  --color-blue-200: #cbdcff;
+  --color-blue-300: #a7c1ff;
+  --color-blue-400: #759dff;
+  --color-blue-500: #447cfc;
+  --color-blue-600: #447cfc;
+  --color-blue-700: #3567d5;
+  --color-blue-800: #2d56ad;
+  --color-blue-900: #28498a;
+  --color-blue-950: #1c305b;
+}
+
 /* Custom Animations */
 @keyframes fadeIn {
   from {
@@ -73,5 +90,8 @@
 }
 
 body {
-  background-color: #f9fafb;
+  background-color: #f8fafc;
+  color: #263452;
+  font-weight: 400;
+  text-rendering: optimizeLegibility;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { BookOpen, PlusCircle, Save } from "lucide-react";
+import { BookOpen, PlusCircle, Rocket, Save } from "lucide-react";
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
 import { canCreateCourses } from "../data/userMock";
@@ -31,8 +31,9 @@ export default function ProfessorCourseCreatePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [loadFailed, setLoadFailed] = useState(false);
-  const [courseOwnerId, setCourseOwnerId] = useState<string | null>(null);
   const [status, setStatus] = useState("");
+  const [courseStatus, setCourseStatus] = useState<"rascunho" | "publicado">("rascunho");
+  const [publishing, setPublishing] = useState(false);
 
   useEffect(() => {
     if (searchParams.get("created") === "1") {
@@ -58,7 +59,7 @@ export default function ProfessorCourseCreatePage() {
           categoria: course.categoria ?? "",
           nivel: course.nivel ?? "",
         });
-        setCourseOwnerId(course.id_instrutor);
+        setCourseStatus(course.status);
       })
       .catch((reason: unknown) => {
         if (!cancelled) {
@@ -81,15 +82,6 @@ export default function ProfessorCourseCreatePage() {
 
   if (!user) return <Navigate to="/login" replace />;
   if (!canCreateCourses(user)) return <Navigate to="/home" replace />;
-  if (
-    isEditing &&
-    !loading &&
-    courseOwnerId !== null &&
-    user.role !== "admin" &&
-    courseOwnerId !== String(user.id)
-  ) {
-    return <Navigate to={`/courses/${courseId}`} replace />;
-  }
 
   const handleChange = (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -129,6 +121,26 @@ export default function ProfessorCourseCreatePage() {
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!courseId) return;
+    setPublishing(true);
+    setError("");
+    setStatus("");
+    try {
+      const course = await courseService.publishCourse(courseId);
+      setCourseStatus(course.status);
+      setStatus("Curso publicado e disponível para matrícula.");
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Não foi possível publicar o curso.",
+      );
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -282,7 +294,32 @@ export default function ProfessorCourseCreatePage() {
           </form>
         )}
         {isEditing && courseId && !loading && !loadFailed && (
-          <CourseLessonsEditor courseId={courseId} />
+          <>
+            <CourseLessonsEditor courseId={courseId} />
+            <section className="mt-6 rounded-xl border border-blue-100 bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-black text-[#25304a]">Disponibilidade</h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {courseStatus === "publicado"
+                      ? "Este curso está publicado e aceita matrículas."
+                      : "Publique após informar a carga horária e cadastrar pelo menos uma aula."}
+                  </p>
+                </div>
+                {courseStatus === "rascunho" && (
+                  <button
+                    type="button"
+                    onClick={handlePublish}
+                    disabled={publishing}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-3 font-bold text-white disabled:opacity-60"
+                  >
+                    <Rocket size={18} />
+                    {publishing ? "Publicando..." : "Publicar curso"}
+                  </button>
+                )}
+              </div>
+            </section>
+          </>
         )}
       </main>
       <Footer />

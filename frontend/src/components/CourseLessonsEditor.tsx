@@ -4,6 +4,10 @@ import courseService, {
   type Aula,
   type AulaInput,
 } from "../services/courseService";
+import {
+  formatDigitalDuration,
+  parseDigitalDuration,
+} from "../utils/duration";
 
 interface CourseLessonsEditorProps {
   courseId: string;
@@ -13,7 +17,7 @@ interface LessonFormState {
   titulo: string;
   descricao: string;
   url_video: string;
-  duracao_minutos: string;
+  duracao: string;
   ordem: string;
 }
 
@@ -21,7 +25,7 @@ const emptyLessonForm: LessonFormState = {
   titulo: "",
   descricao: "",
   url_video: "",
-  duracao_minutos: "",
+  duracao: "",
   ordem: "",
 };
 
@@ -33,21 +37,26 @@ function toForm(lesson: Aula): LessonFormState {
     titulo: lesson.titulo,
     descricao: lesson.descricao ?? "",
     url_video: lesson.url_video,
-    duracao_minutos: lesson.duracao_minutos?.toString() ?? "",
+    duracao:
+      lesson.duracao_segundos === null
+        ? ""
+        : formatDigitalDuration(lesson.duracao_segundos),
     ordem: lesson.ordem.toString(),
   };
 }
 
 function toPayload(form: LessonFormState, editing: boolean): AulaInput {
+  const durationSeconds = parseDigitalDuration(form.duracao);
+  if (durationSeconds === null) {
+    throw new Error("Informe uma duração válida no formato MM:SS.");
+  }
   const payload: AulaInput = {
     titulo: form.titulo.trim(),
     url_video: form.url_video.trim(),
+    duracao_segundos: durationSeconds,
   };
   if (editing || form.descricao.trim()) {
     payload.descricao = form.descricao.trim();
-  }
-  if (form.duracao_minutos) {
-    payload.duracao_minutos = Number(form.duracao_minutos);
   }
   if (form.ordem) payload.ordem = Number(form.ordem);
   return payload;
@@ -233,16 +242,22 @@ export default function CourseLessonsEditor({
         </label>
         <div className="grid gap-5 sm:grid-cols-2">
           <label className="text-sm font-bold text-[#25304a]">
-            Duração (minutos)
+            Duração do vídeo (MM:SS)
             <input
-              name="duracao_minutos"
-              type="number"
-              min="0"
-              step="1"
-              value={form.duracao_minutos}
+              name="duracao"
+              aria-label="Duração do vídeo (MM:SS)"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]+:[0-5][0-9]"
+              placeholder="20:00"
+              value={form.duracao}
               onChange={handleChange}
               className={fieldClass}
+              required
             />
+            <span className="mt-2 block text-xs font-medium text-slate-500">
+              Informe minutos e segundos. Exemplo: 20:00.
+            </span>
           </label>
           <label className="text-sm font-bold text-[#25304a]">
             Ordem
@@ -291,9 +306,7 @@ export default function CourseLessonsEditor({
                 </p>
                 <p className="mt-1 font-black text-slate-800">{lesson.titulo}</p>
                 <p className="mt-1 text-xs text-slate-500">
-                  {lesson.duracao_minutos === null
-                    ? "Duração não informada"
-                    : `${lesson.duracao_minutos} min`}
+                  {formatDigitalDuration(lesson.duracao_segundos)}
                 </p>
                 <div className="mt-3 flex gap-2">
                   <button

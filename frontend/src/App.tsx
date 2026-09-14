@@ -14,9 +14,13 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
+import AdminStatsPage from "./pages/AdminStatsPage";
+import { AuthProvider } from "./context/AuthContext";
+import CertificateValidationPage from "./pages/CertificateValidationPage";
 
 function App() {
   return (
+    <AuthProvider>
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LoginPage />} />
@@ -25,12 +29,26 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
-        <Route path="/home" element={<UserHome />} />
-        <Route path="/dashboard" element={<DashboardAluno />} />
-        <Route path="/perfil" element={<ProfilePage />} />
-        <Route path="/courses" element={<CoursesPage />} />
-        <Route path="/courses/:courseId" element={<CourseView />} />
-        <Route path="/trilhas/:trailSlug" element={<TrailPage />} />
+        <Route path="/quem-somos" element={<AboutPage />} />
+        <Route
+          path="/certificados/validar/:codigo"
+          element={<CertificateValidationPage />}
+        />
+        <Route
+          element={
+            <ProtectedRoute allowedRoles={["aluno", "professor", "admin"]} />
+          }
+        >
+          <Route path="/home" element={<UserHome />} />
+          <Route path="/dashboard" element={<DashboardAluno />} />
+          <Route path="/perfil" element={<ProfilePage />} />
+          <Route path="/courses" element={<CoursesPage />} />
+          <Route path="/courses/:courseId" element={<CourseView />} />
+          <Route path="/trilhas/:trailId" element={<TrailPage />} />
+          <Route path="/course" element={<Navigate to="/courses" replace />} />
+          <Route path="/course/:courseId" element={<CourseView />} />
+          <Route path="/feedback" element={<FeedbackPage />} />
+        </Route>
         <Route
           element={<ProtectedRoute allowedRoles={["professor", "admin"]} />}
         >
@@ -43,12 +61,12 @@ function App() {
             element={<ProfessorCourseCreatePage />}
           />
         </Route>
-        <Route path="/course" element={<Navigate to="/courses" replace />} />
-        <Route path="/course/:courseId" element={<CourseView />} />
-        <Route path="/quem-somos" element={<AboutPage />} />
-        <Route path="/feedback" element={<FeedbackPage />} />
+        <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+          <Route path="/admin/estatisticas" element={<AdminStatsPage />} />
+        </Route>
       </Routes>
     </BrowserRouter>
+    </AuthProvider>
   );
 }
 

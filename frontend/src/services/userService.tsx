@@ -1,10 +1,9 @@
 import {
   isUserRole,
-  mockUserCredentials,
   type User,
   type UserId,
 } from "../data/userMock";
-import { API_URL } from "./api";
+import { AUTH_CHANGED_EVENT, apiFetch, clearStoredSession } from "./api";
 
 const AUTH_USER_STORAGE_KEY = "ead.auth.user";
 const AUTH_TOKEN_STORAGE_KEY = "token";
@@ -15,13 +14,22 @@ export interface RegisterUserInput {
   email: string;
   password: string;
   cpf: string;
+  cep: string;
   profileType?: User["profileType"];
   verificationProof?: string;
 }
 
+export interface CreateManagedUserInput {
+  name: string;
+  email: string;
+  password: string;
+  cpf: string;
+  role: "professor" | "admin";
+}
+
 export type UpdateUserProfileInput = Pick<
   User,
-  "name" | "email" | "cpf" | "phone" | "avatar"
+  "name" | "email" | "cpf" | "phone"
 >;
 
 interface AuthResponse {
@@ -30,7 +38,11 @@ interface AuthResponse {
     id?: unknown;
     name?: unknown;
     email?: unknown;
+    cpf?: unknown;
+    phone?: unknown;
     role?: unknown;
+    mustChangeEmail?: unknown;
+    mustChangePassword?: unknown;
   };
 }
 
@@ -52,13 +64,21 @@ function sanitizeUser(user: User): User {
     id: user.id,
     name: user.name,
     email: user.email,
-    avatar: user.avatar,
     cpf: user.cpf,
     phone: user.phone,
     role: user.role,
+    mustChangeEmail: user.mustChangeEmail,
+    mustChangePassword: user.mustChangePassword,
     profileType: user.profileType,
     verificationStatus: user.verificationStatus,
   };
+}
+
+function persistableUser(user: User): User {
+  const sanitized = sanitizeUser(user);
+  delete sanitized.cpf;
+  delete sanitized.phone;
+  return sanitized;
 }
 
 // Institutional information is only a browser demonstration, never authorization.
@@ -69,8 +89,9 @@ function readProfileMetadata(): Record<string, User["profileType"]> {
     );
     if (!value || typeof value !== "object" || Array.isArray(value)) return {};
     return Object.fromEntries(
-      Object.entries(value).filter(([, type]) =>
-        type === "cidadao" || type === "estagiario" || type === "funcionario",
+      Object.entries(value).filter(
+        ([, type]) =>
+          type === "cidadao" || type === "estagiario" || type === "funcionario",
       ),
     );
   } catch {
@@ -78,11 +99,16 @@ function readProfileMetadata(): Record<string, User["profileType"]> {
   }
 }
 
-function institutionalMetadata(profileType: User["profileType"]): Partial<User> {
-  return profileType ? {
-    profileType,
-    verificationStatus: profileType === "cidadao" ? "nao_aplicavel" : "pendente",
-  } : {};
+function institutionalMetadata(
+  profileType: User["profileType"],
+): Partial<User> {
+  return profileType
+    ? {
+        profileType,
+        verificationStatus:
+          profileType === "cidadao" ? "nao_aplicavel" : "pendente",
+      }
+    : {};
 }
 
 function getResponseErrorMessage(data: unknown, fallback: string) {
@@ -118,11 +144,11 @@ export async function loginUser(
   email: string,
   password: string,
 ): Promise<User> {
-  const response = await fetch(`${API_URL}/auth/login`, {
+  const response = await apiFetch("/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email: normalizeEmail(email), password }),
-  });
+  }, false);
 
   if (!response.ok) {
     throw new Error(
@@ -148,13 +174,17 @@ export async function loginUser(
     id: data.user.id,
     name: typeof data.user.name === "string" ? data.user.name : data.user.email,
     email: data.user.email,
+    cpf: typeof data.user.cpf === "string" ? data.user.cpf : undefined,
+    phone: typeof data.user.phone === "string" ? data.user.phone : undefined,
     role: data.user.role,
+    mustChangeEmail: data.user.mustChangeEmail === true,
+    mustChangePassword: data.user.mustChangePassword === true,
     ...institutionalMetadata(readProfileMetadata()[String(data.user.id)]),
   };
 }
 
 export async function createUser(userData: RegisterUserInput): Promise<User> {
-  const response = await fetch(`${API_URL}/auth/register`, {
+  const response = await apiFetch("/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -162,8 +192,9 @@ export async function createUser(userData: RegisterUserInput): Promise<User> {
       email: normalizeEmail(userData.email),
       password: userData.password,
       cpf: userData.cpf.replace(/\D/g, ""),
+      cep: userData.cep.replace(/\D/g, ""),
     }),
-  });
+  }, false);
 
   if (!response.ok) {
     throw new Error(
@@ -181,10 +212,13 @@ export async function createUser(userData: RegisterUserInput): Promise<User> {
   }
 
   if (userData.profileType) {
-    localStorage.setItem(PROFILE_METADATA_STORAGE_KEY, JSON.stringify({
-      ...readProfileMetadata(),
-      [String(data.id)]: userData.profileType,
-    }));
+    localStorage.setItem(
+      PROFILE_METADATA_STORAGE_KEY,
+      JSON.stringify({
+        ...readProfileMetadata(),
+        [String(data.id)]: userData.profileType,
+      }),
+    );
   }
 
   return {
@@ -199,8 +233,23 @@ export async function createUser(userData: RegisterUserInput): Promise<User> {
 export function saveAuthenticatedUser(user: User) {
   localStorage.setItem(
     AUTH_USER_STORAGE_KEY,
-    JSON.stringify(sanitizeUser(user)),
+    JSON.stringify(persistableUser(user)),
   );
+  window.dispatchEvent(
+    new CustomEvent<User>(AUTH_CHANGED_EVENT, { detail: sanitizeUser(user) }),
+  );
+}
+
+export async function refreshAuthenticatedUser(): Promise<User> {
+  const response = await apiFetch("/usuarios/me");
+  if (!response.ok) {
+    throw new Error(
+      await readResponseError(response, "Não foi possível restaurar a sessão."),
+    );
+  }
+  const user = sanitizeUser((await response.json()) as User);
+  saveAuthenticatedUser(user);
+  return user;
 }
 
 export function getAuthenticatedUser(): User | null {
@@ -231,13 +280,6 @@ export function getAuthenticatedUser(): User | null {
   }
 }
 
-// These helpers remain local until the backend exposes profile and role APIs.
-export function getRegisteredTeachers(): User[] {
-  return mockUserCredentials
-    .filter(({ user }) => user.role === "professor")
-    .map(({ user }) => sanitizeUser(user));
-}
-
 export async function updateAuthenticatedUserProfile(
   userId: UserId,
   profile: UpdateUserProfileInput,
@@ -248,7 +290,29 @@ export async function updateAuthenticatedUserProfile(
     throw new Error("Sessao invalida");
   }
 
-  const updatedUser = sanitizeUser({ ...currentUser, ...profile });
+  const response = await apiFetch("/usuarios/me", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name: profile.name.trim(),
+      email: normalizeEmail(profile.email ?? currentUser.email),
+      cpf: profile.cpf?.replace(/\D/g, ""),
+      phone: profile.phone?.replace(/\D/g, ""),
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await readResponseError(response, "Não foi possível salvar o perfil."),
+    );
+  }
+
+  const updatedUser = sanitizeUser({
+    ...currentUser,
+    ...((await response.json()) as User),
+  });
   saveAuthenticatedUser(updatedUser);
   return updatedUser;
 }
@@ -257,34 +321,61 @@ export async function changeAuthenticatedUserPassword(
   userId: UserId,
   currentPassword: string,
   nextPassword: string,
-): Promise<void> {
+): Promise<User> {
   if (getAuthenticatedUser()?.id !== userId) {
     throw new Error("Sessao invalida");
   }
-  const credential = mockUserCredentials.find(({ user }) => user.id === userId);
 
-  if (!credential) {
-    throw new Error('Alteração apenas demonstrativa. Para sua conta real, use "Esqueci a senha" na tela de login.');
-  }
-  if (credential.password !== currentPassword) {
-    throw new Error("Senha atual invalida");
+  const response = await apiFetch("/usuarios/me/password", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ currentPassword, newPassword: nextPassword }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await readResponseError(response, "Não foi possível alterar a senha."),
+    );
   }
 
-  credential.password = nextPassword;
+  const currentUser = getAuthenticatedUser()!;
+  const updatedUser = sanitizeUser({
+    ...currentUser,
+    ...((await response.json()) as User),
+  });
+  saveAuthenticatedUser(updatedUser);
+  return updatedUser;
 }
 
-// Removes browser data only; the account remains on the server.
-export function deleteAuthenticatedUser(userId: UserId) {
-  if (getAuthenticatedUser()?.id !== userId) {
-    throw new Error("Sessao invalida");
+export async function createManagedUser(input: CreateManagedUserInput) {
+  const response = await apiFetch("/usuarios", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      ...input,
+      email: normalizeEmail(input.email),
+      cpf: input.cpf.replace(/\D/g, ""),
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await readResponseError(response, "Não foi possível criar o usuário."),
+    );
   }
-  const metadata = readProfileMetadata();
-  delete metadata[String(userId)];
-  localStorage.setItem(PROFILE_METADATA_STORAGE_KEY, JSON.stringify(metadata));
-  clearAuthenticatedUser();
+
+  return response.json() as Promise<{
+    id: string;
+    name: string;
+    email: string;
+    role: "professor" | "admin";
+  }>;
 }
 
 export function clearAuthenticatedUser() {
-  localStorage.removeItem(AUTH_USER_STORAGE_KEY);
-  localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  clearStoredSession();
 }

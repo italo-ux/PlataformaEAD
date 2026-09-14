@@ -133,7 +133,7 @@ export default function ResetPasswordForm({
             <button
               type="submit"
               disabled={loading || success}
-              className="w-full bg-[#4B6FFF] text-white font-bold text-lg py-4 rounded-lg transition-all duration-300 hover:bg-blue-700 hover:shadow-xl transform hover:-translate-y-1 active:translate-y-0 cursor-pointer disabled:opacity-50"
+              className="w-full bg-[#447cfc] text-white font-bold text-lg py-4 rounded-lg transition-all duration-300 hover:bg-blue-700 hover:shadow-xl transform hover:-translate-y-1 active:translate-y-0 cursor-pointer disabled:opacity-50"
             >
               {loading ? "Redefinindo..." : "Redefinir senha"}
             </button>
@@ -143,7 +143,7 @@ export default function ResetPasswordForm({
                 Voltou atrás?{" "}
                 <a
                   href="/login"
-                  className="text-[#4B6FFF] hover:text-blue-700 font-bold transition-colors duration-200 ml-1"
+                  className="text-[#447cfc] hover:text-blue-700 font-bold transition-colors duration-200 ml-1"
                 >
                   Faça login
                 </a>

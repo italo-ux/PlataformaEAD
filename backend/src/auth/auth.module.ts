@@ -8,6 +8,9 @@ import { JwtStrategy } from './jwt.strategy';
 import { User } from './user.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MailService } from './mail.service';
+import { Address } from './address.entity';
+import { CepService } from './cep.service';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 const jwtSecret = process.env.JWT_SECRET;
 
@@ -17,7 +20,13 @@ if (!jwtSecret) {
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, Address]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60_000,
+        limit: 10,
+      },
+    ]),
     PassportModule, //habilita o uso de AuthGuard
     //configura o módulo JWT, definindo a chave secreta e o tempo de expiração dos tokens:
     JwtModule.register({
@@ -26,7 +35,7 @@ if (!jwtSecret) {
     }),
   ],
   controllers: [AuthController], //lista os controlers que pertencem a esse módulo
-  providers: [AuthService, JwtStrategy, MailService],
+  providers: [AuthService, JwtStrategy, MailService, CepService],
   exports: [AuthService],
 })
 export class AuthModule {}

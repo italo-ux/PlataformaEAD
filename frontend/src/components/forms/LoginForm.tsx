@@ -92,7 +92,7 @@ function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
               <p className="text-right text-sm text-gray-500">
                 <NavLink
                   to="/forgot-password"
-                  className="text-[#4B6FFF] hover:text-blue-700 font-medium transition-colors duration-200"
+                  className="text-[#447cfc] hover:text-blue-700 font-medium transition-colors duration-200"
                 >
                   Esqueci a senha
                 </NavLink>
@@ -101,7 +101,7 @@ function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#4B6FFF] text-white font-bold text-lg py-4 rounded-lg transition-all duration-300 hover:bg-blue-700 hover:shadow-xl transform hover:-translate-y-1 active:translate-y-0 cursor-pointer disabled:opacity-50"
+                className="w-full bg-[#447cfc] text-white font-bold text-lg py-4 rounded-lg transition-all duration-300 hover:bg-blue-700 hover:shadow-xl transform hover:-translate-y-1 active:translate-y-0 cursor-pointer disabled:opacity-50"
               >
                 {loading ? "Entrando..." : "Continuar"}
               </button>
@@ -112,7 +112,7 @@ function LoginForm({ onSwitchToRegister, onSuccess }: LoginFormProps) {
                   <button
                     type="button"
                     onClick={onSwitchToRegister}
-                    className="text-[#4B6FFF] hover:text-blue-700 font-bold transition-colors duration-200 ml-1 bg-none border-none cursor-pointer"
+                    className="text-[#447cfc] hover:text-blue-700 font-bold transition-colors duration-200 ml-1 bg-none border-none cursor-pointer"
                   >
                     Cadastre-se
                   </button>

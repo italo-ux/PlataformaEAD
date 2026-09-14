@@ -29,6 +29,23 @@ export class User {
   @Column({ nullable: true }) // Isso diz ao banco que tudo bem não mandar o CPF por enquanto
   cpf!: string;
 
+  @Column({ name: 'celular', type: 'varchar', length: 11, nullable: true })
+  phone!: string | null;
+
+  @Column({
+    name: 'foto_perfil',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  avatar!: string | null;
+
+  @Column({ default: false })
+  must_change_email!: boolean;
+
+  @Column({ default: false })
+  must_change_password!: boolean;
+
   @Column({
     type: 'enum',
     enum: UserRole,

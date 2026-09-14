@@ -1,15 +1,18 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThan, Repository } from 'typeorm';
+import { MoreThan, QueryFailedError, Repository } from 'typeorm';
 import { User } from './user.entity';
 import { MailService } from './mail.service';
 import { randomInt } from 'node:crypto';
+import { Address } from './address.entity';
+import { CepService } from './cep.service';
 
 @Injectable()
 export class AuthService {
@@ -23,13 +26,31 @@ export class AuthService {
     private jwtService: JwtService,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(Address)
+    private addressRepository: Repository<Address>,
     private mailService: MailService, // Fix: com 'S' maiúsculo
+    private cepService: CepService,
   ) {}
 
   // 1. REGISTRO (Cria usuário, gera o código OTP e envia o e-mail)
-  async register(name: string, email: string, password: string, cpf: string) {
-    const hash = await bcrypt.hash(password, 10);
+  async register(
+    name: string,
+    email: string,
+    password: string,
+    cpf: string,
+    cep: string,
+  ) {
     const normalizedEmail = email.trim().toLowerCase();
+    const existingUser = await this.userRepository.findOne({
+      where: { email: normalizedEmail },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Este e-mail já está cadastrado.');
+    }
+
+    const addressData = await this.cepService.findAddress(cep);
+    const hash = await bcrypt.hash(password, 10);
 
     const user = this.userRepository.create({
       name,
@@ -43,15 +64,41 @@ export class AuthService {
 
     user.verification_code = verificationCode;
 
-    // Salva o usuário com o código no banco
-    await this.userRepository.save(user);
+    // Usuário e endereço são gravados juntos para não deixar cadastros parciais.
+    let savedUser: User;
+    try {
+      savedUser = await this.userRepository.manager.transaction(
+        async (manager) => {
+          const persistedUser = await manager.save(user);
+          await manager.save(
+            this.addressRepository.create({
+              id_usuario: persistedUser.id,
+              ...addressData,
+            }),
+          );
+          return persistedUser;
+        },
+      );
+    } catch (error) {
+      if (
+        error instanceof QueryFailedError &&
+        (error.driverError as { code?: string }).code === '23505'
+      ) {
+        throw new ConflictException('Este e-mail já está cadastrado.');
+      }
+
+      throw error;
+    }
 
     // 📩 DISPARA O E-MAIL COM O CÓDIGO AQUI
-    await this.mailService.sendVerificationCode(user.email, verificationCode);
+    await this.mailService.sendVerificationCode(
+      savedUser.email,
+      verificationCode,
+    );
 
     return {
-      id: user.id,
-      email: user.email,
+      id: savedUser.id,
+      email: savedUser.email,
       message: 'Usuário cadastrado com sucesso! Verifique seu e-mail.',
     };
   }
@@ -120,7 +167,11 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
+        cpf: user.cpf,
+        phone: user.phone,
         role: user.role,
+        mustChangeEmail: user.must_change_email,
+        mustChangePassword: user.must_change_password,
       },
     };
   }
@@ -169,13 +220,29 @@ export class AuthService {
       );
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+    const now = new Date();
+    const user = await this.userRepository.findOne({
+      where: {
+        email: normalizedEmail,
+        is_verified: true,
+        password_reset_code: code,
+        password_reset_expires_at: MoreThan(now),
+      },
+    });
+    if (!user) {
+      throw new BadRequestException(
+        'Código de recuperação inválido ou expirado',
+      );
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
     const result = await this.userRepository.update(
       {
-        email: email.trim().toLowerCase(),
+        id: user.id,
         is_verified: true,
         password_reset_code: code,
-        password_reset_expires_at: MoreThan(new Date()),
+        password_reset_expires_at: MoreThan(now),
       },
       {
         password_hash: passwordHash,

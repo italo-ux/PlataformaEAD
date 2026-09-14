@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS trilha_curso (
     ordem INTEGER,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (id_trilha) REFERENCES trilhas(id),
-    FOREIGN KEY (id_curso) REFERENCES cursos(id)
+    FOREIGN KEY (id_curso) REFERENCES cursos(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS conquistas (
@@ -163,15 +163,15 @@ CREATE TABLE IF NOT EXISTS avaliacao_curso (
 
 CREATE TABLE IF NOT EXISTS endereco (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_usuario UUID NOT NULL,
-    cep VARCHAR(10) NOT NULL,
+    id_usuario UUID NOT NULL UNIQUE,
+    cep VARCHAR(8) NOT NULL,
     rua VARCHAR(255),
-    numero VARCHAR(50),
     bairro VARCHAR(255),
     cidade VARCHAR(255),
+    uf CHAR(2),
     estado VARCHAR(100),
     complemento VARCHAR(255),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    FOREIGN KEY (id_usuario) REFERENCES users(id)
+    FOREIGN KEY (id_usuario) REFERENCES users(id) ON DELETE CASCADE
 );

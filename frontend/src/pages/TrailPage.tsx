@@ -1,365 +1,218 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import Footer from "../components/Footer/Footer";
-import Navbar from "../components/Navbar/Navbar";
-import {
-  formatCourseInstructorNames,
-  type Course,
-  getMockTrailBySlug,
-} from "../data/courseData";
-import { getAuthenticatedUser } from "../services/userService";
 import {
   ArrowLeft,
   BookOpen,
   Clock3,
-  Code2,
-  Gamepad2,
-  Globe2,
-  GraduationCap,
-  Landmark,
   Layers3,
-  Palette,
-  SlidersHorizontal,
-  Star,
-  UserRound,
-  Venus,
-  type LucideIcon,
+  Search,
 } from "lucide-react";
+import Footer from "../components/Footer/Footer";
+import Navbar from "../components/Navbar/Navbar";
+import journeyService from "../services/journeyService";
+import trailService, { type Trilha } from "../services/trailService";
+import { getAuthenticatedUser } from "../services/userService";
 
-const trailIcons: Record<string, LucideIcon> = {
-  "projeto-inova-inclusao-digital": Globe2,
-  "escola-de-games": Gamepad2,
-  "projeto-inova-elas-empreendedorismo": Venus,
-  "talentos-estagiarios-prefeitura": UserRound,
-  techgov: Landmark,
-  "expansao-ead-secretarias": Globe2,
-};
+type CourseSort = "name" | "category" | "level";
 
-const courseIcons: Record<number, LucideIcon> = {
-  1: Gamepad2,
-  2: Code2,
-  3: Palette,
-  4: GraduationCap,
-};
-
-type CourseFilter = "all" | "in-progress" | "not-started" | "completed";
-type CourseSort = "recommended" | "progress-desc" | "progress-asc" | "title";
-
-const filterOptions: { label: string; value: CourseFilter }[] = [
-  { label: "Todos", value: "all" },
-  { label: "Em andamento", value: "in-progress" },
-  { label: "Nao iniciados", value: "not-started" },
-  { label: "Concluidos", value: "completed" },
-];
-
-function normalizeSearchText(value: string) {
+function normalize(value: string) {
   return value
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-function matchesCourseFilter(course: Course, filter: CourseFilter) {
-  if (filter === "completed") {
-    return course.progress >= 100;
-  }
-
-  if (filter === "in-progress") {
-    return course.progress > 0 && course.progress < 100;
-  }
-
-  if (filter === "not-started") {
-    return course.progress === 0;
-  }
-
-  return true;
-}
-
-function CourseTrailCard({
-  course,
-  accentColor,
-  onOpenCourse,
-}: {
-  course: Course;
-  accentColor: string;
-  onOpenCourse: (courseId: number) => void;
-}) {
-  const Icon = courseIcons[course.id] ?? BookOpen;
-
-  return (
-    <article
-      onClick={() => onOpenCourse(course.id)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          onOpenCourse(course.id);
-        }
-      }}
-      className="group cursor-pointer overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
-      role="button"
-      tabIndex={0}
-    >
-      <div
-        className="h-1.5"
-        style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${accentColor} 72%, white), ${accentColor}, color-mix(in srgb, ${accentColor} 72%, black))` }}
-      />
-      <div className="relative h-36 overflow-hidden bg-slate-200">
-        <img
-          src={course.image}
-          alt={course.title}
-          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-        />
-        <div className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-lg bg-white/95 shadow-sm">
-          <Icon size={18} style={{ color: accentColor }} />
-        </div>
-      </div>
-
-      <div className="p-4">
-        <div className="mb-2 flex flex-wrap gap-1">
-          {course.audiences.map((audience) => (
-            <span key={audience} className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-              {audience}
-            </span>
-          ))}
-        </div>
-        <p className="text-[11px] font-bold uppercase tracking-wide text-blue-600">
-          {course.title.includes("Game") ? "Tecnologia" : "Software"}
-        </p>
-        <h3 className="mt-1 line-clamp-2 min-h-[2.5rem] text-sm font-black leading-5 text-[#25304a]">
-          {course.title}
-        </h3>
-        <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">
-          {course.description}
-        </p>
-
-        <div className="mt-4 flex items-center justify-between gap-3 text-[11px] font-semibold text-slate-500">
-          <span className="inline-flex items-center gap-1 text-amber-500">
-            <Star size={13} className="fill-amber-400" />
-            {Math.max(1, Math.round(course.progress / 20))}.0
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Clock3 size={13} />
-            {course.totalLessons} aulas
-          </span>
-        </div>
-      </div>
-    </article>
-  );
-}
-
 export default function TrailPage() {
-  const { trailSlug } = useParams();
+  const { trailId } = useParams();
   const navigate = useNavigate();
   const user = getAuthenticatedUser();
-  const trail = useMemo(
-    () => (trailSlug ? getMockTrailBySlug(trailSlug) : null),
-    [trailSlug],
+  const [trail, setTrail] = useState<Trilha | null>(null);
+  const [loading, setLoading] = useState(Boolean(trailId));
+  const [error, setError] = useState(trailId ? "" : "Trilha inválida.");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<CourseSort>("name");
+  const [startedCourseIds, setStartedCourseIds] = useState<Set<string>>(
+    () => new Set(),
   );
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [courseFilter, setCourseFilter] = useState<CourseFilter>("all");
-  const [courseSort, setCourseSort] = useState<CourseSort>("recommended");
-  const filteredCourses = useMemo(() => {
-    const trailCourses = trail?.courses ?? [];
-    const normalizedSearch = normalizeSearchText(searchTerm.trim());
 
-    return [...trailCourses]
-      .filter((course) => {
-        const searchableContent = normalizeSearchText(
-          `${course.title} ${course.description} ${formatCourseInstructorNames(
-            course,
-          )}`,
-        );
-
-        return (
-          matchesCourseFilter(course, courseFilter) &&
-          (!normalizedSearch || searchableContent.includes(normalizedSearch))
-        );
+  useEffect(() => {
+    if (!trailId) {
+      return;
+    }
+    let cancelled = false;
+    trailService
+      .getTrail(trailId)
+      .then((data) => {
+        if (!cancelled) setTrail(data);
       })
-      .sort((currentCourse, nextCourse) => {
-        if (courseSort === "progress-desc") {
-          return nextCourse.progress - currentCourse.progress;
+      .catch((reason: unknown) => {
+        if (!cancelled) {
+          setError(
+            reason instanceof Error
+              ? reason.message
+              : "Não foi possível carregar a trilha.",
+          );
         }
-
-        if (courseSort === "progress-asc") {
-          return currentCourse.progress - nextCourse.progress;
-        }
-
-        if (courseSort === "title") {
-          return currentCourse.title.localeCompare(nextCourse.title, "pt-BR");
-        }
-
-        return 0;
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
-  }, [courseFilter, courseSort, searchTerm, trail]);
+    return () => {
+      cancelled = true;
+    };
+  }, [trailId]);
 
-  if (!trail) {
-    return (
-      <div className="min-h-screen bg-[#f3f4f6] text-slate-950">
-        <Navbar user={user} />
-        <main className="mx-auto grid min-h-[60vh] max-w-4xl place-items-center px-4 py-20 text-center sm:px-6 lg:px-8">
-          <div className="rounded-lg border border-blue-100 bg-white p-8 shadow-sm">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-              <Layers3 size={28} />
-            </div>
-            <h1 className="mt-6 text-3xl font-black text-[#25304a]">
-              Trilha nao encontrada
-            </h1>
-            <p className="mt-3 leading-7 text-slate-600">
-              Essa trilha não existe na lista mockada atual.
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate("/home")}
-              className="mt-6 inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700"
-            >
-              <ArrowLeft size={18} />
-              Voltar para home
-            </button>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  const TrailIcon = trailIcons[trail.slug] ?? Layers3;
-  const foundCoursesText = `${filteredCourses.length} ${
-    filteredCourses.length === 1 ? "curso encontrado" : "cursos encontrados"
-  }`;
+  useEffect(() => {
+    if (user?.role !== "aluno") return;
+    let cancelled = false;
+    journeyService
+      .listEnrollments()
+      .then((items) => {
+        if (!cancelled) {
+          setStartedCourseIds(
+            new Set(items.filter((item) => !item.conclusao).map((item) => item.curso.id)),
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setStartedCourseIds(new Set());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.role]);
+  const courses = useMemo(() => {
+    const normalizedSearch = normalize(search.trim());
+    return [...(trail?.cursos ?? [])]
+      .filter((course) =>
+        normalize(
+          `${course.nome} ${course.descricao ?? ""} ${course.categoria ?? ""} ${course.nivel ?? ""}`,
+        ).includes(normalizedSearch),
+      )
+      .sort((a, b) => {
+        if (sort === "category") {
+          return (a.categoria ?? "").localeCompare(b.categoria ?? "", "pt-BR");
+        }
+        if (sort === "level") {
+          return (a.nivel ?? "").localeCompare(b.nivel ?? "", "pt-BR");
+        }
+        return a.nome.localeCompare(b.nome, "pt-BR");
+      });
+  }, [search, sort, trail]);
 
   return (
     <div className="min-h-screen bg-[#f3f4f6] text-slate-950">
       <Navbar user={user} />
-
       <main>
-        <section
-          className="text-white"
-          style={{ backgroundColor: trail.accentColor }}
-        >
-          <div className="mx-auto flex max-w-7xl items-center gap-5 px-4 py-7 sm:px-6 lg:px-8">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border-2 border-white/80 text-white">
-              <TrailIcon size={34} strokeWidth={2.1} />
+        {loading ? (
+          <div className="mx-auto max-w-7xl px-4 py-20 text-center text-slate-600">
+            Carregando trilha...
+          </div>
+        ) : error || !trail ? (
+          <div className="mx-auto grid min-h-[60vh] max-w-4xl place-items-center px-4 py-20 text-center">
+            <div className="rounded-xl border border-blue-100 bg-white p-8 shadow-sm">
+              <Layers3 className="mx-auto text-blue-600" size={36} />
+              <h1 className="mt-5 text-3xl font-black text-[#25304a]">
+                Trilha não encontrada
+              </h1>
+              <p className="mt-3 text-slate-600">{error}</p>
+              <button type="button" onClick={() => navigate("/home")} className="mt-6 inline-flex items-center gap-2 rounded-md bg-blue-600 px-5 py-3 font-bold text-white">
+                <ArrowLeft size={18} /> Voltar para home
+              </button>
             </div>
-            <h1 className="max-w-3xl text-2xl font-black leading-tight sm:text-3xl">
-              {trail.nome}
-            </h1>
           </div>
-        </section>
-
-        <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <button
-            type="button"
-            onClick={() => navigate("/home")}
-            className="flex w-fit items-center gap-2 text-xs font-medium text-gray-700 transition hover:text-blue-600"
-          >
-            <ArrowLeft size={14} />
-            Voltar para home
-          </button>
-          <div className="mb-6 flex items-center justify-between gap-4">
-            <p className="text-sm font-bold text-slate-700">
-              {foundCoursesText}
-            </p>
-
-            <button
-              type="button"
-              onClick={() => setIsFilterOpen((current) => !current)}
-              className="inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm font-bold text-slate-700 transition hover:bg-white"
-              aria-expanded={isFilterOpen}
-              aria-controls="trail-course-filters"
-              aria-label="Filtrar cursos"
-            >
-              Filtrar
-              <SlidersHorizontal size={22} strokeWidth={2.4} />
-            </button>
-          </div>
-
-          {isFilterOpen && (
-            <div
-              id="trail-course-filters"
-              className="mb-6 grid gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_auto_auto]"
-            >
-              <label className="grid gap-2 text-sm font-bold text-slate-700">
-                Buscar
-                <input
-                  type="search"
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Nome, descricao ou professor"
-                  className="h-11 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
-              </label>
-
-              <div className="grid gap-2 text-sm font-bold text-slate-700">
-                Status
-                <div
-                  className="grid grid-cols-2 overflow-hidden rounded-md border border-slate-200 sm:flex"
-                  role="group"
-                  aria-label="Filtrar cursos por status"
-                >
-                  {filterOptions.map((option) => {
-                    const isSelected = courseFilter === option.value;
-
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setCourseFilter(option.value)}
-                        aria-pressed={isSelected}
-                        className={`px-3 py-2 text-xs font-bold transition ${
-                          isSelected
-                            ? "bg-blue-600 text-white"
-                            : "bg-white text-slate-600 hover:bg-slate-50"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
+        ) : (
+          <>
+            <section className="bg-gradient-to-r from-blue-700 to-indigo-700 text-white">
+              <div className="mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:px-6 md:grid-cols-[1fr_280px] md:items-center lg:px-8">
+                <div>
+                  <button type="button" onClick={() => navigate("/home")} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-100 hover:text-white">
+                    <ArrowLeft size={16} /> Voltar para home
+                  </button>
+                  <div className="mt-6 flex items-center gap-4">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-white/50 bg-white/10">
+                      <Layers3 size={30} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold uppercase tracking-wide text-blue-100">
+                        Trilha de aprendizagem
+                      </p>
+                      <h1 className="mt-1 text-3xl font-black">{trail.nome}</h1>
+                    </div>
+                  </div>
+                  <p className="mt-5 max-w-3xl leading-7 text-blue-50">
+                    {trail.descricao ?? "Explore os cursos desta trilha."}
+                  </p>
+                  <p className="mt-4 text-sm font-bold text-blue-100">
+                    {trail.cursos.length} {trail.cursos.length === 1 ? "curso" : "cursos"}
+                    {trail.nivel ? ` • ${trail.nivel}` : ""}
+                  </p>
                 </div>
+                {trail.capa && (
+                  <img src={trail.capa} alt={trail.nome} className="h-44 w-full rounded-xl object-cover shadow-xl" />
+                )}
+              </div>
+            </section>
+
+            <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+              <div className="mb-7 grid gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_220px]">
+                <label className="relative">
+                  <span className="sr-only">Buscar cursos na trilha</span>
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar cursos na trilha" className="h-11 w-full rounded-md border border-slate-200 pl-10 pr-3" />
+                </label>
+                <label className="grid gap-1 text-xs font-bold text-slate-600">
+                  Ordenar
+                  <select value={sort} onChange={(event) => setSort(event.target.value as CourseSort)} className="h-11 rounded-md border border-slate-200 bg-white px-3 text-sm">
+                    <option value="name">Nome</option>
+                    <option value="category">Categoria</option>
+                    <option value="level">Nível</option>
+                  </select>
+                </label>
               </div>
 
-              <label className="grid gap-2 text-sm font-bold text-slate-700">
-                Ordenar
-                <select
-                  value={courseSort}
-                  onChange={(event) =>
-                    setCourseSort(event.target.value as CourseSort)
-                  }
-                  className="h-11 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                >
-                  <option value="recommended">Recomendados</option>
-                  <option value="progress-desc">Maior progresso</option>
-                  <option value="progress-asc">Menor progresso</option>
-                  <option value="title">Titulo</option>
-                </select>
-              </label>
-            </div>
-          )}
-
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredCourses.map((course) => (
-              <CourseTrailCard
-                key={course.id}
-                course={course}
-                accentColor={trail.accentColor}
-                onOpenCourse={(courseId) => navigate(`/courses/${courseId}`)}
-              />
-            ))}
-          </div>
-
-          {filteredCourses.length === 0 && (
-            <div className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-10 text-center">
-              <p className="font-bold text-[#25304a]">
-                Nenhum curso encontrado
-              </p>
-              <p className="mt-2 text-sm text-slate-500">
-                Ajuste os filtros para ver outros cursos desta trilha.
-              </p>
-            </div>
-          )}
-        </section>
+              {courses.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
+                  <BookOpen className="mx-auto text-slate-400" size={40} />
+                  <p className="mt-3 font-bold text-[#25304a]">
+                    {trail.cursos.length === 0
+                      ? "Nenhum curso vinculado a esta trilha"
+                      : "Nenhum curso encontrado"}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {courses.map((course) => (
+                    <article key={course.id} onClick={() => navigate(`/courses/${course.id}`)} onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") navigate(`/courses/${course.id}`);
+                    }} role="button" tabIndex={0} className="group cursor-pointer overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+                      <div className="h-40 bg-slate-100">
+                        {course.url_foto ? (
+                          <img src={course.url_foto} alt={course.nome} className="h-full w-full object-cover transition group-hover:scale-105" />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-blue-600"><BookOpen size={42} /></div>
+                        )}
+                      </div>
+                      <div className="p-5">
+                        <div className="flex flex-wrap gap-2 text-xs font-bold">
+                          {course.categoria && <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-700">{course.categoria}</span>}
+                          {startedCourseIds.has(course.id) && <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">Em andamento</span>}
+                        </div>
+                        <h2 className="mt-3 text-lg font-black text-[#25304a]">{course.nome}</h2>
+                        <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{course.descricao ?? "Sem descrição disponível."}</p>
+                        <div className="mt-4 flex items-center justify-between text-xs font-semibold text-slate-500">
+                          <span>{course.nivel ?? "Nível não informado"}</span>
+                          <span className="inline-flex items-center gap-1"><Clock3 size={14} />{course.carga_horaria === null ? "--" : `${course.carga_horaria}h`}</span>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          </>
+        )}
       </main>
-
       <Footer />
     </div>
   );

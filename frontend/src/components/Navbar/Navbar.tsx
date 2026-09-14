@@ -18,13 +18,13 @@ import { clearAuthenticatedUser } from "../../services/userService";
 import Navlinks from "./NavLinks";
 
 const transparentActionClass =
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md border border-blue-500 bg-transparent px-4 py-2 text-sm font-semibold text-blue-500 transition hover:bg-blue-500 hover:text-white xl:px-7 xl:text-lg";
+  "inline-flex items-center justify-center whitespace-nowrap rounded-md border border-blue-300 bg-transparent px-4 py-2 text-sm font-medium text-blue-600 transition hover:border-blue-500 hover:bg-blue-50 xl:px-6 xl:text-base";
 
 const mobileLinkClass =
-  "flex min-h-11 w-full items-center justify-between rounded-md px-3 py-3 text-sm font-bold text-slate-700 transition hover:bg-blue-50 hover:text-blue-700";
+  "flex min-h-11 w-full items-center justify-between rounded-md px-3 py-3 text-sm font-medium text-slate-700 transition hover:bg-blue-50 hover:text-blue-700";
 
 const mobileActionClass =
-  "inline-flex min-h-11 w-full items-center justify-center rounded-md border border-blue-500 px-4 py-3 text-sm font-bold text-blue-600 transition hover:bg-blue-50";
+  "inline-flex min-h-11 w-full items-center justify-center rounded-md border border-blue-300 px-4 py-3 text-sm font-medium text-blue-600 transition hover:bg-blue-50";
 
 function getInitials(name: string) {
   return name
@@ -50,7 +50,9 @@ function Navbar({
   const userMenuRef = useRef<HTMLDivElement>(null);
   const isLoggedIn = Boolean(user);
   const showPerformanceLink = canAccessPerformance(user);
-  const showCreateCourseLink = canCreateCourses(user);
+  const showCreateCourseLink =
+    canCreateCourses(user) && user?.role === "professor";
+  const showAdminStatsLink = user?.role === "admin";
 
   useEffect(() => {
     if (!isUserMenuOpen) {
@@ -107,7 +109,7 @@ function Navbar({
   };
 
   return (
-    <nav className="navbar sticky top-0 z-40 w-full border-b border-blue-100 bg-gradient-to-r from-white to-blue-50">
+    <nav className="navbar sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-2 px-3 py-2 sm:gap-4 sm:px-6 sm:py-3 lg:px-8">
         <Link
           to={isLoggedIn ? "/home" : "#"}
@@ -128,18 +130,18 @@ function Navbar({
           />
         </Link>
 
-        <ul className="nav-links hidden items-center gap-5 lg:flex xl:gap-8">
+        <ul className="nav-links hidden font-bold items-center gap-5 lg:flex xl:gap-8">
           <li>
             <Navlinks to="/home">HOME</Navlinks>
-          </li>
-          <li>
-            <Navlinks to="/quem-somos">QUEM SOMOS</Navlinks>
           </li>
           <li>
             <Navlinks to="/courses">CURSOS</Navlinks>
           </li>
           <li>
             <Navlinks to="/feedback">FEEDBACKS</Navlinks>
+          </li>
+          <li>
+            <Navlinks to="/quem-somos">QUEM SOMOS</Navlinks>
           </li>
         </ul>
 
@@ -159,6 +161,14 @@ function Navbar({
                   Adicionar curso
                 </Link>
               )}
+              {showAdminStatsLink && (
+                <Link
+                  to="/admin/estatisticas"
+                  className={transparentActionClass}
+                >
+                  Estatísticas
+                </Link>
+              )}
               <div className="relative" ref={userMenuRef}>
                 <button
                   type="button"
@@ -169,15 +179,7 @@ function Navbar({
                   aria-label="Abrir menu do usuário"
                 >
                   <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-blue-600 font-semibold text-white">
-                    {user?.avatar ? (
-                      <img
-                        src={user.avatar}
-                        alt={`${user.name} avatar`}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <span>{user ? getInitials(user.name) : "US"}</span>
-                    )}
+                    <span>{user ? getInitials(user.name) : "US"}</span>
                   </span>
                   <FontAwesomeIcon
                     icon={faChevronDown}
@@ -193,7 +195,7 @@ function Navbar({
                     role="menu"
                   >
                     <div className="border-b border-gray-100 px-4 py-3">
-                      <p className="truncate text-sm font-bold text-[#25304a]">
+                      <p className="truncate text-sm font-medium text-[#263452]">
                         {user.name}
                       </p>
                       <p className="truncate text-xs text-slate-500">
@@ -264,19 +266,11 @@ function Navbar({
           <div className="mx-auto flex max-w-7xl flex-col gap-1.5">
             {user && (
               <div className="mb-2 flex min-w-0 items-center gap-3 rounded-lg bg-blue-50 p-3">
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-sm font-bold text-white">
-                  {user.avatar ? (
-                    <img
-                      src={user.avatar}
-                      alt={`${user.name} avatar`}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <span>{getInitials(user.name)}</span>
-                  )}
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-sm font-medium text-white">
+                  <span>{getInitials(user.name)}</span>
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-[#25304a]">
+                  <p className="truncate text-sm font-medium text-[#263452]">
                     {user.name}
                   </p>
                   <p className="truncate text-xs text-slate-500">
@@ -294,26 +288,25 @@ function Navbar({
               HOME
             </Link>
             <Link
-              to="/quem-somos"
-              onClick={closeMobileMenu}
-              className={mobileLinkClass}
-            >
-              QUEM SOMOS
-            </Link>
-            <Link
               to="/courses"
               onClick={closeMobileMenu}
               className={mobileLinkClass}
             >
               CURSOS
             </Link>
-
             <Link
               to="/feedback"
               onClick={closeMobileMenu}
               className={mobileLinkClass}
             >
               FEEDBACKS
+            </Link>
+            <Link
+              to="/quem-somos"
+              onClick={closeMobileMenu}
+              className={mobileLinkClass}
+            >
+              QUEM SOMOS
             </Link>
 
             <div className="mt-3 grid gap-2 border-t border-slate-100 pt-4 sm:grid-cols-2">
@@ -337,6 +330,15 @@ function Navbar({
                       Adicionar curso
                     </Link>
                   )}
+                  {showAdminStatsLink && (
+                    <Link
+                      to="/admin/estatisticas"
+                      onClick={closeMobileMenu}
+                      className={mobileActionClass}
+                    >
+                      Estatísticas
+                    </Link>
+                  )}
                   <Link
                     to="/perfil"
                     onClick={closeMobileMenu}
@@ -348,7 +350,7 @@ function Navbar({
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="inline-flex w-full items-center justify-center rounded-md border border-red-200 px-4 py-3 text-sm font-bold text-red-600 transition hover:bg-red-50"
+                    className="inline-flex w-full items-center justify-center rounded-md border border-red-200 px-4 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50"
                   >
                     <FontAwesomeIcon
                       icon={faRightFromBracket}

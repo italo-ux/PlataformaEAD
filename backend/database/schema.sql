@@ -12,6 +12,18 @@ EXCEPTION
     WHEN duplicate_object THEN NULL;
 END $$;
 
+DO $$ BEGIN
+    CREATE TYPE curso_status AS ENUM ('rascunho', 'publicado');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE certificado_status AS ENUM ('valido', 'revogado');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
 -- Tabela: Usuários
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -26,6 +38,8 @@ CREATE TABLE IF NOT EXISTS users (
     cpf VARCHAR(11) NOT NULL,
     celular VARCHAR(11),
     foto_perfil VARCHAR(255),
+    must_change_email BOOLEAN NOT NULL DEFAULT FALSE,
+    must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
     data_nasc DATE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -62,6 +76,8 @@ CREATE TABLE IF NOT EXISTS cursos (
     carga_horaria INTEGER,
     categoria VARCHAR(255),
     nivel VARCHAR(100),
+    status curso_status NOT NULL DEFAULT 'rascunho',
+    publicado_em TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (id_instrutor) REFERENCES users(id) ON DELETE RESTRICT
@@ -77,6 +93,10 @@ CREATE TABLE IF NOT EXISTS aulas (
     ordem INTEGER,
     duracao INTERVAL,
     duracao_minutos INTEGER,
+    youtube_video_id VARCHAR(20),
+    duracao_segundos INTEGER,
+    youtube_embeddable BOOLEAN,
+    youtube_validado_em TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (id_curso) REFERENCES cursos(id) ON DELETE CASCADE,
@@ -90,10 +110,71 @@ CREATE TABLE IF NOT EXISTS matricula (
     progresso INTEGER DEFAULT 0,
     data_matricula TIMESTAMPTZ DEFAULT NOW(),
     conclusao BOOLEAN DEFAULT FALSE,
+    concluido_em TIMESTAMPTZ,
+    ultima_aula_id UUID,
+    segundos_estudados INTEGER NOT NULL DEFAULT 0,
     pontuacao INTEGER DEFAULT 0,
     horas_estudadas INTEGER DEFAULT 0,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT "UQ_matricula_usuario_curso" UNIQUE (id_usuario, id_curso),
+    CONSTRAINT "CHK_matricula_progresso" CHECK (progresso BETWEEN 0 AND 100),
     FOREIGN KEY (id_usuario) REFERENCES users(id),
-    FOREIGN KEY (id_curso) REFERENCES cursos(id)
+    FOREIGN KEY (id_curso) REFERENCES cursos(id),
+    FOREIGN KEY (ultima_aula_id) REFERENCES aulas(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS progresso_aula (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_matricula UUID NOT NULL,
+    id_aula UUID NOT NULL,
+    ordem_snapshot INTEGER NOT NULL,
+    intervalos_assistidos JSONB NOT NULL DEFAULT '[]'::jsonb,
+    duracao_segundos INTEGER,
+    posicao_segundos INTEGER NOT NULL DEFAULT 0,
+    percentual NUMERIC(5,2) NOT NULL DEFAULT 0,
+    tempo_reproducao_validado_segundos NUMERIC(12,2) NOT NULL DEFAULT 0,
+    concluida BOOLEAN NOT NULL DEFAULT FALSE,
+    concluida_em TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT "UQ_progresso_aula_matricula_aula" UNIQUE (id_matricula, id_aula),
+    CONSTRAINT "CHK_progresso_aula_percentual" CHECK (percentual BETWEEN 0 AND 100),
+    FOREIGN KEY (id_matricula) REFERENCES matricula(id) ON DELETE CASCADE,
+    FOREIGN KEY (id_aula) REFERENCES aulas(id) ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS sessao_reproducao (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_progresso_aula UUID NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'ativa',
+    sequencia INTEGER NOT NULL DEFAULT 0,
+    ultima_posicao NUMERIC(10,2) NOT NULL,
+    ultimo_estado VARCHAR(20) NOT NULL DEFAULT 'playing',
+    ultimo_heartbeat_em TIMESTAMPTZ NOT NULL,
+    expira_em TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    FOREIGN KEY (id_progresso_aula) REFERENCES progresso_aula(id) ON DELETE CASCADE,
+    CHECK (status IN ('ativa', 'encerrada', 'expirada', 'revogada')),
+    CHECK (ultimo_estado IN ('playing', 'paused', 'ended')),
+    CHECK (sequencia >= 0),
+    CHECK (ultima_posicao >= 0)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sessao_reproducao_ativa
+    ON sessao_reproducao(id_progresso_aula) WHERE status = 'ativa';
+
+CREATE TABLE IF NOT EXISTS certificados (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_matricula UUID NOT NULL UNIQUE,
+    codigo VARCHAR(40) NOT NULL UNIQUE,
+    nome_aluno VARCHAR(255) NOT NULL,
+    nome_curso VARCHAR(255) NOT NULL,
+    carga_horaria INTEGER NOT NULL,
+    concluido_em TIMESTAMPTZ NOT NULL,
+    status certificado_status NOT NULL DEFAULT 'valido',
+    emitido_em TIMESTAMPTZ DEFAULT NOW(),
+    FOREIGN KEY (id_matricula) REFERENCES matricula(id) ON DELETE RESTRICT
 );
 
 CREATE TABLE IF NOT EXISTS usuario_curso (
@@ -128,7 +209,7 @@ CREATE TABLE IF NOT EXISTS trilha_curso (
     ordem INTEGER,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (id_trilha) REFERENCES trilhas(id),
-    FOREIGN KEY (id_curso) REFERENCES cursos(id)
+    FOREIGN KEY (id_curso) REFERENCES cursos(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS conquistas (
@@ -163,15 +244,15 @@ CREATE TABLE IF NOT EXISTS avaliacao_curso (
 
 CREATE TABLE IF NOT EXISTS endereco (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_usuario UUID NOT NULL,
-    cep VARCHAR(10) NOT NULL,
+    id_usuario UUID NOT NULL UNIQUE,
+    cep VARCHAR(8) NOT NULL,
     rua VARCHAR(255),
-    numero VARCHAR(50),
     bairro VARCHAR(255),
     cidade VARCHAR(255),
+    uf CHAR(2),
     estado VARCHAR(100),
     complemento VARCHAR(255),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    FOREIGN KEY (id_usuario) REFERENCES users(id)
+    FOREIGN KEY (id_usuario) REFERENCES users(id) ON DELETE CASCADE
 );

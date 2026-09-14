@@ -31,6 +31,11 @@ export const registerSchema = z
     cpf: z.string().refine((value) => value.replace(/\D/g, "").length === 11, {
       message: "CPF deve ter 11 dígitos",
     }),
+    cep: z
+      .string()
+      .refine((value) => /^\d{8}$/.test(value.replace(/\D/g, "")), {
+        message: "CEP deve ter 8 dígitos",
+      }),
     profileType: z.enum(["cidadao", "estagiario", "funcionario"]),
     verificationProof: z.string(),
     password: passwordSchema,
