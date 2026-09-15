@@ -4,12 +4,16 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.interface';
 import { UserRole } from '../auth/user-role.enum';
 import { User } from '../auth/user.entity';
-import { Certificado } from '../certificados/certificado.entity';
+import {
+  Certificado,
+  CertificadoStatus,
+} from '../certificados/certificado.entity';
 import { Aula } from '../cursos/aula.entity';
 import { Curso, CursoStatus } from '../cursos/curso.entity';
 import { Matricula } from './matricula.entity';
@@ -53,21 +57,28 @@ export class JornadaService {
         'O curso ainda não está pronto para matrícula.',
       );
     }
+    const courseHours = course.carga_horaria;
     const lessons = await this.listCourseLessons(courseId);
     if (lessons.length === 0) {
       throw new ConflictException('O curso ainda não possui aulas.');
     }
 
+    const completeImmediately =
+      course.ambiente_teste && process.env.ALLOW_TEST_COURSE_BYPASS === 'true';
+
     try {
       await this.dataSource.transaction(async (manager) => {
+        const completedAt = completeImmediately ? new Date() : null;
         const enrollment = await manager.save(
           manager.create(Matricula, {
             id_usuario: actor.userId,
             id_curso: courseId,
-            progresso: 0,
-            conclusao: false,
-            concluido_em: null,
-            ultima_aula_id: lessons[0].id,
+            progresso: completeImmediately ? 100 : 0,
+            conclusao: completeImmediately,
+            concluido_em: completedAt,
+            ultima_aula_id: completeImmediately
+              ? lessons.at(-1)!.id
+              : lessons[0].id,
             segundos_estudados: 0,
           }),
         );
@@ -81,13 +92,26 @@ export class JornadaService {
               intervalos_assistidos: [],
               duracao_segundos: lesson.duracao_segundos,
               posicao_segundos: 0,
-              percentual: 0,
+              percentual: completeImmediately ? 100 : 0,
               tempo_reproducao_validado_segundos: 0,
-              concluida: false,
-              concluida_em: null,
+              concluida: completeImmediately,
+              concluida_em: completedAt,
             }),
           ),
         );
+        if (completeImmediately) {
+          await manager.save(
+            manager.create(Certificado, {
+              id_matricula: enrollment.id,
+              codigo: randomBytes(16).toString('hex').toUpperCase(),
+              nome_aluno: user.name,
+              nome_curso: course.nome,
+              carga_horaria: courseHours,
+              concluido_em: completedAt!,
+              status: CertificadoStatus.VALIDO,
+            }),
+          );
+        }
       });
     } catch (error) {
       if (

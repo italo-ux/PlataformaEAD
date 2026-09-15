@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -35,4 +36,8 @@ export class UpdateCursoDto {
   @IsOptional()
   @IsString()
   nivel?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  ambiente_teste?: boolean;
 }

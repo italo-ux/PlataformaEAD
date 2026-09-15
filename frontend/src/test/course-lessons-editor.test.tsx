@@ -36,6 +36,7 @@ const course: Curso = {
   carga_horaria: null,
   categoria: null,
   nivel: null,
+  ambiente_teste: false,
   id_instrutor: "professor-owner",
   status: "rascunho",
 };
@@ -233,11 +234,21 @@ describe("ProfessorCourseCreatePage", () => {
 
     const user = userEvent.setup();
     await user.type(screen.getByLabelText("Nome do curso"), course.nome);
+    await user.click(
+      screen.getByRole("checkbox", { name: /Ambiente de teste/ }),
+    );
     await user.click(screen.getByRole("button", { name: "Salvar curso" }));
+    await waitFor(() =>
+      expect(courseService.createCourse).toHaveBeenCalledWith({
+        nome: course.nome,
+        ambiente_teste: true,
+      }),
+    );
     expect(
       await screen.findByText(`/courses/${courseId}/editar?created=1`),
     ).toBeTruthy();
   });
+
 });
 
 describe("CourseView", () => {
@@ -255,6 +266,83 @@ describe("CourseView", () => {
       },
     ],
   };
+
+  it("concludes a test course immediately and exposes its certificate", async () => {
+    localStorage.setItem(
+      "ead.auth.user",
+      JSON.stringify({
+        id: "student-1",
+        name: "Aluno",
+        email: "aluno@example.com",
+        role: "aluno",
+      }),
+    );
+    const testCourse = {
+      ...course,
+      ambiente_teste: true,
+      status: "publicado" as const,
+    };
+    const beforeEnrollment: CourseJourney = {
+      ...previewJourney,
+      curso: testCourse,
+      modo: "aluno",
+      certificado: null,
+      aulas: [
+        { ...previewJourney.aulas[0], url_video: null, status: "bloqueada" },
+      ],
+    };
+    const completedJourney: CourseJourney = {
+      ...previewJourney,
+      curso: testCourse,
+      modo: "aluno",
+      matricula: {
+        id: "enrollment-test",
+        progresso: 100,
+        conclusao: true,
+        concluido_em: "2026-09-14T12:00:00.000Z",
+        ultima_aula_id: lesson.id,
+        segundos_estudados: 0,
+      },
+      certificado: {
+        id: "certificate-test",
+        codigo: "TEST123",
+        nome_aluno: "Aluno",
+        nome_curso: testCourse.nome,
+        carga_horaria: 1,
+        concluido_em: "2026-09-14T12:00:00.000Z",
+        emitido_em: "2026-09-14T12:00:00.000Z",
+        status: "valido",
+      },
+      aulas: [
+        {
+          ...previewJourney.aulas[0],
+          status: "concluida",
+          percentual: 100,
+        },
+      ],
+    };
+    vi.spyOn(journeyService, "getJourney").mockResolvedValue(beforeEnrollment);
+    vi.spyOn(journeyService, "enroll").mockResolvedValue(completedJourney);
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={[`/courses/${courseId}`]}>
+          <Routes>
+            <Route path="/courses/:courseId" element={<CourseView />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole("button", { name: "Concluir curso de teste" }),
+    );
+    expect(await screen.findByText("Curso concluído")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Baixar certificado" }),
+    ).toBeTruthy();
+  });
 
   it("creates the real enrollment and releases the first lesson", async () => {
     localStorage.setItem(

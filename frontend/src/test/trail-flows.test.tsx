@@ -18,6 +18,7 @@ const course: Curso = {
   carga_horaria: 10,
   categoria: "Tecnologia",
   nivel: "Iniciante",
+  ambiente_teste: false,
   id_instrutor: "22222222-2222-4222-8222-222222222222",
   status: "publicado",
 };

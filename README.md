@@ -59,6 +59,22 @@ contam duas vezes. Depois da primeira matrícula, a estrutura de
 aulas e a exclusão do curso ficam bloqueadas; mudanças estruturais futuras
 devem usar uma nova versão do curso.
 
+### Cursos de teste
+
+Em desenvolvimento ou homologação, habilite as duas variáveis abaixo para
+mostrar a opção **Ambiente de teste** no formulário e autorizar o atalho no
+backend:
+
+```dotenv
+ALLOW_TEST_COURSE_BYPASS=true
+VITE_ENABLE_TEST_COURSES=true
+```
+
+`ALLOW_TEST_COURSE_BYPASS` deve ficar `false` em produção. Quando um aluno
+inicia um curso marcado como teste, a matrícula e todas as aulas são concluídas
+com 100%, sem contabilizar tempo assistido, e o certificado é emitido na mesma
+transação. O modo não pode ser alterado depois da primeira matrícula.
+
 ## Verificação
 
 ```bash

@@ -8,13 +8,24 @@ import courseService, { type CursoInput } from "../services/courseService";
 import { getAuthenticatedUser } from "../services/userService";
 import CourseLessonsEditor from "../components/CourseLessonsEditor";
 
-const initialForm: Record<keyof CursoInput, string> = {
+interface CourseFormState {
+  nome: string;
+  descricao: string;
+  url_foto: string;
+  carga_horaria: string;
+  categoria: string;
+  nivel: string;
+  ambiente_teste: boolean;
+}
+
+const initialForm: CourseFormState = {
   nome: "",
   descricao: "",
   url_foto: "",
   carga_horaria: "",
   categoria: "",
   nivel: "",
+  ambiente_teste: false,
 };
 
 const fieldClass =
@@ -34,6 +45,9 @@ export default function ProfessorCourseCreatePage() {
   const [status, setStatus] = useState("");
   const [courseStatus, setCourseStatus] = useState<"rascunho" | "publicado">("rascunho");
   const [publishing, setPublishing] = useState(false);
+  const testCourseOptionEnabled =
+    import.meta.env.MODE === "test" ||
+    import.meta.env.VITE_ENABLE_TEST_COURSES === "true";
 
   useEffect(() => {
     if (searchParams.get("created") === "1") {
@@ -58,6 +72,7 @@ export default function ProfessorCourseCreatePage() {
           carga_horaria: course.carga_horaria?.toString() ?? "",
           categoria: course.categoria ?? "",
           nivel: course.nivel ?? "",
+          ambiente_teste: course.ambiente_teste,
         });
         setCourseStatus(course.status);
       })
@@ -86,7 +101,12 @@ export default function ProfessorCourseCreatePage() {
   const handleChange = (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
-    const { name, value } = event.target;
+    const { name } = event.target;
+    const value =
+      event.target instanceof HTMLInputElement &&
+      event.target.type === "checkbox"
+        ? event.target.checked
+        : event.target.value;
     setForm((current) => ({ ...current, [name]: value }));
   };
 
@@ -96,7 +116,10 @@ export default function ProfessorCourseCreatePage() {
     setStatus("");
     setSaving(true);
 
-    const payload: CursoInput = { nome: form.nome.trim() };
+    const payload: CursoInput = {
+      nome: form.nome.trim(),
+      ambiente_teste: form.ambiente_teste,
+    };
     if (form.descricao.trim()) payload.descricao = form.descricao.trim();
     if (form.url_foto.trim()) payload.url_foto = form.url_foto.trim();
     if (form.categoria.trim()) payload.categoria = form.categoria.trim();
@@ -268,6 +291,25 @@ export default function ProfessorCourseCreatePage() {
                 />
               </label>
             </div>
+
+            {testCourseOptionEnabled && (
+              <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                <input
+                  name="ambiente_teste"
+                  type="checkbox"
+                  checked={form.ambiente_teste}
+                  onChange={handleChange}
+                  className="mt-1 h-4 w-4 rounded border-amber-400 text-amber-600"
+                />
+                <span>
+                  <span className="block font-black">Ambiente de teste</span>
+                  <span className="mt-1 block leading-5 text-amber-800">
+                    Ao iniciar este curso, o aluno conclui todas as aulas e recebe
+                    o certificado imediatamente. Use somente com dados de teste.
+                  </span>
+                </span>
+              </label>
+            )}
 
             <div className="mt-8 flex justify-end gap-3">
               <button

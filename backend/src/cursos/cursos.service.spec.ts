@@ -14,6 +14,7 @@ import { Aula } from './aula.entity';
 import { TrilhaCurso } from '../trilhas/trilha-curso.entity';
 
 describe('CursosService', () => {
+  const previousTestCourseBypass = process.env.ALLOW_TEST_COURSE_BYPASS;
   const owner: AuthenticatedUser = {
     userId: '11111111-1111-4111-8111-111111111111',
     email: 'professor@example.com',
@@ -37,6 +38,7 @@ describe('CursosService', () => {
     carga_horaria: 12,
     categoria: 'Tecnologia',
     nivel: 'Iniciante',
+    ambiente_teste: false,
     id_instrutor: owner.userId,
     aulas: [],
   });
@@ -82,7 +84,16 @@ describe('CursosService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.ALLOW_TEST_COURSE_BYPASS = 'false';
     enrollmentsRepository.existsBy.mockResolvedValue(false);
+  });
+
+  afterAll(() => {
+    if (previousTestCourseBypass === undefined) {
+      delete process.env.ALLOW_TEST_COURSE_BYPASS;
+    } else {
+      process.env.ALLOW_TEST_COURSE_BYPASS = previousTestCourseBypass;
+    }
   });
 
   it('cria o curso atribuindo o usuário autenticado como proprietário', async () => {
@@ -97,6 +108,33 @@ describe('CursosService', () => {
       nome: createdCourse.nome,
       id_instrutor: owner.userId,
     });
+  });
+
+  it('só permite criar um curso de teste quando o bypass está habilitado', async () => {
+    expect(() =>
+      service.create({ nome: 'Curso rápido', ambiente_teste: true }, owner),
+    ).toThrow(ForbiddenException);
+
+    process.env.ALLOW_TEST_COURSE_BYPASS = 'true';
+    const createdCourse = { ...course(), ambiente_teste: true };
+    repository.create.mockReturnValue(createdCourse);
+    repository.save.mockResolvedValue(createdCourse);
+
+    await expect(
+      service.create({ nome: createdCourse.nome, ambiente_teste: true }, owner),
+    ).resolves.toEqual(createdCourse);
+  });
+
+  it('não altera o modo de teste depois que houver matrícula', async () => {
+    const existingCourse = course();
+    repository.findOneBy.mockResolvedValue(existingCourse);
+    enrollmentsRepository.existsBy.mockResolvedValue(true);
+    process.env.ALLOW_TEST_COURSE_BYPASS = 'true';
+
+    await expect(
+      service.update(existingCourse.id, { ambiente_teste: true }, owner),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(repository.save).not.toHaveBeenCalled();
   });
 
   it('permite que o proprietário atualize e remova o curso', async () => {

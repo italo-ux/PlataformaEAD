@@ -40,6 +40,7 @@ export class CursosService {
   ) {}
 
   create(createCursoDto: CreateCursoDto, actor: AuthenticatedUser) {
+    this.assertTestCourseModeAllowed(createCursoDto.ambiente_teste);
     const curso = this.cursosRepository.create({
       ...createCursoDto,
       id_instrutor: actor.userId,
@@ -217,6 +218,17 @@ export class CursosService {
     actor: AuthenticatedUser,
   ) {
     const curso = await this.findManageable(id, actor);
+    if (
+      updateCursoDto.ambiente_teste !== undefined &&
+      updateCursoDto.ambiente_teste !== curso.ambiente_teste
+    ) {
+      this.assertTestCourseModeAllowed(updateCursoDto.ambiente_teste);
+      if (await this.hasEnrollments(id)) {
+        throw new ConflictException(
+          'O ambiente de teste não pode ser alterado após a primeira matrícula.',
+        );
+      }
+    }
     const updatedCurso = this.cursosRepository.merge(curso, updateCursoDto);
     return this.cursosRepository.save(updatedCurso);
   }
@@ -242,5 +254,13 @@ export class CursosService {
 
   hasEnrollments(courseId: string) {
     return this.matriculasRepository.existsBy({ id_curso: courseId });
+  }
+
+  private assertTestCourseModeAllowed(enabled?: boolean) {
+    if (enabled && process.env.ALLOW_TEST_COURSE_BYPASS !== 'true') {
+      throw new ForbiddenException(
+        'O ambiente de teste está desabilitado nesta instalação.',
+      );
+    }
   }
 }

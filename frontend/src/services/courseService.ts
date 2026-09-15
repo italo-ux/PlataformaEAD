@@ -8,6 +8,7 @@ export interface Curso {
   carga_horaria: number | null;
   categoria: string | null;
   nivel: string | null;
+  ambiente_teste: boolean;
   id_instrutor: string;
   status: "rascunho" | "publicado";
   publicado_em?: string | null;
@@ -20,6 +21,7 @@ export interface CursoInput {
   carga_horaria?: number;
   categoria?: string;
   nivel?: string;
+  ambiente_teste?: boolean;
 }
 
 export interface Aula {

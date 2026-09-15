@@ -80,7 +80,9 @@ export default function CourseView() {
     try {
       const result = await journeyService.enroll(courseId);
       setJourney(result);
-      const first = result.aulas.find((lesson) => lesson.status === "disponivel");
+      const first =
+        result.aulas.find((lesson) => lesson.status === "disponivel") ??
+        result.aulas[0];
       setCurrentLessonId(first?.id ?? null);
       playerSectionRef.current?.scrollIntoView({ behavior: "smooth" });
     } catch (reason) {
@@ -167,7 +169,12 @@ export default function CourseView() {
                     <div className="flex flex-wrap gap-2">
                       {user?.role === "aluno" && !journey.matricula && (
                         <button type="button" onClick={startCourse} disabled={starting || journey.aulas.length === 0} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-bold text-white disabled:opacity-60">
-                          <Play size={17} />{starting ? "Iniciando..." : "Iniciar curso"}
+                          <Play size={17} />
+                          {starting
+                            ? "Processando..."
+                            : course.ambiente_teste
+                              ? "Concluir curso de teste"
+                              : "Iniciar curso"}
                         </button>
                       )}
                       {canManage && (
@@ -183,6 +190,7 @@ export default function CourseView() {
                     <span className="inline-flex items-center gap-2"><Clock3 size={16} /> {course.carga_horaria ?? 0} horas</span>
                     <span>{journey.aulas.length} {journey.aulas.length === 1 ? "aula" : "aulas"}</span>
                     {journey.modo === "preview" && <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-800">Pré-visualização</span>}
+                    {course.ambiente_teste && <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-800">Ambiente de teste</span>}
                   </div>
                   {journey.matricula && (
                     <div className="mt-6">

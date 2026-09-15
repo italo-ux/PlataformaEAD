@@ -29,6 +29,7 @@ const admin = new Client({
 });
 const previousDatabase = process.env.DB_NAME;
 const previousSecret = process.env.JWT_SECRET;
+const previousTestCourseBypass = process.env.ALLOW_TEST_COURSE_BYPASS;
 let databaseCreated = false;
 let app;
 let frontend;
@@ -60,7 +61,9 @@ async function startFrontend(apiUrl) {
   const url = 'http://127.0.0.1:' + port;
   for (let attempt = 0; attempt < 40; attempt += 1) {
     if (child.exitCode !== null) {
-      throw new Error('Frontend encerrou durante a inicialização:\n' + logs.join(''));
+      throw new Error(
+        'Frontend encerrou durante a inicialização:\n' + logs.join(''),
+      );
     }
     try {
       const response = await fetch(url);
@@ -147,9 +150,26 @@ try {
        RETURNING id, ordem`,
       [course.rows[0].id, professor.rows[0].id],
     );
+    const testCourse = await database.query(
+      `INSERT INTO cursos
+       (id_instrutor, nome, carga_horaria, status, publicado_em, ambiente_teste)
+       VALUES ($1, 'Curso rápido E2E', 1, 'publicado', NOW(), TRUE)
+       RETURNING id`,
+      [professor.rows[0].id],
+    );
+    await database.query(
+      `INSERT INTO aulas
+       (id_curso, id_instrutor, titulo, url_video, ordem, duracao_minutos,
+        youtube_video_id, duracao_segundos, youtube_embeddable, youtube_validado_em)
+       VALUES
+         ($1, $2, 'Aula rápida', 'https://youtu.be/dQw4w9WgXcQ', 1, 1,
+          'dQw4w9WgXcQ', 10, TRUE, NOW())`,
+      [testCourse.rows[0].id, professor.rows[0].id],
+    );
 
     process.env.DB_NAME = testDatabaseName;
     process.env.JWT_SECRET = 'student-journey-postgres-e2e-secret';
+    process.env.ALLOW_TEST_COURSE_BYPASS = 'true';
     const loaded = await import('../dist/app.module.js');
     const AppModule = loaded.AppModule ?? loaded.default?.AppModule;
     app = await NestFactory.create(AppModule, { logger: ['error'] });
@@ -224,7 +244,13 @@ try {
         },
         201,
       );
-    const heartbeat = (lessonId, sessionId, sequence, position, state = 'playing') => ({
+    const heartbeat = (
+      lessonId,
+      sessionId,
+      sequence,
+      position,
+      state = 'playing',
+    ) => ({
       method: 'POST',
       headers: authorization,
       body: JSON.stringify({
@@ -381,8 +407,27 @@ try {
     assert.equal(pdfResponse.headers.get('content-type'), 'application/pdf');
     const pdf = Buffer.from(await pdfResponse.arrayBuffer());
     assert.equal(pdf.subarray(0, 4).toString(), '%PDF');
+
+    const quickCompletion = await expectJson(
+      baseUrl,
+      '/cursos/' + testCourse.rows[0].id + '/matricula',
+      { method: 'POST', headers: authorization },
+      201,
+    );
+    assert.equal(quickCompletion.matricula.progresso, 100);
+    assert.equal(quickCompletion.matricula.conclusao, true);
+    assert.equal(quickCompletion.matricula.segundos_estudados, 0);
+    assert(
+      quickCompletion.aulas.every((lesson) => lesson.status === 'concluida'),
+    );
+    assert(quickCompletion.certificado);
+
+    const updatedCertificateCount = await database.query(
+      'SELECT COUNT(*)::int AS count FROM certificados',
+    );
+    assert.equal(updatedCertificateCount.rows[0].count, 2);
     console.log(
-      'Projeto executado: frontend e backend online; login, matrícula, antifraude temporal, sequência, 90%, certificado e PDF validados.',
+      'Projeto executado: frontend e backend online; login, matrícula, antifraude temporal, sequência, 90%, curso de teste, certificado e PDF validados.',
     );
   } finally {
     if (frontend && frontend.exitCode === null) {
@@ -401,6 +446,11 @@ try {
   else process.env.DB_NAME = previousDatabase;
   if (previousSecret === undefined) delete process.env.JWT_SECRET;
   else process.env.JWT_SECRET = previousSecret;
+  if (previousTestCourseBypass === undefined) {
+    delete process.env.ALLOW_TEST_COURSE_BYPASS;
+  } else {
+    process.env.ALLOW_TEST_COURSE_BYPASS = previousTestCourseBypass;
+  }
   if (databaseCreated) {
     await admin.query(
       'DROP DATABASE IF EXISTS ' + quotedDatabase + ' WITH (FORCE)',
