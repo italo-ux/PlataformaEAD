@@ -22,6 +22,9 @@ import { PlaybackHeartbeatDto } from './dto/playback-heartbeat.dto';
 import { StartPlaybackDto } from './dto/start-playback.dto';
 import { JornadaService } from './jornada.service';
 import { PlaybackService } from './playback.service';
+import { QuestionarioService } from './questionario.service';
+import { SubmitQuestionarioDto } from './dto/submit-questionario.dto';
+import { CursosService } from '../cursos/cursos.service';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -29,7 +32,39 @@ export class JornadaController {
   constructor(
     private readonly jornadaService: JornadaService,
     private readonly playbackService: PlaybackService,
+    private readonly questionarioService: QuestionarioService,
+    private readonly cursosService: CursosService,
   ) {}
+
+  @Post('cursos/:courseId/aulas/:lessonId/questionario/tentativas')
+  @Roles(UserRole.ALUNO)
+  submitQuestionario(
+    @Param('courseId', new ParseUUIDPipe()) courseId: string,
+    @Param('lessonId', new ParseUUIDPipe()) lessonId: string,
+    @Body() body: SubmitQuestionarioDto,
+    @Req() request: Request & { user: AuthenticatedUser },
+  ) {
+    return this.questionarioService.submit(
+      courseId,
+      lessonId,
+      body,
+      request.user,
+    );
+  }
+
+  @Post('cursos/:courseId/aulas/:lessonId/validar-video')
+  @Roles(UserRole.ALUNO, UserRole.PROFESSOR, UserRole.ADMIN)
+  validateVideo(
+    @Param('courseId', new ParseUUIDPipe()) courseId: string,
+    @Param('lessonId', new ParseUUIDPipe()) lessonId: string,
+    @Req() request: Request & { user: AuthenticatedUser },
+  ) {
+    return this.cursosService.validateLessonVideo(
+      courseId,
+      lessonId,
+      request.user,
+    );
+  }
 
   @Post('cursos/:courseId/matricula')
   @Roles(UserRole.ALUNO)
@@ -43,7 +78,7 @@ export class JornadaController {
   @Get('usuarios/me/matriculas')
   @Roles(UserRole.ALUNO)
   listEnrollments(@Req() request: Request & { user: AuthenticatedUser }) {
-    return this.jornadaService.listEnrollments(request.user.userId);
+    return this.jornadaService.listEnrollments(request.user);
   }
 
   @Get('admin/metricas-jornada')

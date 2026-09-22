@@ -20,7 +20,9 @@ import { RolesGuard } from '../auth/roles.guard';
 import { UserRole } from '../auth/user-role.enum';
 import { AulasService } from './aulas.service';
 import { CreateAulaDto } from './dto/create-aula.dto';
+import { ReorderAulasDto } from './dto/reorder-aulas.dto';
 import { UpdateAulaDto } from './dto/update-aula.dto';
+import { RepairAulaVideoDto } from './dto/repair-aula-video.dto';
 
 @Controller('cursos/:cursoId/aulas')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -29,8 +31,11 @@ export class AulasController {
   constructor(private readonly aulasService: AulasService) {}
 
   @Get()
-  findAll(@Param('cursoId', new ParseUUIDPipe()) cursoId: string) {
-    return this.aulasService.findAll(cursoId);
+  findAll(
+    @Param('cursoId', new ParseUUIDPipe()) cursoId: string,
+    @Req() request: Request & { user: AuthenticatedUser },
+  ) {
+    return this.aulasService.findAll(cursoId, request.user);
   }
 
   @Post()
@@ -41,6 +46,19 @@ export class AulasController {
     @Body() createAulaDto: CreateAulaDto,
   ) {
     return this.aulasService.create(cursoId, createAulaDto, request.user);
+  }
+
+  @Patch('ordem')
+  reorder(
+    @Param('cursoId', new ParseUUIDPipe()) cursoId: string,
+    @Req() request: Request & { user: AuthenticatedUser },
+    @Body() reorderAulasDto: ReorderAulasDto,
+  ) {
+    return this.aulasService.reorder(
+      cursoId,
+      reorderAulasDto.aula_ids,
+      request.user,
+    );
   }
 
   @Patch(':aulaId')
@@ -55,6 +73,22 @@ export class AulasController {
       cursoId,
       aulaId,
       updateAulaDto,
+      request.user,
+    );
+  }
+
+  @Patch(':aulaId/reparar-video')
+  @Roles(UserRole.PROFESSOR, UserRole.ADMIN)
+  repairVideo(
+    @Param('cursoId', new ParseUUIDPipe()) cursoId: string,
+    @Param('aulaId', new ParseUUIDPipe()) aulaId: string,
+    @Req() request: Request & { user: AuthenticatedUser },
+    @Body() body: RepairAulaVideoDto,
+  ) {
+    return this.aulasService.repairUnavailableVideo(
+      cursoId,
+      aulaId,
+      body.url_video,
       request.user,
     );
   }

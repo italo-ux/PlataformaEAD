@@ -16,7 +16,7 @@ import {
   updateLessonCoverage,
   watchedSeconds,
 } from '../jornada/progress-policy';
-import { Aula } from './aula.entity';
+import { Aula, AulaTipo } from './aula.entity';
 import { Curso, CursoStatus } from './curso.entity';
 import { CreateCursoDto } from './dto/create-curso.dto';
 import { UpdateCursoDto } from './dto/update-curso.dto';
@@ -26,6 +26,17 @@ import {
   Certificado,
   CertificadoStatus,
 } from '../certificados/certificado.entity';
+import {
+  CourseVideoAvailability,
+  YoutubeVideoValidationService,
+} from './youtube-video-validation.service';
+
+export type CursoComDisponibilidade = Curso & {
+  conteudo_indisponivel: boolean;
+  validacao_pendente: boolean;
+  status_conteudo: 'disponivel' | 'indisponivel' | 'validacao_pendente';
+  videos_indisponiveis: Array<{ id: string; titulo: string }>;
+};
 
 @Injectable()
 export class CursosService {
@@ -37,6 +48,7 @@ export class CursosService {
     private readonly aulasRepository: Repository<Aula>,
     @InjectRepository(Matricula)
     private readonly matriculasRepository: Repository<Matricula>,
+    private readonly youtubeValidation: YoutubeVideoValidationService,
   ) {}
 
   create(createCursoDto: CreateCursoDto, actor: AuthenticatedUser) {
@@ -48,29 +60,47 @@ export class CursosService {
     return this.cursosRepository.save(curso);
   }
 
-  findAll(actor?: AuthenticatedUser) {
-    return this.cursosRepository.find({
-      where:
-        actor?.role === UserRole.ALUNO
-          ? { status: CursoStatus.PUBLICADO }
-          : undefined,
+  async findAll(actor?: AuthenticatedUser) {
+    const where =
+      actor?.role === UserRole.ALUNO
+        ? { status: CursoStatus.PUBLICADO }
+        : actor?.role === UserRole.PROFESSOR
+          ? [{ status: CursoStatus.PUBLICADO }, { id_instrutor: actor.userId }]
+          : undefined;
+    const courses = await this.cursosRepository.find({
+      where,
       order: { nome: 'ASC' },
     });
+    if (!actor) return courses;
+
+    const checked = await Promise.all(
+      courses.map((course) => this.withAvailability(course)),
+    );
+    return actor.role === UserRole.ALUNO
+      ? checked.filter((course) => !course.conteudo_indisponivel)
+      : checked;
   }
 
   async findOne(id: string, actor?: AuthenticatedUser) {
-    const curso = await this.cursosRepository.findOneBy({
-      id,
-      ...(actor?.role === UserRole.ALUNO
-        ? { status: CursoStatus.PUBLICADO }
-        : {}),
-    });
+    const curso = await this.cursosRepository.findOneBy({ id });
 
-    if (!curso) {
+    const hiddenFromActor =
+      actor?.role === UserRole.ALUNO
+        ? curso?.status !== CursoStatus.PUBLICADO
+        : actor?.role === UserRole.PROFESSOR
+          ? curso?.status === CursoStatus.RASCUNHO &&
+            curso.id_instrutor !== actor.userId
+          : false;
+    if (!curso || hiddenFromActor) {
       throw new NotFoundException('Curso não encontrado');
     }
 
-    return curso;
+    if (!actor) return curso;
+    const checked = await this.withAvailability(curso);
+    if (actor.role === UserRole.ALUNO && checked.conteudo_indisponivel) {
+      throw new NotFoundException('Curso não encontrado');
+    }
+    return checked;
   }
 
   async findManageable(id: string, actor: AuthenticatedUser) {
@@ -81,10 +111,20 @@ export class CursosService {
     return curso;
   }
 
+  async validateLessonVideo(
+    courseId: string,
+    lessonId: string,
+    actor: AuthenticatedUser,
+  ) {
+    await this.findOne(courseId, actor);
+    return this.youtubeValidation.validateLesson(courseId, lessonId);
+  }
+
   async publish(id: string, actor: AuthenticatedUser) {
     const curso = await this.findManageable(id, actor);
     const lessons = await this.aulasRepository.find({
       where: { curso: { id } },
+      relations: { questionario: { perguntas: { alternativas: true } } },
       order: { ordem: 'ASC' },
     });
     if (
@@ -97,7 +137,18 @@ export class CursosService {
       );
     }
     const preparedLessons = lessons.map((lesson) => {
-      const videoId = extractYoutubeVideoId(lesson.url_video);
+      if (lesson.tipo === AulaTipo.QUESTIONARIO) {
+        if (
+          !lesson.questionario ||
+          lesson.questionario.perguntas.length === 0
+        ) {
+          throw new ConflictException(
+            `Cadastre ao menos uma pergunta no questionário "${lesson.titulo}" antes de publicar.`,
+          );
+        }
+        return { lesson, videoId: null };
+      }
+      const videoId = extractYoutubeVideoId(lesson.url_video ?? '');
       if (
         !videoId ||
         !lesson.duracao_segundos ||
@@ -109,6 +160,19 @@ export class CursosService {
       }
       return { lesson, videoId };
     });
+
+    for (const { lesson, videoId } of preparedLessons) {
+      if (!videoId) continue;
+      const available = await this.youtubeValidation.validateVideo(videoId);
+      lesson.youtube_video_id = videoId;
+      lesson.youtube_embeddable = available;
+      lesson.youtube_validado_em = new Date();
+      if (!available) {
+        throw new ConflictException(
+          `O vídeo da aula "${lesson.titulo}" foi removido, é privado ou não permite incorporação.`,
+        );
+      }
+    }
 
     return this.dataSource.transaction(async (manager) => {
       const lockedCourse = await manager
@@ -122,7 +186,8 @@ export class CursosService {
       const lessonRepository = manager.getRepository(Aula);
       for (const { lesson, videoId } of preparedLessons) {
         lesson.youtube_video_id = videoId;
-        lesson.duracao_minutos = Math.ceil(lesson.duracao_segundos! / 60);
+        if (videoId)
+          lesson.duracao_minutos = Math.ceil(lesson.duracao_segundos! / 60);
         await lessonRepository.save(lesson);
       }
       await this.revalidateIncompleteEnrollments(manager, id, lessons);
@@ -218,6 +283,11 @@ export class CursosService {
     actor: AuthenticatedUser,
   ) {
     const curso = await this.findManageable(id, actor);
+    if (curso.status === CursoStatus.PUBLICADO) {
+      throw new ConflictException(
+        'Cursos publicados não podem ser editados. Corrija somente URLs de vídeos indisponíveis.',
+      );
+    }
     if (
       updateCursoDto.ambiente_teste !== undefined &&
       updateCursoDto.ambiente_teste !== curso.ambiente_teste
@@ -235,6 +305,11 @@ export class CursosService {
 
   async remove(id: string, actor: AuthenticatedUser) {
     const curso = await this.findManageable(id, actor);
+    if (curso.status === CursoStatus.PUBLICADO) {
+      throw new ConflictException(
+        'Cursos publicados não podem ser excluídos. Corrija somente URLs de vídeos indisponíveis.',
+      );
+    }
     if (await this.hasEnrollments(id)) {
       throw new ConflictException(
         'Cursos com matrículas não podem ser excluídos.',
@@ -262,5 +337,30 @@ export class CursosService {
         'O ambiente de teste está desabilitado nesta instalação.',
       );
     }
+  }
+
+  private async withAvailability(
+    course: Curso,
+  ): Promise<CursoComDisponibilidade> {
+    const availability: CourseVideoAvailability =
+      course.status === CursoStatus.PUBLICADO
+        ? await this.youtubeValidation.checkCourse(course.id)
+        : {
+            available: true,
+            pendingValidation: false,
+            unavailableLessons: [],
+          };
+    const contentStatus: CursoComDisponibilidade['status_conteudo'] =
+      availability.pendingValidation
+        ? 'validacao_pendente'
+        : availability.available
+          ? 'disponivel'
+          : 'indisponivel';
+    return Object.assign(course, {
+      conteudo_indisponivel: !availability.available,
+      validacao_pendente: availability.pendingValidation,
+      status_conteudo: contentStatus,
+      videos_indisponiveis: availability.unavailableLessons,
+    });
   }
 }

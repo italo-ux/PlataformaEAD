@@ -12,6 +12,8 @@ import { CursosService } from './cursos.service';
 import { Matricula } from '../jornada/matricula.entity';
 import { Aula } from './aula.entity';
 import { TrilhaCurso } from '../trilhas/trilha-curso.entity';
+import { YoutubeVideoValidationService } from './youtube-video-validation.service';
+import { CursoStatus } from './curso.entity';
 
 describe('CursosService', () => {
   const previousTestCourseBypass = process.env.ALLOW_TEST_COURSE_BYPASS;
@@ -40,6 +42,10 @@ describe('CursosService', () => {
     nivel: 'Iniciante',
     ambiente_teste: false,
     id_instrutor: owner.userId,
+    status: CursoStatus.RASCUNHO,
+    publicado_em: null,
+    created_at: new Date('2026-01-01T00:00:00.000Z'),
+    updated_at: new Date('2026-01-01T00:00:00.000Z'),
     aulas: [],
   });
   const repository = {
@@ -56,6 +62,10 @@ describe('CursosService', () => {
   const enrollmentsRepository = {
     existsBy: jest.fn(),
   } as unknown as jest.Mocked<Repository<Matricula>>;
+  const youtubeValidation = {
+    validateVideo: jest.fn(),
+    checkCourse: jest.fn(),
+  } as unknown as jest.Mocked<YoutubeVideoValidationService>;
   const deleteQueryBuilder = {
     delete: jest.fn().mockReturnThis(),
     from: jest.fn().mockReturnThis(),
@@ -80,12 +90,19 @@ describe('CursosService', () => {
     repository,
     lessonsRepository,
     enrollmentsRepository,
+    youtubeValidation,
   );
 
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.ALLOW_TEST_COURSE_BYPASS = 'false';
     enrollmentsRepository.existsBy.mockResolvedValue(false);
+    youtubeValidation.validateVideo.mockResolvedValue(true);
+    youtubeValidation.checkCourse.mockResolvedValue({
+      available: true,
+      pendingValidation: false,
+      unavailableLessons: [],
+    });
   });
 
   afterAll(() => {
@@ -185,6 +202,23 @@ describe('CursosService', () => {
     ).resolves.toEqual(existingCourse);
   });
 
+  it('bloqueia edição e exclusão comuns depois que o curso foi publicado', async () => {
+    const publishedCourse = {
+      ...course(),
+      status: CursoStatus.PUBLICADO,
+    };
+    repository.findOneBy.mockResolvedValue(publishedCourse);
+
+    await expect(
+      service.update(publishedCourse.id, { nome: 'Alteração indevida' }, owner),
+    ).rejects.toBeInstanceOf(ConflictException);
+    await expect(
+      service.remove(publishedCourse.id, owner),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(repository.save).not.toHaveBeenCalled();
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+  });
+
   it('bloqueia outro professor de gerenciar o curso', async () => {
     const existingCourse = course();
     repository.findOneBy.mockResolvedValue(existingCourse);
@@ -199,6 +233,71 @@ describe('CursosService', () => {
     await expect(
       service.findManageable(existingCourse.id, otherProfessor),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('não permite que um professor consulte o rascunho de outro', async () => {
+    repository.findOneBy.mockResolvedValue(course());
+
+    await expect(
+      service.findOne(course().id, otherProfessor),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('lista para o professor apenas publicados e cursos próprios', async () => {
+    const published = { ...course(), status: CursoStatus.PUBLICADO };
+    repository.find.mockResolvedValue([published, course()]);
+
+    await service.findAll(owner);
+
+    expect(repository.find).toHaveBeenCalledWith({
+      where: [
+        { status: CursoStatus.PUBLICADO },
+        { id_instrutor: owner.userId },
+      ],
+      order: { nome: 'ASC' },
+    });
+  });
+
+  it('oculta do aluno um curso publicado com vídeo indisponível', async () => {
+    const published = { ...course(), status: CursoStatus.PUBLICADO };
+    repository.find.mockResolvedValue([published]);
+    youtubeValidation.checkCourse.mockResolvedValue({
+      available: false,
+      pendingValidation: false,
+      unavailableLessons: [{ id: 'video-1', titulo: 'Vídeo removido' }],
+    });
+
+    await expect(
+      service.findAll({ ...owner, role: UserRole.ALUNO }),
+    ).resolves.toEqual([]);
+  });
+
+  it('expõe a mudança do status de conteúdo após a recuperação do vídeo', async () => {
+    const published = { ...course(), status: CursoStatus.PUBLICADO };
+    repository.findOneBy.mockResolvedValue(published);
+    youtubeValidation.checkCourse
+      .mockResolvedValueOnce({
+        available: false,
+        pendingValidation: false,
+        unavailableLessons: [{ id: 'video-1', titulo: 'Vídeo removido' }],
+      })
+      .mockResolvedValueOnce({
+        available: true,
+        pendingValidation: false,
+        unavailableLessons: [],
+      });
+
+    await expect(service.findOne(published.id, owner)).resolves.toMatchObject({
+      status: CursoStatus.PUBLICADO,
+      status_conteudo: 'indisponivel',
+      conteudo_indisponivel: true,
+    });
+    await expect(service.findOne(published.id, owner)).resolves.toMatchObject({
+      status: CursoStatus.PUBLICADO,
+      status_conteudo: 'disponivel',
+      conteudo_indisponivel: false,
+      videos_indisponiveis: [],
+    });
   });
 
   it('lista e consulta cursos publicamente', async () => {

@@ -47,11 +47,31 @@ try {
       `SELECT table_name
        FROM information_schema.tables
        WHERE table_schema = 'public'
-         AND table_name IN ('matricula', 'progresso_aula', 'certificados', 'sessao_reproducao')`,
+         AND table_name IN (
+           'matricula',
+           'progresso_aula',
+           'certificados',
+           'sessao_reproducao',
+           'questionarios',
+           'perguntas_questionario',
+           'alternativas_questionario',
+           'tentativas_questionario',
+           'respostas_questionario'
+         )`,
     );
     assert.deepEqual(
       new Set(tables.rows.map(({ table_name }) => table_name)),
-      new Set(['matricula', 'progresso_aula', 'certificados', 'sessao_reproducao']),
+      new Set([
+        'matricula',
+        'progresso_aula',
+        'certificados',
+        'sessao_reproducao',
+        'questionarios',
+        'perguntas_questionario',
+        'alternativas_questionario',
+        'tentativas_questionario',
+        'respostas_questionario',
+      ]),
     );
 
     const courseColumns = await testDatabase.query(
@@ -66,15 +86,40 @@ try {
       new Set(['status', 'publicado_em']),
     );
 
+    const lessonColumns = await testDatabase.query(
+      `SELECT column_name, is_nullable, udt_name
+       FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'aulas'
+         AND column_name IN ('tipo', 'url_video')`,
+    );
+    const lessonColumnMap = new Map(
+      lessonColumns.rows.map((column) => [column.column_name, column]),
+    );
+    assert.equal(lessonColumnMap.get('tipo')?.udt_name, 'aula_tipo');
+    assert.equal(lessonColumnMap.get('url_video')?.is_nullable, 'YES');
+
     const constraints = await testDatabase.query(
       `SELECT conname
        FROM pg_constraint
-       WHERE conrelid IN ('matricula'::regclass, 'progresso_aula'::regclass, 'certificados'::regclass)`,
+       WHERE conrelid IN (
+         'matricula'::regclass,
+         'progresso_aula'::regclass,
+         'certificados'::regclass,
+         'questionarios'::regclass,
+         'perguntas_questionario'::regclass,
+         'tentativas_questionario'::regclass,
+         'respostas_questionario'::regclass
+       )`,
     );
     const names = new Set(constraints.rows.map(({ conname }) => conname));
     assert(names.has('UQ_matricula_usuario_curso'));
     assert(names.has('CHK_matricula_progresso'));
     assert(names.has('UQ_progresso_aula_matricula_aula'));
+    assert(names.has('questionarios_id_aula_key'));
+    assert(names.has('UQ_pergunta_questionario_ordem'));
+    assert(names.has('UQ_tentativa_numero'));
+    assert(names.has('UQ_resposta_tentativa_pergunta'));
     const playbackIndexes = await testDatabase.query(
       `SELECT indexname FROM pg_indexes
        WHERE schemaname = 'public' AND tablename = 'sessao_reproducao'`,

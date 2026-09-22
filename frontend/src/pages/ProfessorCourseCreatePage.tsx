@@ -1,10 +1,26 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
-import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { BookOpen, PlusCircle, Rocket, Save } from "lucide-react";
+import {
+  Navigate,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
+import {
+  ArrowDown,
+  ArrowRight,
+  AlertTriangle,
+  Award,
+  BookOpen,
+  ListVideo,
+  PlusCircle,
+  Rocket,
+  Save,
+  UsersRound,
+} from "lucide-react";
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
 import { canCreateCourses } from "../data/userMock";
-import courseService, { type CursoInput } from "../services/courseService";
+import courseService, { type Curso, type CursoInput } from "../services/courseService";
 import { getAuthenticatedUser } from "../services/userService";
 import CourseLessonsEditor from "../components/CourseLessonsEditor";
 
@@ -43,8 +59,12 @@ export default function ProfessorCourseCreatePage() {
   const [error, setError] = useState("");
   const [loadFailed, setLoadFailed] = useState(false);
   const [status, setStatus] = useState("");
-  const [courseStatus, setCourseStatus] = useState<"rascunho" | "publicado">("rascunho");
+  const [courseStatus, setCourseStatus] = useState<"rascunho" | "publicado">(
+    "rascunho",
+  );
   const [publishing, setPublishing] = useState(false);
+  const [unavailableVideos, setUnavailableVideos] = useState<Array<{ id: string; titulo: string }>>([]);
+  const [validationPending, setValidationPending] = useState(false);
   const testCourseOptionEnabled =
     import.meta.env.MODE === "test" ||
     import.meta.env.VITE_ENABLE_TEST_COURSES === "true";
@@ -75,6 +95,8 @@ export default function ProfessorCourseCreatePage() {
           ambiente_teste: course.ambiente_teste,
         });
         setCourseStatus(course.status);
+        setUnavailableVideos(course.videos_indisponiveis ?? []);
+        setValidationPending(Boolean(course.validacao_pendente));
       })
       .catch((reason: unknown) => {
         if (!cancelled) {
@@ -97,6 +119,12 @@ export default function ProfessorCourseCreatePage() {
 
   if (!user) return <Navigate to="/login" replace />;
   if (!canCreateCourses(user)) return <Navigate to="/home" replace />;
+  const courseLocked = isEditing && courseStatus === "publicado";
+  const lessonManagementMode = courseStatus === "rascunho"
+    ? "editable"
+    : unavailableVideos.length > 0
+      ? "repair"
+      : "readonly";
 
   const handleChange = (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -155,6 +183,9 @@ export default function ProfessorCourseCreatePage() {
     try {
       const course = await courseService.publishCourse(courseId);
       setCourseStatus(course.status);
+      setUnavailableVideos([]);
+      setValidationPending(false);
+      window.dispatchEvent(new Event("ead.sidebar.refresh"));
       setStatus("Curso publicado e disponível para matrícula.");
     } catch (reason) {
       setError(
@@ -164,6 +195,18 @@ export default function ProfessorCourseCreatePage() {
       );
     } finally {
       setPublishing(false);
+    }
+  };
+
+  const refreshAvailabilityAfterRepair = async () => {
+    if (!courseId) return;
+    const course: Curso = await courseService.getCourse(courseId);
+    setCourseStatus(course.status);
+    setUnavailableVideos(course.videos_indisponiveis ?? []);
+    setValidationPending(Boolean(course.validacao_pendente));
+    window.dispatchEvent(new Event("ead.sidebar.refresh"));
+    if (!course.conteudo_indisponivel) {
+      setStatus("Vídeos validados. O curso voltou a ficar disponível para os alunos e está bloqueado para edição.");
     }
   };
 
@@ -189,6 +232,27 @@ export default function ProfessorCourseCreatePage() {
             Ver cursos
           </button>
         </div>
+
+        {(unavailableVideos.length > 0 || validationPending) && (
+          <div className="mb-6 flex gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-5 text-amber-950" role="alert">
+            <AlertTriangle className="mt-0.5 shrink-0" size={22} />
+            <div>
+              <p className="font-black">Curso indisponível para alunos</p>
+              <p className="mt-1 text-sm">
+                {validationPending
+                  ? "A validação de um ou mais vídeos está pendente."
+                  : "Corrija ou substitua os vídeos indisponíveis abaixo."}
+              </p>
+              {unavailableVideos.length > 0 && (
+                <ul className="mt-2 list-disc pl-5 text-sm font-semibold">
+                  {unavailableVideos.map((video) => (
+                    <li key={video.id}>{video.titulo}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <p>Carregando curso...</p>
@@ -223,11 +287,23 @@ export default function ProfessorCourseCreatePage() {
               </div>
             )}
             {status && (
-              <div role="status" className="mb-6 rounded-lg bg-emerald-100 p-4 text-sm font-semibold text-emerald-700">
+              <div
+                role="status"
+                className="mb-6 rounded-lg bg-emerald-100 p-4 text-sm font-semibold text-emerald-700"
+              >
                 {status}
               </div>
             )}
 
+            {courseLocked && (
+              <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm font-semibold text-blue-900">
+                {unavailableVideos.length > 0
+                  ? "Curso publicado em modo de reparo: os dados do curso estão bloqueados e somente as URLs dos vídeos indisponíveis podem ser alteradas."
+                  : "Curso publicado e disponível para os alunos. A edição está bloqueada."}
+              </div>
+            )}
+
+            <fieldset disabled={courseLocked} className={courseLocked ? "opacity-70" : ""}>
             <label className="mb-5 block text-sm font-bold text-[#25304a]">
               Nome do curso
               <input
@@ -291,6 +367,7 @@ export default function ProfessorCourseCreatePage() {
                 />
               </label>
             </div>
+            </fieldset>
 
             {testCourseOptionEnabled && (
               <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
@@ -299,13 +376,15 @@ export default function ProfessorCourseCreatePage() {
                   type="checkbox"
                   checked={form.ambiente_teste}
                   onChange={handleChange}
-                  className="mt-1 h-4 w-4 rounded border-amber-400 text-amber-600"
+                  disabled={courseLocked}
+                  className="mt-1 h-4 w-4 rounded border-amber-400 text-amber-600 disabled:cursor-not-allowed"
                 />
                 <span>
                   <span className="block font-black">Ambiente de teste</span>
                   <span className="mt-1 block leading-5 text-amber-800">
-                    Ao iniciar este curso, o aluno conclui todas as aulas e recebe
-                    o certificado imediatamente. Use somente com dados de teste.
+                    Ao iniciar este curso, o aluno conclui todas as aulas e
+                    recebe o certificado imediatamente. Use somente com dados de
+                    teste.
                   </span>
                 </span>
               </label>
@@ -320,31 +399,127 @@ export default function ProfessorCourseCreatePage() {
               >
                 Cancelar
               </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-3 font-bold text-white disabled:opacity-60"
-              >
-                {isEditing ? <Save size={20} /> : <PlusCircle size={20} />}
-                {saving
-                  ? "Salvando..."
-                  : isEditing
-                    ? "Salvar alterações"
-                    : "Salvar curso"}
-              </button>
+              {!courseLocked && (
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-3 font-bold text-white disabled:opacity-60"
+                >
+                  {isEditing ? <Save size={20} /> : <PlusCircle size={20} />}
+                  {saving
+                    ? "Salvando..."
+                    : isEditing
+                      ? "Salvar alterações"
+                      : "Salvar curso"}
+                </button>
+              )}
             </div>
           </form>
         )}
         {isEditing && courseId && !loading && !loadFailed && (
           <>
-            <CourseLessonsEditor courseId={courseId} />
+            <section
+              aria-label="Etapas de configuração do curso"
+              className="mt-8 rounded-xl border border-blue-100 bg-white p-5 shadow-sm sm:p-6"
+            >
+              <ol className="grid gap-8 md:grid-cols-3 md:gap-10">
+                <li className="relative rounded-xl border-2 border-blue-600 bg-blue-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-black text-white">
+                      1
+                    </span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <ListVideo size={18} className="text-blue-700" />
+                        <p className="font-black text-blue-950">
+                          Adicionar aulas
+                        </p>
+                      </div>
+                      <p className="mt-1 text-xs leading-5 text-blue-800">
+                        Cadastre e organize o conteúdo do curso.
+                      </p>
+                    </div>
+                  </div>
+                  <span aria-hidden="true">
+                    <ArrowRight
+                      className="absolute -right-7 top-1/2 hidden -translate-y-1/2 text-blue-400 md:block"
+                      size={20}
+                    />
+                    <ArrowDown
+                      className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-blue-400 md:hidden"
+                      size={20}
+                    />
+                  </span>
+                </li>
+                <li className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-black text-slate-600">
+                      2
+                    </span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Award size={18} className="text-slate-500" />
+                        <p className="font-black text-slate-800">Certificado</p>
+                      </div>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        Escolha um modelo ou crie um certificado.
+                      </p>
+                      <span className="mt-2 inline-flex rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-amber-700">
+                        Em breve
+                      </span>
+                    </div>
+                  </div>
+                  <span aria-hidden="true">
+                    <ArrowRight
+                      className="absolute -right-7 top-1/2 hidden -translate-y-1/2 text-blue-400 md:block"
+                      size={20}
+                    />
+                    <ArrowDown
+                      className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-blue-400 md:hidden"
+                      size={20}
+                    />
+                  </span>
+                </li>
+                <li className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-black text-slate-600">
+                      3
+                    </span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <UsersRound size={18} className="text-slate-500" />
+                        <p className="font-black text-slate-800">
+                          Definir público
+                        </p>
+                      </div>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        Todos os usuários, professores ou estagiários.
+                      </p>
+                      <span className="mt-2 inline-flex rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-amber-700">
+                        Em breve
+                      </span>
+                    </div>
+                  </div>
+                </li>
+              </ol>
+            </section>
+            <CourseLessonsEditor
+              courseId={courseId}
+              mode={lessonManagementMode}
+              unavailableLessonIds={unavailableVideos.map((video) => video.id)}
+              onVideoRepaired={refreshAvailabilityAfterRepair}
+            />
             <section className="mt-6 rounded-xl border border-blue-100 bg-white p-6 shadow-sm">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="text-xl font-black text-[#25304a]">Disponibilidade</h2>
+                  <h2 className="text-xl font-black text-[#25304a]">
+                    Disponibilidade
+                  </h2>
                   <p className="mt-1 text-sm text-slate-600">
-                    {courseStatus === "publicado"
-                      ? "Este curso está publicado e aceita matrículas."
+                    {courseStatus === "publicado" && unavailableVideos.length > 0
+                      ? "Curso temporariamente indisponível. Corrija somente as URLs indicadas acima."
+                      : courseStatus === "publicado"
+                        ? "Este curso está publicado, disponível para os alunos e bloqueado para edição."
                       : "Publique após informar a carga horária e cadastrar pelo menos uma aula."}
                   </p>
                 </div>

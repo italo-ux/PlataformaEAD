@@ -15,7 +15,7 @@ import {
   CertificadoStatus,
 } from '../certificados/certificado.entity';
 import { Aula } from '../cursos/aula.entity';
-import { Curso, CursoStatus } from '../cursos/curso.entity';
+import { CursosService } from '../cursos/cursos.service';
 import { Matricula } from './matricula.entity';
 import { ProgressoAula } from './progresso-aula.entity';
 
@@ -25,8 +25,6 @@ export class JornadaService {
     private readonly dataSource: DataSource,
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-    @InjectRepository(Curso)
-    private readonly coursesRepository: Repository<Curso>,
     @InjectRepository(Aula)
     private readonly lessonsRepository: Repository<Aula>,
     @InjectRepository(Matricula)
@@ -35,6 +33,7 @@ export class JornadaService {
     private readonly lessonProgressRepository: Repository<ProgressoAula>,
     @InjectRepository(Certificado)
     private readonly certificatesRepository: Repository<Certificado>,
+    private readonly cursosService: CursosService,
   ) {}
 
   async enroll(courseId: string, actor: AuthenticatedUser) {
@@ -51,7 +50,7 @@ export class JornadaService {
     });
     if (existing) return this.getJourney(courseId, actor);
 
-    const course = await this.requirePublishedCourse(courseId);
+    const course = await this.cursosService.findOne(courseId, actor);
     if (!course.carga_horaria || course.carga_horaria <= 0) {
       throw new ConflictException(
         'O curso ainda não está pronto para matrícula.',
@@ -126,25 +125,39 @@ export class JornadaService {
     return this.getJourney(courseId, actor);
   }
 
-  async listEnrollments(userId: string) {
+  async listEnrollments(actor: AuthenticatedUser) {
     const enrollments = await this.enrollmentsRepository.find({
-      where: { id_usuario: userId },
+      where: { id_usuario: actor.userId },
       relations: { curso: true, aulas: true },
       order: { updated_at: 'DESC' },
     });
-    return enrollments.map((enrollment) => ({
-      id: enrollment.id,
-      progresso: Number(enrollment.progresso),
-      conclusao: enrollment.conclusao,
-      concluido_em: enrollment.concluido_em,
-      ultima_aula_id: enrollment.ultima_aula_id,
-      segundos_estudados: enrollment.segundos_estudados,
-      data_matricula: enrollment.data_matricula,
-      aulas_concluidas: enrollment.aulas.filter((item) => item.concluida)
-        .length,
-      total_aulas: enrollment.aulas.length,
-      curso: enrollment.curso,
-    }));
+    const summaries = await Promise.all(
+      enrollments.map(async (enrollment) => {
+        try {
+          const course = await this.cursosService.findOne(
+            enrollment.id_curso,
+            actor,
+          );
+          return {
+            id: enrollment.id,
+            progresso: Number(enrollment.progresso),
+            conclusao: enrollment.conclusao,
+            concluido_em: enrollment.concluido_em,
+            ultima_aula_id: enrollment.ultima_aula_id,
+            segundos_estudados: enrollment.segundos_estudados,
+            data_matricula: enrollment.data_matricula,
+            aulas_concluidas: enrollment.aulas.filter((item) => item.concluida)
+              .length,
+            total_aulas: enrollment.aulas.length,
+            curso: course,
+          };
+        } catch (error) {
+          if (error instanceof NotFoundException) return null;
+          throw error;
+        }
+      }),
+    );
+    return summaries.filter((summary) => summary !== null);
   }
 
   async metrics() {
@@ -168,10 +181,7 @@ export class JornadaService {
   }
 
   async getJourney(courseId: string, actor: AuthenticatedUser) {
-    const course =
-      actor.role === UserRole.ALUNO
-        ? await this.requirePublishedCourse(courseId)
-        : await this.requireCourse(courseId);
+    const course = await this.cursosService.findOne(courseId, actor);
     const lessons = await this.listCourseLessons(courseId);
 
     if (actor.role !== UserRole.ALUNO) {
@@ -180,7 +190,7 @@ export class JornadaService {
         matricula: null,
         modo: 'preview',
         aulas: lessons.map((lesson) => ({
-          ...lesson,
+          ...this.lessonPayload(lesson, true),
           status: 'disponivel',
           percentual: 0,
           posicao_segundos: 0,
@@ -190,7 +200,11 @@ export class JornadaService {
 
     const enrollment = await this.enrollmentsRepository.findOne({
       where: { id_usuario: actor.userId, id_curso: courseId },
-      relations: { aulas: { aula: true } },
+      relations: {
+        aulas: {
+          aula: { questionario: { perguntas: { alternativas: true } } },
+        },
+      },
     });
     if (!enrollment) {
       return {
@@ -198,13 +212,7 @@ export class JornadaService {
         matricula: null,
         modo: 'aluno',
         aulas: lessons.map((lesson) => ({
-          id: lesson.id,
-          titulo: lesson.titulo,
-          descricao: lesson.descricao,
-          duracao_minutos: lesson.duracao_minutos,
-          duracao_segundos: lesson.duracao_segundos,
-          ordem: lesson.ordem,
-          url_video: null,
+          ...this.lessonPayload(lesson, false),
           status: 'bloqueada',
           percentual: 0,
           posicao_segundos: 0,
@@ -240,13 +248,8 @@ export class JornadaService {
             ? 'disponivel'
             : 'bloqueada';
         return {
-          id: item.aula.id,
-          titulo: item.aula.titulo,
-          descricao: item.aula.descricao,
-          duracao_minutos: item.aula.duracao_minutos,
-          duracao_segundos: item.aula.duracao_segundos,
+          ...this.lessonPayload(item.aula, unlocked || item.concluida),
           ordem: item.ordem_snapshot,
-          url_video: unlocked || item.concluida ? item.aula.url_video : null,
           status,
           percentual: Number(item.percentual),
           posicao_segundos: item.posicao_segundos,
@@ -258,23 +261,46 @@ export class JornadaService {
   private listCourseLessons(courseId: string) {
     return this.lessonsRepository.find({
       where: { curso: { id: courseId } },
+      relations: { questionario: { perguntas: { alternativas: true } } },
       order: { ordem: 'ASC', titulo: 'ASC' },
     });
   }
 
-  private async requireCourse(courseId: string) {
-    const course = await this.coursesRepository.findOneBy({ id: courseId });
-    if (!course) throw new NotFoundException('Curso não encontrado.');
-    return course;
-  }
-
-  private async requirePublishedCourse(courseId: string) {
-    const course = await this.coursesRepository.findOneBy({
-      id: courseId,
-      status: CursoStatus.PUBLICADO,
-    });
-    if (!course) throw new NotFoundException('Curso publicado não encontrado.');
-    return course;
+  private lessonPayload(lesson: Aula, unlocked: boolean) {
+    return {
+      id: lesson.id,
+      titulo: lesson.titulo,
+      descricao: lesson.descricao,
+      tipo: lesson.tipo,
+      duracao_minutos: lesson.duracao_minutos,
+      duracao_segundos: lesson.duracao_segundos,
+      ordem: lesson.ordem,
+      url_video: unlocked ? lesson.url_video : null,
+      questionario:
+        unlocked && lesson.questionario
+          ? {
+              id: lesson.questionario.id,
+              nota_minima: Number(lesson.questionario.nota_minima),
+              max_tentativas: lesson.questionario.max_tentativas,
+              pontos_base: lesson.questionario.pontos_base,
+              perguntas: [...lesson.questionario.perguntas]
+                .sort((a, b) => a.ordem - b.ordem)
+                .map((pergunta) => ({
+                  id: pergunta.id,
+                  enunciado: pergunta.enunciado,
+                  ordem: pergunta.ordem,
+                  pontos: pergunta.pontos,
+                  alternativas: [...pergunta.alternativas]
+                    .sort((a, b) => a.ordem - b.ordem)
+                    .map((alternativa) => ({
+                      id: alternativa.id,
+                      texto: alternativa.texto,
+                      ordem: alternativa.ordem,
+                    })),
+                })),
+            }
+          : null,
+    };
   }
 
   private certificateSummary(certificate: Certificado) {

@@ -20,6 +20,7 @@ import { CursosController } from '../src/cursos/cursos.controller';
 import { CursosService } from '../src/cursos/cursos.service';
 import { Matricula } from '../src/jornada/matricula.entity';
 import { DataSource } from 'typeorm';
+import { YoutubeVideoValidationService } from '../src/cursos/youtube-video-validation.service';
 
 const testSecret = 'e2e-test-secret';
 const courseId = '11111111-1111-4111-8111-111111111111';
@@ -51,12 +52,28 @@ describe('Cursos authorization (e2e)', () => {
       else courses.push(course);
       return Promise.resolve(course);
     }),
-    find: jest.fn(({ where }: { where?: { status?: CursoStatus } } = {}) =>
-      Promise.resolve(
-        courses
-          .filter((course) => !where?.status || course.status === where.status)
-          .sort((a, b) => a.nome.localeCompare(b.nome)),
-      ),
+    find: jest.fn(
+      ({
+        where,
+      }: {
+        where?:
+          | { status?: CursoStatus; id_instrutor?: string }
+          | Array<{ status?: CursoStatus; id_instrutor?: string }>;
+      } = {}) =>
+        Promise.resolve(
+          courses
+            .filter((course) => {
+              if (!where) return true;
+              const conditions = Array.isArray(where) ? where : [where];
+              return conditions.some(
+                (condition) =>
+                  (!condition.status || course.status === condition.status) &&
+                  (!condition.id_instrutor ||
+                    course.id_instrutor === condition.id_instrutor),
+              );
+            })
+            .sort((a, b) => a.nome.localeCompare(b.nome)),
+        ),
     ),
     findOneBy: jest.fn(({ id, status }: { id: string; status?: CursoStatus }) =>
       Promise.resolve(
@@ -148,6 +165,17 @@ describe('Cursos authorization (e2e)', () => {
       providers: [
         CursosService,
         AulasService,
+        {
+          provide: YoutubeVideoValidationService,
+          useValue: {
+            validateVideo: jest.fn().mockResolvedValue(true),
+            checkCourse: jest.fn().mockResolvedValue({
+              available: true,
+              pendingValidation: false,
+              unavailableLessons: [],
+            }),
+          },
+        },
         RolesGuard,
         { provide: DataSource, useValue: dataSource },
         { provide: getRepositoryToken(Curso), useValue: repository },
@@ -285,6 +313,19 @@ describe('Cursos authorization (e2e)', () => {
 
   it('bloqueia outro professor e permite que o administrador gerencie cursos', async () => {
     await createOwnedCourse();
+    await request(app.getHttpServer())
+      .get(`/cursos/${courseId}`)
+      .set(authorization(otherProfessorId, UserRole.PROFESSOR))
+      .expect(404);
+    await request(app.getHttpServer())
+      .get('/cursos')
+      .set(authorization(otherProfessorId, UserRole.PROFESSOR))
+      .expect(200)
+      .expect(({ body }) => expect(body).toEqual([]));
+    await request(app.getHttpServer())
+      .get(`/cursos/${courseId}/aulas`)
+      .set(authorization(otherProfessorId, UserRole.PROFESSOR))
+      .expect(403);
     await request(app.getHttpServer())
       .patch(`/cursos/${courseId}`)
       .set(authorization(otherProfessorId, UserRole.PROFESSOR))

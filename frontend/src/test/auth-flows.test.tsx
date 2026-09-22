@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import LoginPage from "../pages/LoginPage";
@@ -12,6 +12,8 @@ import { ProtectedRoute } from "../components/ProtectedRoute";
 import { api, apiFetch } from "../services/api";
 import { loginUser, saveAuthenticatedUser } from "../services/userService";
 import courseService from "../services/courseService";
+import journeyService from "../services/journeyService";
+import trailService from "../services/trailService";
 import type { User, UserRole } from "../data/userMock";
 import type { InternalAxiosRequestConfig } from "axios";
 import App from "../App";
@@ -42,6 +44,8 @@ function LocationMarker() {
 }
 
 beforeEach(() => {
+  vi.spyOn(journeyService, "listEnrollments").mockResolvedValue([]);
+  vi.spyOn(trailService, "listFollowing").mockResolvedValue([]);
   // Node's experimental global storage can shadow jsdom's implementation.
   const entries = new Map<string, string>();
   const storage: Storage = {
@@ -71,10 +75,11 @@ afterEach(() => {
 
 function respond(body: unknown) {
   vi.mocked(fetch).mockImplementation(
-    async () => new Response(JSON.stringify(body), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    }),
+    async () =>
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
   );
 }
 
@@ -203,7 +208,9 @@ describe("Login and route permissions", () => {
           <MemoryRouter initialEntries={["/protected"]}>
             <Routes>
               <Route
-                element={<ProtectedRoute allowedRoles={["professor", "admin"]} />}
+                element={
+                  <ProtectedRoute allowedRoles={["professor", "admin"]} />
+                }
               >
                 <Route path="/protected" element={<p>Protected content</p>} />
               </Route>
@@ -312,15 +319,12 @@ describe("Persistent profile and administrative users", () => {
   it("persists profile edits through the authenticated API", async () => {
     saveAuthenticatedUser(completeAccount);
     localStorage.setItem("token", "jwt-test-token");
-    respondSequence(
-      completeAccount,
-      {
-        ...completeAccount,
-        name: "Updated User",
-        email: "updated@example.com",
-        mustChangeEmail: false,
-      },
-    );
+    respondSequence(completeAccount, {
+      ...completeAccount,
+      name: "Updated User",
+      email: "updated@example.com",
+      mustChangeEmail: false,
+    });
     render(
       <AuthProvider>
         <MemoryRouter initialEntries={["/perfil"]}>
@@ -340,14 +344,13 @@ describe("Persistent profile and administrative users", () => {
       </AuthProvider>,
     );
     const user = userEvent.setup();
-    await user.click(
-      await screen.findByRole("button", { name: "Editar perfil" }),
-    );
-    await user.clear(screen.getByLabelText("Nome"));
-    await user.type(screen.getByLabelText("Nome"), "Updated");
-    await user.clear(screen.getByLabelText("E-mail"));
-    await user.type(screen.getByLabelText("E-mail"), "updated@example.com");
-    await user.click(screen.getByRole("button", { name: "Salvar edições" }));
+    fireEvent.change(await screen.findByLabelText("Nome"), {
+      target: { value: "Updated" },
+    });
+    fireEvent.change(screen.getByLabelText("E-mail"), {
+      target: { value: "updated@example.com" },
+    });
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
 
     expect(
       await screen.findByText("Perfil atualizado com sucesso."),
@@ -403,7 +406,7 @@ describe("Persistent profile and administrative users", () => {
     );
     const user = userEvent.setup();
     await user.click(
-      await screen.findByRole("button", { name: "Alterar senha" }),
+      await screen.findByRole("button", { name: "Segurança da conta" }),
     );
     await user.type(screen.getByLabelText("Senha atual"), "Password1!");
     await user.type(screen.getByLabelText("Nova senha"), "NewPassword2!");
@@ -457,16 +460,16 @@ describe("Persistent profile and administrative users", () => {
       </AuthProvider>,
     );
     const user = userEvent.setup();
-    expect(screen.queryByLabelText("Nome completo")).toBeNull();
-    await user.click(
-      await screen.findByRole("button", { name: /Cadastrar equipe/ }),
-    );
+    expect(await screen.findByLabelText("Nome completo")).toBeTruthy();
     await user.type(
       await screen.findByLabelText("Nome completo"),
       "Professor Novo",
     );
-    await user.type(screen.getByLabelText("E-mail"), "professor@example.com");
-    await user.type(screen.getByLabelText("CPF"), "123.456.789-01");
+    await user.type(
+      screen.getAllByLabelText("E-mail")[1],
+      "professor@example.com",
+    );
+    await user.type(screen.getAllByLabelText("CPF")[1], "123.456.789-01");
     await user.type(screen.getByLabelText(/^Senha temporária/), "Temporary3!");
     await user.click(screen.getByRole("button", { name: "Cadastrar usuário" }));
 
@@ -608,5 +611,4 @@ describe("Registration and recovery navigation", () => {
       password: "NewPassword2!",
     });
   });
-
 });

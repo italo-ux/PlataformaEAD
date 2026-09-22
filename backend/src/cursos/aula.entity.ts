@@ -4,8 +4,18 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  OneToOne,
 } from 'typeorm';
 import { Curso } from './curso.entity';
+import { Questionario } from './questionario.entity';
+
+export enum AulaTipo {
+  VIDEO = 'video',
+  PDF = 'pdf',
+  LINK = 'link',
+  IMAGEM = 'imagem',
+  QUESTIONARIO = 'questionario',
+}
 
 @Entity('aulas')
 export class Aula {
@@ -28,8 +38,16 @@ export class Aula {
   @Column({ type: 'text', nullable: true })
   descricao!: string | null;
 
-  @Column({ type: 'varchar', length: 500 })
-  url_video!: string;
+  @Column({
+    type: 'enum',
+    enum: AulaTipo,
+    enumName: 'aula_tipo',
+    default: AulaTipo.VIDEO,
+  })
+  tipo!: AulaTipo;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  url_video!: string | null;
 
   @Column({ type: 'integer', nullable: true })
   duracao_minutos!: number | null;
@@ -48,4 +66,7 @@ export class Aula {
 
   @Column({ type: 'integer' })
   ordem!: number;
+
+  @OneToOne(() => Questionario, (questionario) => questionario.aula)
+  questionario!: Questionario | null;
 }

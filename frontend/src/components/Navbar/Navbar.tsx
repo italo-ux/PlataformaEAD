@@ -1,30 +1,40 @@
-import { useEffect, useRef, useState } from "react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { useEffect, useState } from "react";
 import {
-  faBars,
-  faChevronDown,
-  faRightFromBracket,
-  faUserPen,
-  faXmark,
-} from "@fortawesome/free-solid-svg-icons";
-import { Link, useNavigate } from "react-router-dom";
+  Award,
+  FilePenLine,
+  BarChart3,
+  BookOpen,
+  ChevronDown,
+  ChevronRight,
+  Home,
+  LogOut,
+  Menu,
+  MessageSquareText,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PlusCircle,
+  UserRound,
+  UsersRound,
+  X,
+} from "lucide-react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import logo from "../../assets/navbar/logo.png";
-import {
-  canAccessPerformance,
-  canCreateCourses,
-  type User,
-} from "../../data/userMock";
+import sidebarLogo from "../../assets/navbar/logo-sidebar.png";
+import type { User } from "../../data/userMock";
 import { clearAuthenticatedUser } from "../../services/userService";
-import Navlinks from "./NavLinks";
 
-const transparentActionClass =
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md border border-blue-300 bg-transparent px-4 py-2 text-sm font-medium text-blue-600 transition hover:border-blue-500 hover:bg-blue-50 xl:px-6 xl:text-base";
+import courseService from "../../services/courseService";
+import certificateService from "../../services/certificateService";
+import journeyService, {
+  type EnrollmentSummary,
+} from "../../services/journeyService";
 
-const mobileLinkClass =
-  "flex min-h-11 w-full items-center justify-between rounded-md px-3 py-3 text-sm font-medium text-slate-700 transition hover:bg-blue-50 hover:text-blue-700";
-
-const mobileActionClass =
-  "inline-flex min-h-11 w-full items-center justify-center rounded-md border border-blue-300 px-4 py-3 text-sm font-medium text-blue-600 transition hover:bg-blue-50";
+const mainItems = [
+  { to: "/home", label: "HOME", icon: Home },
+  { to: "/courses", label: "CURSOS", icon: BookOpen },
+  { to: "/feedback", label: "FEEDBACKS", icon: MessageSquareText },
+  { to: "/quem-somos", label: "QUEM SOMOS", icon: UsersRound },
+];
 
 function getInitials(name: string) {
   return name
@@ -37,349 +47,597 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
-function Navbar({
-  hideLoginLink = false,
-  user,
-}: {
-  hideLoginLink?: boolean;
-  user: null | User;
-}) {
+function AuthenticatedNavigation({ user }: { user: User }) {
   const navigate = useNavigate();
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const userMenuRef = useRef<HTMLDivElement>(null);
-  const isLoggedIn = Boolean(user);
-  const showPerformanceLink = canAccessPerformance(user);
-  const showCreateCourseLink =
-    canCreateCourses(user) && user?.role === "professor";
-  const showAdminStatsLink = user?.role === "admin";
+  const location = useLocation();
+  const [nextCourse, setNextCourse] = useState<EnrollmentSummary | null>(null);
+  const [certificateCount, setCertificateCount] = useState<number | null>(null);
+  const [courseCount, setCourseCount] = useState<number | null>(null);
+  const [draftCount, setDraftCount] = useState<number | null>(null);
+  const [summaryUnavailable, setSummaryUnavailable] = useState(false);
 
   useEffect(() => {
-    if (!isUserMenuOpen) {
-      return;
-    }
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        userMenuRef.current &&
-        !userMenuRef.current.contains(event.target as Node)
-      ) {
-        setIsUserMenuOpen(false);
+    let cancelled = false;
+    const refreshSummary = async () => {
+      if (user.role === "aluno") {
+        const results = await Promise.allSettled([
+          journeyService.listEnrollments(),
+          certificateService.list(),
+        ]);
+        if (cancelled) return;
+        const [enrollments, certificates] = results;
+        setSummaryUnavailable(enrollments.status === "rejected");
+        if (enrollments.status === "fulfilled") {
+          const active = enrollments.value
+            .filter((item) => !item.conclusao)
+            .sort(
+              (a, b) =>
+                Date.parse(b.data_matricula) - Date.parse(a.data_matricula),
+            );
+          setNextCourse(active[0] ?? null);
+        }
+        if (certificates.status === "fulfilled")
+          setCertificateCount(certificates.value.length);
+      } else if (user.role === "professor") {
+        try {
+          const courses = await courseService.listCourses();
+          if (cancelled) return;
+          const owned = courses.filter(
+            (course) => String(course.id_instrutor) === String(user.id),
+          );
+          setCourseCount(owned.length);
+          setDraftCount(
+            owned.filter((course) => course.status === "rascunho").length,
+          );
+          setSummaryUnavailable(false);
+        } catch {
+          if (!cancelled) setSummaryUnavailable(true);
+        }
       }
     };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsUserMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleEscape);
-
+    void refreshSummary();
+    window.addEventListener("ead.sidebar.refresh", refreshSummary);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleEscape);
+      cancelled = true;
+      window.removeEventListener("ead.sidebar.refresh", refreshSummary);
     };
-  }, [isUserMenuOpen]);
+  }, [user.id, user.role, location.pathname, location.search]);
+  const [collapsed, setCollapsed] = useState(
+    () => localStorage.getItem("ead.sidebar.collapsed") === "true",
+  );
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [adminCoursesOpen, setAdminCoursesOpen] = useState(true);
 
-  const closeMobileMenu = () => {
-    setIsMobileMenuOpen(false);
-  };
+  useEffect(() => {
+    document.body.classList.add("authenticated-layout");
+    return () => {
+      document.body.classList.remove("authenticated-layout");
+      document.documentElement.style.removeProperty("--auth-sidebar-width");
+    };
+  }, []);
 
-  const closeUserMenu = () => {
-    setIsUserMenuOpen(false);
-  };
+  useEffect(() => {
+    const width = collapsed ? "76px" : "248px";
+    document.documentElement.style.setProperty("--auth-sidebar-width", width);
+    localStorage.setItem("ead.sidebar.collapsed", String(collapsed));
+  }, [collapsed]);
 
-  const handleToggleUserMenu = () => {
-    setIsMobileMenuOpen(false);
-    setIsUserMenuOpen((current) => !current);
-  };
-
-  const handleToggleMobileMenu = () => {
-    setIsUserMenuOpen(false);
-    setIsMobileMenuOpen((current) => !current);
-  };
-
+  const closeMobile = () => setMobileOpen(false);
   const handleLogout = () => {
     clearAuthenticatedUser();
-    closeUserMenu();
-    closeMobileMenu();
     navigate("/login");
   };
 
+  const roleLabel =
+    user.role === "aluno"
+      ? "Aluno"
+      : user.role === "professor"
+        ? "Professor"
+        : "Administrador";
+
+  const itemClass = ({ isActive }: { isActive: boolean }) =>
+    `group flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition ${
+      collapsed ? "lg:justify-center" : ""
+    } ${
+      isActive
+        ? "bg-[#4d87dc] text-white shadow-lg shadow-blue-950/20"
+        : "text-slate-300 hover:bg-white/10 hover:text-white"
+    }`;
+
+  const labelClass = collapsed ? "lg:sr-only" : "";
+
   return (
-    <nav className="navbar sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-2 px-3 py-2 sm:gap-4 sm:px-6 sm:py-3 lg:px-8">
-        <Link
-          to={isLoggedIn ? "/home" : "#"}
-          className="logo flex-shrink-0"
-          aria-label={isLoggedIn ? "Ir para home" : "Logo Inovação Barueri"}
-          onClick={(event) => {
-            if (!isLoggedIn) {
-              event.preventDefault();
-            }
-
-            closeMobileMenu();
-          }}
-        >
-          <img
-            className="h-auto w-32 sm:w-44 xl:w-55"
-            src={logo}
-            alt="Logo"
-          />
-        </Link>
-
-        <ul className="nav-links hidden font-bold items-center gap-5 lg:flex xl:gap-8">
-          <li>
-            <Navlinks to="/home">HOME</Navlinks>
-          </li>
-          <li>
-            <Navlinks to="/courses">CURSOS</Navlinks>
-          </li>
-          <li>
-            <Navlinks to="/feedback">FEEDBACKS</Navlinks>
-          </li>
-          <li>
-            <Navlinks to="/quem-somos">QUEM SOMOS</Navlinks>
-          </li>
-        </ul>
-
-        <div className="hidden items-center gap-3 lg:flex">
-          {isLoggedIn ? (
-            <div className="flex items-center gap-3">
-              {showPerformanceLink && (
-                <Link to="/dashboard" className={transparentActionClass}>
-                  Meu Desempenho
-                </Link>
-              )}
-              {showCreateCourseLink && (
-                <Link
-                  to="/professor/cursos/novo"
-                  className={transparentActionClass}
-                >
-                  Adicionar curso
-                </Link>
-              )}
-              {showAdminStatsLink && (
-                <Link
-                  to="/admin/estatisticas"
-                  className={transparentActionClass}
-                >
-                  Estatísticas
-                </Link>
-              )}
-              <div className="relative" ref={userMenuRef}>
-                <button
-                  type="button"
-                  onClick={handleToggleUserMenu}
-                  className="flex items-center gap-2 rounded-full border border-blue-100 bg-white p-1 pr-3 text-blue-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  aria-expanded={isUserMenuOpen}
-                  aria-haspopup="menu"
-                  aria-label="Abrir menu do usuário"
-                >
-                  <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-blue-600 font-semibold text-white">
-                    <span>{user ? getInitials(user.name) : "US"}</span>
-                  </span>
-                  <FontAwesomeIcon
-                    icon={faChevronDown}
-                    className={`h-3 w-3 transition-transform duration-300 ${
-                      isUserMenuOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
-
-                {isUserMenuOpen && user && (
-                  <div
-                    className="absolute right-0 top-full z-50 mt-3 w-64 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl"
-                    role="menu"
-                  >
-                    <div className="border-b border-gray-100 px-4 py-3">
-                      <p className="truncate text-sm font-medium text-[#263452]">
-                        {user.name}
-                      </p>
-                      <p className="truncate text-xs text-slate-500">
-                        {user.email}
-                      </p>
-                    </div>
-                    <div className="py-2">
-                      <Link
-                        to="/perfil"
-                        onClick={closeUserMenu}
-                        className="flex items-center gap-3 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-blue-50 hover:text-blue-700"
-                        role="menuitem"
-                      >
-                        <FontAwesomeIcon icon={faUserPen} className="h-4 w-4" />
-                        Meu perfil
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-red-50 hover:text-red-600"
-                        role="menuitem"
-                      >
-                        <FontAwesomeIcon
-                          icon={faRightFromBracket}
-                          className="h-4 w-4"
-                        />
-                        Sair
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              {!hideLoginLink && (
-                <Link to="/login" className={transparentActionClass}>
-                  Login
-                </Link>
-              )}
-              <Link to="/register" className={transparentActionClass}>
-                Cadastre-se
-              </Link>
-            </div>
-          )}
-        </div>
-
+    <div className="h-[72px]">
+      {mobileOpen && (
         <button
           type="button"
-          onClick={handleToggleMobileMenu}
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md border border-blue-200 bg-white text-blue-600 shadow-sm transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:h-11 sm:w-11 lg:hidden"
-          aria-expanded={isMobileMenuOpen}
-          aria-controls="mobile-navbar-menu"
-          aria-label={isMobileMenuOpen ? "Fechar menu" : "Abrir menu"}
-        >
-          <FontAwesomeIcon
-            icon={isMobileMenuOpen ? faXmark : faBars}
-            className="h-5 w-5"
-          />
-        </button>
-      </div>
+          className="fixed inset-0 z-40 bg-slate-950/55 backdrop-blur-sm lg:hidden"
+          onClick={closeMobile}
+          aria-label="Fechar menu lateral"
+        />
+      )}
 
-      {isMobileMenuOpen && (
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex w-[264px] flex-col overflow-hidden bg-[#172033] text-white shadow-2xl transition-[width,transform] duration-300 lg:translate-x-0 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        } ${collapsed ? "lg:w-[76px]" : "lg:w-[248px]"}`}
+        aria-label="Navegação principal"
+      >
         <div
-          id="mobile-navbar-menu"
-          className="max-h-[calc(100vh-57px)] overflow-y-auto border-t border-blue-100 bg-white px-3 pb-5 pt-3 shadow-lg sm:px-6 lg:hidden"
+          className={`flex h-[72px] shrink-0 items-center border-b border-white/10 px-3 ${collapsed ? "lg:justify-center" : "justify-between"}`}
         >
-          <div className="mx-auto flex max-w-7xl flex-col gap-1.5">
-            {user && (
-              <div className="mb-2 flex min-w-0 items-center gap-3 rounded-lg bg-blue-50 p-3">
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-sm font-medium text-white">
-                  <span>{getInitials(user.name)}</span>
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-[#263452]">
-                    {user.name}
-                  </p>
-                  <p className="truncate text-xs text-slate-500">
-                    {user.email}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <Link
-              to="/home"
-              onClick={closeMobileMenu}
-              className={mobileLinkClass}
+          <Link
+            to="/home"
+            onClick={closeMobile}
+            className={
+              "flex min-w-0 items-center rounded-xl px-1 py-2 " +
+              (collapsed ? "lg:hidden" : "")
+            }
+            aria-label="Ir para home"
+          >
+            <img
+              src={sidebarLogo}
+              alt="Inovação Barueri"
+              className="h-11 w-[176px] object-contain"
+            />
+          </Link>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setCollapsed((current) => !current)}
+              className="hidden h-10 w-10 items-center justify-center rounded-xl text-slate-300 transition hover:bg-white/10 hover:text-white lg:flex"
+              aria-label={
+                collapsed ? "Expandir menu lateral" : "Recolher menu lateral"
+              }
+              aria-expanded={!collapsed}
+              title={
+                collapsed ? "Expandir menu lateral" : "Recolher menu lateral"
+              }
             >
-              HOME
-            </Link>
-            <Link
-              to="/courses"
-              onClick={closeMobileMenu}
-              className={mobileLinkClass}
-            >
-              CURSOS
-            </Link>
-            <Link
-              to="/feedback"
-              onClick={closeMobileMenu}
-              className={mobileLinkClass}
-            >
-              FEEDBACKS
-            </Link>
-            <Link
-              to="/quem-somos"
-              onClick={closeMobileMenu}
-              className={mobileLinkClass}
-            >
-              QUEM SOMOS
-            </Link>
-
-            <div className="mt-3 grid gap-2 border-t border-slate-100 pt-4 sm:grid-cols-2">
-              {isLoggedIn ? (
-                <>
-                  {showPerformanceLink && (
-                    <Link
-                      to="/dashboard"
-                      onClick={closeMobileMenu}
-                      className={mobileActionClass}
-                    >
-                      Meu Desempenho
-                    </Link>
-                  )}
-                  {showCreateCourseLink && (
-                    <Link
-                      to="/professor/cursos/novo"
-                      onClick={closeMobileMenu}
-                      className={mobileActionClass}
-                    >
-                      Adicionar curso
-                    </Link>
-                  )}
-                  {showAdminStatsLink && (
-                    <Link
-                      to="/admin/estatisticas"
-                      onClick={closeMobileMenu}
-                      className={mobileActionClass}
-                    >
-                      Estatísticas
-                    </Link>
-                  )}
-                  <Link
-                    to="/perfil"
-                    onClick={closeMobileMenu}
-                    className={mobileActionClass}
-                  >
-                    <FontAwesomeIcon icon={faUserPen} className="mr-2 h-4 w-4" />
-                    Meu perfil
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="inline-flex w-full items-center justify-center rounded-md border border-red-200 px-4 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50"
-                  >
-                    <FontAwesomeIcon
-                      icon={faRightFromBracket}
-                      className="mr-2 h-4 w-4"
-                    />
-                    Sair
-                  </button>
-                </>
+              {collapsed ? (
+                <PanelLeftOpen size={20} />
               ) : (
+                <PanelLeftClose size={20} />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={closeMobile}
+              className="rounded-lg p-2 text-slate-300 hover:bg-white/10 hover:text-white lg:hidden"
+              aria-label="Fechar menu"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        <div className="sidebar-scroll min-h-0 flex-1 overflow-y-auto">
+          <div className={`px-3 pt-5 ${collapsed ? "lg:px-3" : ""}`}>
+            <p
+              className={`px-3 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 ${labelClass}`}
+            >
+              Navegação
+            </p>
+            <nav className="nav-links mt-3 space-y-1.5">
+              {mainItems.map((item) => {
+                const Icon = item.icon;
+                const isAdminCourses =
+                  item.to === "/courses" && user.role === "admin";
+
+                return (
+                  <div key={item.to}>
+                    <div className="relative">
+                      <NavLink
+                        to={item.to}
+                        end={item.to === "/home"}
+                        onClick={closeMobile}
+                        className={({ isActive }) =>
+                          `${itemClass({ isActive })} ${isAdminCourses ? "pr-11" : ""}`
+                        }
+                        title={collapsed ? item.label : undefined}
+                      >
+                        <Icon size={20} className="shrink-0" />
+                        <span className={labelClass}>{item.label}</span>
+                      </NavLink>
+                      {isAdminCourses && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setAdminCoursesOpen((current) => !current)
+                          }
+                          className={`absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-300 transition hover:bg-white/10 hover:text-white ${collapsed ? "lg:hidden" : ""}`}
+                          aria-label={
+                            adminCoursesOpen
+                              ? "Fechar submenu de cursos"
+                              : "Abrir submenu de cursos"
+                          }
+                          aria-expanded={adminCoursesOpen}
+                          aria-controls="admin-courses-submenu"
+                        >
+                          <ChevronDown
+                            size={17}
+                            className={`transition-transform duration-200 ${adminCoursesOpen ? "rotate-180" : ""}`}
+                          />
+                        </button>
+                      )}
+                    </div>
+                    {isAdminCourses && adminCoursesOpen && (
+                      <div
+                        id="admin-courses-submenu"
+                        className={collapsed ? "lg:hidden" : ""}
+                      >
+                        <NavLink
+                          to="/professor/cursos/novo"
+                          onClick={closeMobile}
+                          className={({ isActive }) =>
+                            `group mt-1 flex min-h-10 items-center gap-2 rounded-r-xl border-l-2 px-3 text-xs font-semibold transition ${
+                              collapsed
+                                ? "lg:justify-center lg:border-l-0"
+                                : "ml-6 pl-4"
+                            } ${
+                              isActive
+                                ? "border-blue-300 bg-blue-500/20 text-blue-100"
+                                : "border-slate-600 text-slate-400 hover:border-blue-300 hover:bg-white/10 hover:text-white"
+                            }`
+                          }
+                          title={collapsed ? "Adicionar curso" : undefined}
+                        >
+                          <PlusCircle size={16} className="shrink-0" />
+                          <span className={labelClass}>Adicionar curso</span>
+                        </NavLink>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </nav>
+          </div>
+
+          <div className="mt-6 px-3">
+            <p
+              className={`px-3 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 ${labelClass}`}
+            >
+              Minha área
+            </p>
+            <div className="mt-3 space-y-1.5">
+              {user.role === "aluno" && (
                 <>
-                  {!hideLoginLink && (
-                    <Link
-                      to="/login"
-                      onClick={closeMobileMenu}
-                      className={mobileActionClass}
-                    >
-                      Login
-                    </Link>
-                  )}
                   <Link
-                    to="/register"
-                    onClick={closeMobileMenu}
-                    className={mobileActionClass}
+                    to="/dashboard?aba=certificados"
+                    onClick={closeMobile}
+                    className={itemClass({
+                      isActive:
+                        location.pathname === "/dashboard" &&
+                        new URLSearchParams(location.search).get("aba") ===
+                          "certificados",
+                    })}
+                    title="Certificados"
+                    aria-label="Certificados"
                   >
-                    Cadastre-se
+                    <Award size={20} className="shrink-0" />
+                    <span className={labelClass}>Certificados</span>
+                    {certificateCount !== null && (
+                      <span
+                        aria-hidden="true"
+                        className={`ml-auto rounded-lg bg-white/10 px-2 py-0.5 text-xs ${collapsed ? "lg:hidden" : ""}`}
+                      >
+                        {certificateCount}
+                      </span>
+                    )}
                   </Link>
                 </>
               )}
+              {user.role === "professor" && (
+                <div
+                  className={`space-y-1 rounded-2xl border border-white/10 bg-white/5 p-1 ${collapsed ? "lg:border-transparent lg:bg-transparent lg:p-0" : ""}`}
+                  aria-label="Gestão dos meus cursos"
+                >
+                  <Link
+                    to="/courses?filtro=meus"
+                    onClick={closeMobile}
+                    className={itemClass({
+                      isActive:
+                        location.pathname === "/courses" &&
+                        new URLSearchParams(location.search).get("filtro") ===
+                          "meus",
+                    })}
+                    title="Meus cursos"
+                    aria-label="Meus cursos"
+                  >
+                    <BookOpen size={20} className="shrink-0" />
+                    <span className={labelClass}>Meus cursos</span>
+                    {courseCount !== null && (
+                      <span
+                        aria-hidden="true"
+                        className={`ml-auto rounded-lg bg-white/10 px-2 py-0.5 text-xs ${collapsed ? "lg:hidden" : ""}`}
+                      >
+                        {courseCount}
+                      </span>
+                    )}
+                  </Link>
+                  <Link
+                    to="/courses?filtro=rascunhos"
+                    onClick={closeMobile}
+                    className={itemClass({
+                      isActive:
+                        location.pathname === "/courses" &&
+                        new URLSearchParams(location.search).get("filtro") ===
+                          "rascunhos",
+                    })}
+                    title="Rascunhos"
+                    aria-label="Rascunhos"
+                  >
+                    <FilePenLine size={20} className="shrink-0" />
+                    <span className={labelClass}>Rascunhos</span>
+                    {draftCount !== null && (
+                      <span
+                        aria-hidden="true"
+                        className={`ml-auto rounded-lg bg-white/10 px-2 py-0.5 text-xs ${collapsed ? "lg:hidden" : ""}`}
+                      >
+                        {draftCount}
+                      </span>
+                    )}
+                  </Link>
+                </div>
+              )}
+              {user.role === "aluno" && (
+                <NavLink
+                  to="/dashboard"
+                  onClick={closeMobile}
+                  className={() =>
+                    itemClass({
+                      isActive:
+                        location.pathname === "/dashboard" &&
+                        new URLSearchParams(location.search).get("aba") !==
+                          "certificados",
+                    })
+                  }
+                  title={collapsed ? "Meu Desempenho" : undefined}
+                >
+                  <BarChart3 size={20} className="shrink-0" />
+                  <span className={labelClass}>Meu Desempenho</span>
+                </NavLink>
+              )}
+              {user.role === "professor" && (
+                <NavLink
+                  to="/professor/cursos/novo"
+                  onClick={closeMobile}
+                  className={itemClass}
+                  title={collapsed ? "Adicionar curso" : undefined}
+                >
+                  <PlusCircle size={20} className="shrink-0" />
+                  <span className={labelClass}>Adicionar curso</span>
+                </NavLink>
+              )}
+              {user.role === "admin" && (
+                <NavLink
+                  to="/admin/estatisticas"
+                  onClick={closeMobile}
+                  className={itemClass}
+                  title={collapsed ? "Estatísticas" : undefined}
+                >
+                  <BarChart3 size={20} className="shrink-0" />
+                  <span className={labelClass}>Estatísticas</span>
+                </NavLink>
+              )}
             </div>
+          </div>
+
+          <div
+            className={`mx-3 mb-5 rounded-2xl border border-white/10 bg-white/5 p-4 ${collapsed ? "lg:hidden" : ""}`}
+          >
+            {user.role === "aluno" ? (
+              <>
+                <p className="text-xs font-semibold text-blue-300">
+                  Sua próxima aula
+                </p>
+                <p className="mt-2 line-clamp-2 text-sm font-bold">
+                  {summaryUnavailable
+                    ? "Explore sua jornada"
+                    : (nextCourse?.curso.nome ?? "Comece uma nova jornada")}
+                </p>
+                {nextCourse && (
+                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full bg-blue-400"
+                      style={{ width: `${nextCourse.progresso}%` }}
+                    />
+                  </div>
+                )}
+                <Link
+                  to={
+                    nextCourse ? `/courses/${nextCourse.curso.id}` : "/courses"
+                  }
+                  onClick={closeMobile}
+                  className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-blue-300 hover:text-white"
+                >
+                  {nextCourse ? "Continuar curso" : "Explorar cursos"}
+                  <ChevronRight size={14} />
+                </Link>
+              </>
+            ) : user.role === "professor" ? (
+              <>
+                <p className="text-xs font-semibold text-blue-300">
+                  Sua sala de criação
+                </p>
+                <p className="mt-2 text-sm font-bold">
+                  {summaryUnavailable || courseCount === null
+                    ? "Organize seus próximos cursos"
+                    : `${courseCount} cursos · ${draftCount ?? 0} rascunhos`}
+                </p>
+                <Link
+                  to="/professor/cursos/novo"
+                  onClick={closeMobile}
+                  className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-blue-300 hover:text-white"
+                >
+                  Criar curso
+                  <PlusCircle size={14} />
+                </Link>
+              </>
+            ) : (
+              <p className="text-xs text-slate-400">
+                Gerencie sua plataforma pelo perfil.
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="shrink-0 border-t border-white/10 p-3">
+          <div
+            className={`mb-2 flex items-center gap-3 rounded-xl px-3 py-2 ${collapsed ? "lg:hidden" : ""}`}
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-500/20 text-xs font-bold text-blue-200">
+              {getInitials(user.name)}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold">{user.name}</p>
+              <p className="text-xs text-slate-400">{roleLabel}</p>
+            </div>
+          </div>
+          <NavLink
+            to="/perfil"
+            onClick={closeMobile}
+            className={itemClass}
+            title={collapsed ? "Meu perfil" : undefined}
+          >
+            <UserRound size={20} className="shrink-0" />
+            <span className={labelClass}>Meu perfil</span>
+          </NavLink>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className={`mt-1.5 flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-300 transition hover:bg-red-500/15 hover:text-red-200 ${collapsed ? "lg:justify-center" : ""}`}
+            title={collapsed ? "Sair" : undefined}
+          >
+            <LogOut size={20} className="shrink-0" />
+            <span className={labelClass}>Sair</span>
+          </button>
+        </div>
+      </aside>
+
+      <header className="authenticated-topbar fixed right-0 top-0 z-30 h-[72px] border-b border-slate-200/80 bg-white/90 backdrop-blur-xl transition-[left] duration-300">
+        <div className="flex h-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMobileOpen(true)}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 lg:hidden"
+              aria-label="Abrir menu lateral"
+            >
+              <Menu size={21} />
+            </button>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600">
+                Ambiente de aprendizagem
+              </p>
+              <p className="hidden text-sm text-slate-500 sm:block">
+                Continue de onde parou
+              </p>
+            </div>
+          </div>
+
+          <Link
+            to="/perfil"
+            className="flex min-w-0 items-center gap-3 rounded-2xl px-2 py-1.5 transition hover:bg-slate-100"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-sm font-bold text-white shadow-md shadow-blue-200">
+              {getInitials(user.name)}
+            </span>
+            <span className="hidden min-w-0 sm:block">
+              <span className="block max-w-44 truncate text-sm font-bold text-[#25304a]">
+                {user.name}
+              </span>
+              <span className="block text-xs text-slate-500">{roleLabel}</span>
+            </span>
+            <ChevronRight
+              size={17}
+              className="hidden text-slate-400 sm:block"
+            />
+          </Link>
+        </div>
+      </header>
+    </div>
+  );
+}
+
+function PublicNavigation({ hideLoginLink }: { hideLoginLink: boolean }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  return (
+    <nav className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur">
+      <div className="mx-auto flex min-h-[72px] w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-4">
+          <img
+            className="h-auto w-36 sm:w-44"
+            src={logo}
+            alt="Inovação Barueri"
+          />
+        </div>
+        <div className="nav-links hidden items-center gap-7 lg:flex">
+          {mainItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className="text-sm font-semibold text-slate-600 transition hover:text-blue-600"
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </div>
+        <div className="hidden items-center gap-3 lg:flex">
+          {!hideLoginLink && (
+            <Link
+              to="/login"
+              className="rounded-lg border border-blue-200 px-5 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+            >
+              Login
+            </Link>
+          )}
+          <Link
+            to="/register"
+            className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            Cadastre-se
+          </Link>
+        </div>
+        <button
+          type="button"
+          onClick={() => setMobileOpen((open) => !open)}
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 lg:hidden"
+          aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
+        >
+          {mobileOpen ? <X size={21} /> : <Menu size={21} />}
+        </button>
+      </div>
+      {mobileOpen && (
+        <div className="border-t border-slate-100 bg-white px-4 py-4 shadow-lg lg:hidden">
+          <div className="space-y-1">
+            {mainItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={() => setMobileOpen(false)}
+                className="flex rounded-lg px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </div>
+          <div className="mt-3 grid gap-2 border-t border-slate-100 pt-3 sm:grid-cols-2">
+            {!hideLoginLink && (
+              <Link
+                to="/login"
+                className="rounded-lg border border-blue-200 px-4 py-3 text-center text-sm font-semibold text-blue-700"
+              >
+                Login
+              </Link>
+            )}
+            <Link
+              to="/register"
+              className="rounded-lg bg-blue-600 px-4 py-3 text-center text-sm font-semibold text-white"
+            >
+              Cadastre-se
+            </Link>
           </div>
         </div>
       )}
@@ -387,4 +645,16 @@ function Navbar({
   );
 }
 
-export default Navbar;
+export default function Navbar({
+  hideLoginLink = false,
+  user,
+}: {
+  hideLoginLink?: boolean;
+  user: User | null;
+}) {
+  return user ? (
+    <AuthenticatedNavigation user={user} />
+  ) : (
+    <PublicNavigation hideLoginLink={hideLoginLink} />
+  );
+}

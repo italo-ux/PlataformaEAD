@@ -31,6 +31,40 @@ export class TrilhasController {
     return this.trilhasService.findAll(request.user);
   }
 
+  @Get('seguidas')
+  @Roles(UserRole.ALUNO)
+  listFollowing(@Req() request: Request & { user: AuthenticatedUser }) {
+    return this.trilhasService.listFollowing(request.user);
+  }
+
+  @Get(':id/seguimento')
+  @Roles(UserRole.ALUNO)
+  getFollowStatus(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() request: Request & { user: AuthenticatedUser },
+  ) {
+    return this.trilhasService.getFollowStatus(id, request.user);
+  }
+
+  @Post(':id/seguir')
+  @Roles(UserRole.ALUNO)
+  follow(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() request: Request & { user: AuthenticatedUser },
+  ) {
+    return this.trilhasService.follow(id, request.user);
+  }
+
+  @Delete(':id/seguir')
+  @Roles(UserRole.ALUNO)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async unfollow(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() request: Request & { user: AuthenticatedUser },
+  ) {
+    await this.trilhasService.unfollow(id, request.user);
+  }
+
   @Get(':id')
   findOne(
     @Param('id', new ParseUUIDPipe()) id: string,

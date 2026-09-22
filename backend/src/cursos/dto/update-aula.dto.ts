@@ -5,8 +5,12 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  IsEnum,
+  ValidateNested,
   Min,
 } from 'class-validator';
+import { AulaTipo } from '../aula.entity';
+import { QuestionarioDto } from './create-aula.dto';
 
 const youtubeHosts = [
   'youtube.com',
@@ -27,6 +31,10 @@ export class UpdateAulaDto {
   descricao?: string;
 
   @IsOptional()
+  @IsEnum(AulaTipo)
+  tipo?: AulaTipo;
+
+  @IsOptional()
   @IsUrl(
     {
       protocols: ['http', 'https'],
@@ -44,8 +52,7 @@ export class UpdateAulaDto {
   duracao_segundos?: number;
 
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  ordem?: number;
+  @ValidateNested()
+  @Type(() => QuestionarioDto)
+  questionario?: QuestionarioDto;
 }

@@ -1,23 +1,30 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import {
+  BookOpen,
   CheckCircle2,
   KeyRound,
+  Layers3,
   Lock,
   Mail,
   Phone,
   Save,
   Shield,
   UserRound,
+  UsersRound,
   X,
 } from "lucide-react";
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
 import AdminUserManagement from "../components/AdminUserManagement";
 import AdminTrailManagement from "../components/AdminTrailManagement";
-import CollapsibleSection from "../components/CollapsibleSection";
+import StudentLearningProfile from "../components/StudentLearningProfile";
 import type { User } from "../data/userMock";
 import { useAuth } from "../context/auth-context";
+import journeyService, {
+  type EnrollmentSummary,
+} from "../services/journeyService";
+import trailService, { type Trilha } from "../services/trailService";
 import {
   changeAuthenticatedUserPassword,
   updateAuthenticatedUserProfile,
@@ -174,7 +181,9 @@ function TextInput({
           }`}
         />
       </div>
-      {error && <p className="mt-1 text-xs font-medium text-red-600">{error}</p>}
+      {error && (
+        <p className="mt-1 text-xs font-medium text-red-600">{error}</p>
+      )}
     </div>
   );
 }
@@ -216,14 +225,16 @@ function PasswordInput({
           }`}
         />
       </div>
-      {error && <p className="mt-1 text-xs font-medium text-red-600">{error}</p>}
+      {error && (
+        <p className="mt-1 text-xs font-medium text-red-600">{error}</p>
+      )}
     </div>
   );
 }
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { user: sessionUser, logout } = useAuth();
+  const { user: sessionUser } = useAuth();
   const [user, setUser] = useState<User | null>(sessionUser);
   const [formValues, setFormValues] = useState<ProfileFormValues>(() =>
     mapUserToFormValues(sessionUser),
@@ -237,7 +248,6 @@ export default function ProfilePage() {
   const [statusMessage, setStatusMessage] = useState("");
   const [generalError, setGeneralError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [passwordValues, setPasswordValues] = useState<PasswordFormValues>({
     currentPassword: "",
@@ -248,6 +258,60 @@ export default function ProfilePage() {
   const [passwordStatus, setPasswordStatus] = useState("");
   const [passwordGeneralError, setPasswordGeneralError] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [studentEnrollments, setStudentEnrollments] = useState<
+    EnrollmentSummary[]
+  >([]);
+  const [followedTrails, setFollowedTrails] = useState<
+    Array<Trilha & { enrolledCourseCount: number }>
+  >([]);
+  const [learningLoading, setLearningLoading] = useState(false);
+  const [learningError, setLearningError] = useState("");
+
+  useEffect(() => {
+    if (user?.role !== "aluno") {
+      setStudentEnrollments([]);
+      setFollowedTrails([]);
+      setLearningLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLearningLoading(true);
+    setLearningError("");
+    Promise.all([
+      journeyService.listEnrollments(),
+      trailService.listFollowing(),
+    ])
+      .then(([enrollments, trails]) => {
+        if (cancelled) return;
+        const enrolledCourseIds = new Set(
+          enrollments.map((item) => item.curso.id),
+        );
+        const following = trails.map((trail) => ({
+          ...trail,
+          enrolledCourseCount: trail.cursos.filter((course) =>
+            enrolledCourseIds.has(course.id),
+          ).length,
+        }));
+        setStudentEnrollments(enrollments);
+        setFollowedTrails(following);
+      })
+      .catch((reason: unknown) => {
+        if (!cancelled) {
+          setLearningError(
+            reason instanceof Error
+              ? reason.message
+              : "Não foi possível carregar seus cursos e trilhas.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLearningLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.role]);
 
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -320,7 +384,6 @@ export default function ProfilePage() {
       setUser(updatedUser);
       setFormValues(mapUserToFormValues(updatedUser));
       setStatusMessage("Perfil atualizado com sucesso.");
-      setIsEditingProfile(false);
     } catch (error) {
       setGeneralError(
         error instanceof Error
@@ -374,20 +437,6 @@ export default function ProfilePage() {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
-
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-      return;
-    }
-
-    navigate("/home");
-  };
-
   const openPasswordModal = () => {
     setPasswordValues({
       currentPassword: "",
@@ -404,251 +453,233 @@ export default function ProfilePage() {
     setIsPasswordModalOpen(false);
   };
 
-  const openProfileEditor = () => {
-    setStatusMessage("");
-    setGeneralError("");
-    setIsEditingProfile(true);
-  };
-
-  const closeProfileEditor = () => {
-    setFormValues(mapUserToFormValues(user));
-    setErrors({});
-    setGeneralError("");
-    setIsEditingProfile(false);
-  };
-
   return (
     <div className="min-h-screen bg-[#f6f9ff] text-slate-950">
       <Navbar user={user} />
 
       <main className="bg-white">
-        <section className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
-          <div className="mb-8 border-b-2 border-slate-600 pb-3">
-            <h1 className="text-3xl font-black text-slate-950">Meu perfil</h1>
-            <p className="mt-3 text-sm text-amber-800">
-              As alterações são salvas na sua conta e valem no próximo acesso.
+        <div className="grid min-h-[calc(100vh-72px)] lg:grid-cols-[240px_minmax(0,1fr)]">
+          <aside className="border-b border-slate-200 bg-slate-50/90 p-5 lg:sticky lg:top-[72px] lg:h-[calc(100vh-72px)] lg:border-b-0 lg:border-r lg:p-6">
+            <p className="px-3 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+              Configurações
             </p>
-          </div>
-
-          <div className="mb-8 flex items-center gap-2 text-sm font-semibold text-slate-600">
-            <span>Dados pessoais</span>
-            <UserRound className="h-4 w-4" />
-          </div>
-
-          {(generalError || statusMessage) && (
-            <div
-              className={`mb-6 rounded-md px-4 py-3 text-sm font-semibold ${
-                generalError
-                  ? "bg-red-50 text-red-700"
-                  : "bg-emerald-50 text-emerald-700"
-              }`}
-            >
-              {generalError || (
-                <span className="inline-flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4" />
-                  {statusMessage}
-                </span>
+            <nav className="mt-4 grid gap-1 sm:grid-cols-3 lg:grid-cols-1">
+              <a
+                href="#editar-perfil"
+                className="flex items-center gap-3 rounded-xl bg-white px-3 py-3 text-sm font-bold text-blue-700 shadow-sm ring-1 ring-slate-200"
+              >
+                <UserRound className="h-4 w-4" /> Editar perfil
+              </a>
+              <button
+                type="button"
+                onClick={openPasswordModal}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-slate-950"
+              >
+                <KeyRound className="h-4 w-4" /> Segurança da conta
+              </button>
+              {user.role === "admin" && (
+                <>
+                  <a
+                    href="#gerenciar-trilhas"
+                    className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-slate-950"
+                  >
+                    <Layers3 className="h-4 w-4" /> Gerenciar trilhas
+                  </a>
+                  <a
+                    href="#cadastrar-equipe"
+                    className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-slate-950"
+                  >
+                    <UsersRound className="h-4 w-4" /> Cadastrar equipe
+                  </a>
+                </>
               )}
-            </div>
-          )}
+              {user.role === "aluno" && (
+                <a
+                  href="#cursos-e-trilhas"
+                  className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-slate-950"
+                >
+                  <BookOpen className="h-4 w-4" /> Cursos e trilhas
+                </a>
+              )}
+            </nav>
+            <p className="mt-6 hidden border-t border-slate-200 px-3 pt-6 text-xs leading-5 text-slate-500 lg:block">
+              Gerencie seus dados, a segurança da conta e os recursos da
+              plataforma.
+            </p>
+          </aside>
 
-          {!isEditingProfile && (
-            <div className="mx-auto max-w-3xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
-                <div className="flex h-28 w-28 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-4xl font-bold text-white shadow-lg shadow-blue-600/20">
-                  <span>{getInitials(displayName)}</span>
-                </div>
-
-                <div className="min-w-0 flex-1 text-center sm:text-left">
-                  <h2 className="text-2xl font-black text-slate-950">
-                    {displayName}
-                  </h2>
-                  <p className="mt-1 text-sm font-semibold text-blue-600">
-                    {user.role === "admin"
-                      ? "Administrador"
-                      : user.role === "professor"
-                        ? "Professor"
-                        : "Aluno"}
-                  </p>
-                  <div className="mt-5 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
-                    <p>
-                      <span className="block font-bold text-slate-900">
-                        E-mail
+          <div className="min-w-0">
+            <section
+              id="editar-perfil"
+              className="px-5 py-8 sm:px-8 lg:px-12 lg:py-10"
+            >
+              <form
+                onSubmit={handleSubmitProfile}
+                className="mx-auto max-w-3xl"
+              >
+                <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+                  Dados pessoais
+                </span>
+                <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950">
+                  Editar perfil
+                </h1>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Atualize as informações usadas na sua conta e na sua
+                  experiência de aprendizagem.
+                </p>
+                {(generalError || statusMessage) && (
+                  <div
+                    className={`mt-6 rounded-xl px-4 py-3 text-sm font-semibold ${generalError ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}
+                  >
+                    {generalError || (
+                      <span className="inline-flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4" /> {statusMessage}
                       </span>
-                      {formValues.email || "Não informado"}
+                    )}
+                  </div>
+                )}
+                <div className="my-8 flex items-center gap-4 border-y border-slate-100 py-6">
+                  <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-2xl font-black text-white shadow-lg shadow-blue-200">
+                    {getInitials(displayName)}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Foto do perfil
                     </p>
-                    <p>
-                      <span className="block font-bold text-slate-900">
-                        CPF
-                      </span>
-                      {formValues.cpf || "Não informado"}
+                    <p className="mt-1 text-sm font-bold text-slate-900">
+                      {displayName}
                     </p>
-                    <p>
-                      <span className="block font-bold text-slate-900">
-                        Celular
-                      </span>
-                      {formValues.phone || "Não informado"}
+                    <p className="mt-1 text-xs text-slate-500">
+                      Suas iniciais são atualizadas junto com o nome.
                     </p>
                   </div>
                 </div>
-              </div>
-
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={openProfileEditor}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-blue-600 px-6 text-sm font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <UserRound className="h-4 w-4" />
-                  Editar perfil
-                </button>
-                <button
-                  type="button"
-                  onClick={openPasswordModal}
-                  className="inline-flex h-10 items-center justify-center rounded-md border border-blue-500 px-6 text-sm font-bold text-blue-600 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <KeyRound className="mr-2 h-4 w-4" />
-                  Alterar senha
-                </button>
-              </div>
-            </div>
-          )}
-
-          {isEditingProfile && (
-            <form onSubmit={handleSubmitProfile}>
-              <div className="mb-10 flex flex-col items-center gap-4">
-                <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-4xl font-bold text-white shadow-lg shadow-blue-600/20">
-                  <span>{getInitials(displayName)}</span>
+                <div className="grid gap-5 md:grid-cols-2">
+                  <TextInput
+                    icon={UserRound}
+                    label="Nome"
+                    name="firstName"
+                    placeholder="Seu nome"
+                    value={formValues.firstName}
+                    onChange={handleProfileChange}
+                    error={errors.firstName}
+                  />
+                  <TextInput
+                    icon={UserRound}
+                    label="Sobrenome"
+                    name="lastName"
+                    placeholder="Seu sobrenome"
+                    value={formValues.lastName}
+                    onChange={handleProfileChange}
+                    error={errors.lastName}
+                  />
+                  <div className="md:col-span-2">
+                    <TextInput
+                      icon={Mail}
+                      label="E-mail"
+                      name="email"
+                      placeholder="voce@exemplo.com"
+                      type="email"
+                      value={formValues.email}
+                      onChange={handleProfileChange}
+                      error={errors.email}
+                    />
+                  </div>
+                  <TextInput
+                    icon={Shield}
+                    label="CPF"
+                    name="cpf"
+                    placeholder="000.000.000-00"
+                    value={formValues.cpf}
+                    onChange={handleProfileChange}
+                    error={errors.cpf}
+                  />
+                  <TextInput
+                    icon={Phone}
+                    label="Celular"
+                    name="phone"
+                    placeholder="(00) 00000-0000"
+                    value={formValues.phone}
+                    onChange={handleProfileChange}
+                    error={errors.phone}
+                  />
                 </div>
-              </div>
-
-              <div className="mx-auto grid max-w-3xl gap-5 md:grid-cols-2">
-                <TextInput
-                  icon={UserRound}
-                  label="Nome"
-                  name="firstName"
-                  placeholder="Fulano"
-                  value={formValues.firstName}
-                  onChange={handleProfileChange}
-                  error={errors.firstName}
-                />
-                <TextInput
-                  icon={UserRound}
-                  label="Sobrenome"
-                  name="lastName"
-                  placeholder="Silcrano Beltrano"
-                  value={formValues.lastName}
-                  onChange={handleProfileChange}
-                  error={errors.lastName}
-                />
-                <TextInput
-                  icon={Mail}
-                  label="E-mail"
-                  name="email"
-                  placeholder="fulano@example.com"
-                  type="email"
-                  value={formValues.email}
-                  onChange={handleProfileChange}
-                  error={errors.email}
-                />
-                <TextInput
-                  icon={Shield}
-                  label="CPF"
-                  name="cpf"
-                  placeholder="xxx.xxx.xxx-xx"
-                  value={formValues.cpf}
-                  onChange={handleProfileChange}
-                  error={errors.cpf}
-                />
-                <TextInput
-                  icon={Phone}
-                  label="Celular"
-                  name="phone"
-                  placeholder="(xx) xxxxx-xxxx"
-                  value={formValues.phone}
-                  onChange={handleProfileChange}
-                  error={errors.phone}
-                />
-                <div className="flex items-end">
+                <div className="mt-10 flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
                   <button
                     type="button"
-                    onClick={openPasswordModal}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-blue-500 px-4 text-sm font-bold text-blue-600 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onClick={() => {
+                      setFormValues(mapUserToFormValues(user));
+                      setErrors({});
+                      setGeneralError("");
+                    }}
+                    className="inline-flex h-11 items-center justify-center rounded-xl bg-slate-100 px-5 text-sm font-bold text-slate-700 transition hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <KeyRound className="h-4 w-4" />
-                    Alterar senha
-                  </button>
-                </div>
-              </div>
-
-              <div className="mx-auto mt-16 flex max-w-3xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <button
-                  type="button"
-                  onClick={closeProfileEditor}
-                  className="inline-flex h-10 items-center justify-center rounded-md border border-blue-500 px-6 text-sm font-bold text-blue-600 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  Cancelar
-                </button>
-
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <button
-                    type="button"
-                    onClick={handleBack}
-                    className="inline-flex h-10 items-center justify-center rounded-md border border-blue-500 px-6 text-sm font-bold text-blue-600 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    Voltar
+                    Redefinir
                   </button>
                   <button
                     type="submit"
                     disabled={isSaving}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-blue-600 px-6 text-sm font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <Save className="h-4 w-4" />
-                    {isSaving ? "Salvando..." : "Salvar edições"}
+                    <Save className="h-4 w-4" />{" "}
+                    {isSaving ? "Salvando..." : "Salvar alterações"}
                   </button>
                 </div>
+              </form>
+            </section>
+
+            {user.role === "aluno" && (
+              <div id="cursos-e-trilhas" className="scroll-mt-20">
+                <StudentLearningProfile
+                  enrollments={studentEnrollments}
+                  trails={followedTrails}
+                  loading={learningLoading}
+                  error={learningError}
+                  onOpenCourse={(courseId) => navigate("/courses/" + courseId)}
+                  onOpenTrail={(trailId) => navigate("/trilhas/" + trailId)}
+                />
               </div>
-            </form>
-          )}
+            )}
 
-          <div className="mx-auto mt-10 flex max-w-3xl justify-between gap-3">
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="inline-flex h-10 items-center justify-center rounded-md border border-blue-500 px-6 text-sm font-bold text-blue-600 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              Sair
-            </button>
-
-            {!isEditingProfile && (
-              <button
-                type="button"
-                onClick={handleBack}
-                className="inline-flex h-10 items-center justify-center rounded-md border border-blue-500 px-6 text-sm font-bold text-blue-600 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                Voltar
-              </button>
+            {user.role === "admin" && (
+              <div className="border-t border-slate-200 bg-white px-5 py-10 sm:px-8 lg:px-12">
+                <div className="mx-auto max-w-3xl space-y-10">
+                  <section id="gerenciar-trilhas" className="scroll-mt-24">
+                    <div className="mb-6">
+                      <p className="text-sm font-bold uppercase tracking-[0.14em] text-blue-600">
+                        Administração
+                      </p>
+                      <h2 className="mt-2 text-2xl font-black text-[#25304a]">
+                        Gerenciar trilhas
+                      </h2>
+                      <p className="mt-2 text-sm text-slate-600">
+                        Crie trilhas e organize os cursos disponíveis.
+                      </p>
+                    </div>
+                    <AdminTrailManagement embedded />
+                  </section>
+                  <section
+                    id="cadastrar-equipe"
+                    className="scroll-mt-24 border-t border-slate-200 pt-10"
+                  >
+                    <div className="mb-6">
+                      <p className="text-sm font-bold uppercase tracking-[0.14em] text-blue-600">
+                        Administração
+                      </p>
+                      <h2 className="mt-2 text-2xl font-black text-[#25304a]">
+                        Cadastrar equipe
+                      </h2>
+                      <p className="mt-2 text-sm text-slate-600">
+                        Cadastre professores e outros administradores.
+                      </p>
+                    </div>
+                    <AdminUserManagement embedded />
+                  </section>
+                </div>
+              </div>
             )}
           </div>
-
-        </section>
-
-        {user.role === "admin" && (
-          <>
-            <CollapsibleSection
-              title="Gerenciar trilhas"
-              description="Crie trilhas e organize os cursos disponíveis."
-            >
-              <AdminTrailManagement embedded />
-            </CollapsibleSection>
-            <CollapsibleSection
-              title="Cadastrar equipe"
-              description="Cadastre professores e outros administradores."
-            >
-              <AdminUserManagement embedded />
-            </CollapsibleSection>
-          </>
-        )}
+        </div>
       </main>
 
       <Footer />
@@ -738,7 +769,6 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

@@ -3,6 +3,8 @@ import { Curso } from '../cursos/curso.entity';
 import { TrilhaCurso } from './trilha-curso.entity';
 import { Trilha } from './trilha.entity';
 import { TrilhasService } from './trilhas.service';
+import { UsuarioTrilha } from './usuario-trilha.entity';
+import { CursosService } from '../cursos/cursos.service';
 
 describe('TrilhasService', () => {
   const course = {
@@ -33,16 +35,26 @@ describe('TrilhasService', () => {
       delete: jest.fn(),
     };
     const cursosRepository = { countBy: jest.fn() };
+    const seguimentosRepository = {
+      create: jest.fn((data: Partial<UsuarioTrilha>) => data),
+      save: jest.fn((data: UsuarioTrilha) => Promise.resolve(data)),
+      find: jest.fn(),
+      findOneBy: jest.fn(),
+      delete: jest.fn(),
+    };
     const service = new TrilhasService(
       trilhasRepository as unknown as Repository<Trilha>,
       vinculosRepository as unknown as Repository<TrilhaCurso>,
       cursosRepository as unknown as Repository<Curso>,
+      seguimentosRepository as unknown as Repository<UsuarioTrilha>,
+      { findOne: jest.fn() } as unknown as CursosService,
     );
     return {
       service,
       trilhasRepository,
       vinculosRepository,
       cursosRepository,
+      seguimentosRepository,
     };
   }
 
@@ -97,6 +109,10 @@ describe('TrilhasService', () => {
   it('removes course links before deleting a trail', async () => {
     const context = setup();
     context.trilhasRepository.findOneBy.mockResolvedValue(trail);
+    context.seguimentosRepository.delete.mockResolvedValue({
+      raw: [],
+      affected: 1,
+    });
     context.vinculosRepository.delete.mockResolvedValue({
       raw: [],
       affected: 1,
@@ -105,6 +121,9 @@ describe('TrilhasService', () => {
 
     await context.service.remove(trail.id);
 
+    expect(context.seguimentosRepository.delete).toHaveBeenCalledWith({
+      id_trilha: trail.id,
+    });
     expect(context.vinculosRepository.delete).toHaveBeenCalledWith({
       id_trilha: trail.id,
     });

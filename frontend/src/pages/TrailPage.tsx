@@ -3,6 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   BookOpen,
+  BookmarkCheck,
+  BookmarkPlus,
   Clock3,
   Layers3,
   Search,
@@ -34,6 +36,9 @@ export default function TrailPage() {
   const [startedCourseIds, setStartedCourseIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [following, setFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [followError, setFollowError] = useState("");
 
   useEffect(() => {
     if (!trailId) {
@@ -70,7 +75,11 @@ export default function TrailPage() {
       .then((items) => {
         if (!cancelled) {
           setStartedCourseIds(
-            new Set(items.filter((item) => !item.conclusao).map((item) => item.curso.id)),
+            new Set(
+              items
+                .filter((item) => !item.conclusao)
+                .map((item) => item.curso.id),
+            ),
           );
         }
       })
@@ -81,6 +90,52 @@ export default function TrailPage() {
       cancelled = true;
     };
   }, [user?.role]);
+  useEffect(() => {
+    if (!trailId || user?.role !== "aluno") return;
+    let cancelled = false;
+    trailService
+      .getFollowStatus(trailId)
+      .then(({ seguindo }) => {
+        if (!cancelled) setFollowing(seguindo);
+      })
+      .catch((reason: unknown) => {
+        if (!cancelled) {
+          setFollowError(
+            reason instanceof Error
+              ? reason.message
+              : "Não foi possível consultar esta trilha.",
+          );
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [trailId, user?.role]);
+
+  const toggleFollowing = async () => {
+    if (!trailId || followLoading) return;
+    setFollowLoading(true);
+    setFollowError("");
+    try {
+      if (following) {
+        await trailService.unfollowTrail(trailId);
+        setFollowing(false);
+      } else {
+        await trailService.followTrail(trailId);
+        setFollowing(true);
+      }
+      window.dispatchEvent(new Event("ead.trails.changed"));
+    } catch (reason: unknown) {
+      setFollowError(
+        reason instanceof Error
+          ? reason.message
+          : "Não foi possível atualizar a trilha.",
+      );
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
   const courses = useMemo(() => {
     const normalizedSearch = normalize(search.trim());
     return [...(trail?.cursos ?? [])]
@@ -116,17 +171,28 @@ export default function TrailPage() {
                 Trilha não encontrada
               </h1>
               <p className="mt-3 text-slate-600">{error}</p>
-              <button type="button" onClick={() => navigate("/home")} className="mt-6 inline-flex items-center gap-2 rounded-md bg-blue-600 px-5 py-3 font-bold text-white">
+              <button
+                type="button"
+                onClick={() => navigate("/home")}
+                className="mt-6 inline-flex items-center gap-2 rounded-md bg-blue-600 px-5 py-3 font-bold text-white"
+              >
                 <ArrowLeft size={18} /> Voltar para home
               </button>
             </div>
           </div>
         ) : (
           <>
-            <section className="bg-gradient-to-r from-blue-700 to-indigo-700 text-white">
+            <section
+              className="text-white"
+              style={{ backgroundColor: trail.cor_fundo || "#3f5fd8" }}
+            >
               <div className="mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:px-6 md:grid-cols-[1fr_280px] md:items-center lg:px-8">
                 <div>
-                  <button type="button" onClick={() => navigate("/home")} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-100 hover:text-white">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/home")}
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-blue-100 hover:text-white"
+                  >
                     <ArrowLeft size={16} /> Voltar para home
                   </button>
                   <div className="mt-6 flex items-center gap-4">
@@ -144,26 +210,80 @@ export default function TrailPage() {
                     {trail.descricao ?? "Explore os cursos desta trilha."}
                   </p>
                   <p className="mt-4 text-sm font-bold text-blue-100">
-                    {trail.cursos.length} {trail.cursos.length === 1 ? "curso" : "cursos"}
+                    {trail.cursos.length}{" "}
+                    {trail.cursos.length === 1 ? "curso" : "cursos"}
                     {trail.nivel ? ` • ${trail.nivel}` : ""}
                   </p>
+                  {user?.role === "aluno" && (
+                    <div className="mt-6">
+                      <button
+                        type="button"
+                        onClick={toggleFollowing}
+                        disabled={followLoading}
+                        aria-pressed={following}
+                        className={
+                          "inline-flex h-11 items-center gap-2 rounded-lg border px-5 text-sm font-black transition disabled:cursor-wait disabled:opacity-60 " +
+                          (following
+                            ? "border-white bg-white text-blue-700 hover:bg-blue-50"
+                            : "border-white/60 bg-white/10 text-white hover:bg-white/20")
+                        }
+                      >
+                        {following ? (
+                          <BookmarkCheck size={19} />
+                        ) : (
+                          <BookmarkPlus size={19} />
+                        )}
+                        {followLoading
+                          ? "Atualizando..."
+                          : following
+                            ? "Trilha seguida"
+                            : "Seguir trilha"}
+                      </button>
+                      {followError && (
+                        <p className="mt-2 text-sm font-semibold text-amber-200">
+                          {followError}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
                 {trail.capa && (
-                  <img src={trail.capa} alt={trail.nome} className="h-44 w-full rounded-xl object-cover shadow-xl" />
+                  <img
+                    src={trail.capa}
+                    alt={trail.nome}
+                    className="h-44 w-full rounded-xl object-cover shadow-xl"
+                  />
                 )}
               </div>
             </section>
 
             <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
               <div className="mb-7 grid gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_220px]">
-                <label className="relative">
-                  <span className="sr-only">Buscar cursos na trilha</span>
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                  <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar cursos na trilha" className="h-11 w-full rounded-md border border-slate-200 pl-10 pr-3" />
+                <label className="relative block">
+                  <span className="mb-1 block text-xs font-bold text-slate-600">
+                    Buscar
+                  </span>
+                  <Search
+                    className="absolute bottom-[13px] left-3 text-slate-400"
+                    size={18}
+                  />
+                  <input
+                    type="search"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Buscar cursos na trilha"
+                    className="h-11 w-full rounded-md border border-slate-200 pl-10 pr-3"
+                  />
                 </label>
                 <label className="grid gap-1 text-xs font-bold text-slate-600">
                   Ordenar
-                  <select value={sort} onChange={(event) => setSort(event.target.value as CourseSort)} className="h-11 rounded-md border border-slate-200 bg-white px-3 text-sm">
+                  <select
+                    value={sort}
+                    onChange={(event) =>
+                      setSort(event.target.value as CourseSort)
+                    }
+                    className="h-11 rounded-md border border-slate-200 bg-white px-3 text-sm"
+                  >
                     <option value="name">Nome</option>
                     <option value="category">Categoria</option>
                     <option value="level">Nível</option>
@@ -183,26 +303,57 @@ export default function TrailPage() {
               ) : (
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                   {courses.map((course) => (
-                    <article key={course.id} onClick={() => navigate(`/courses/${course.id}`)} onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") navigate(`/courses/${course.id}`);
-                    }} role="button" tabIndex={0} className="group cursor-pointer overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+                    <article
+                      key={course.id}
+                      onClick={() => navigate(`/courses/${course.id}`)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ")
+                          navigate(`/courses/${course.id}`);
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      className="group cursor-pointer overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                    >
                       <div className="h-40 bg-slate-100">
                         {course.url_foto ? (
-                          <img src={course.url_foto} alt={course.nome} className="h-full w-full object-cover transition group-hover:scale-105" />
+                          <img
+                            src={course.url_foto}
+                            alt={course.nome}
+                            className="h-full w-full object-cover transition group-hover:scale-105"
+                          />
                         ) : (
-                          <div className="flex h-full items-center justify-center text-blue-600"><BookOpen size={42} /></div>
+                          <div className="flex h-full items-center justify-center text-blue-600">
+                            <BookOpen size={42} />
+                          </div>
                         )}
                       </div>
                       <div className="p-5">
                         <div className="flex flex-wrap gap-2 text-xs font-bold">
-                          {course.categoria && <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-700">{course.categoria}</span>}
-                          {startedCourseIds.has(course.id) && <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">Em andamento</span>}
+                          {course.categoria && (
+                            <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-700">
+                              {course.categoria}
+                            </span>
+                          )}
+                          {startedCourseIds.has(course.id) && (
+                            <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">
+                              Em andamento
+                            </span>
+                          )}
                         </div>
-                        <h2 className="mt-3 text-lg font-black text-[#25304a]">{course.nome}</h2>
-                        <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{course.descricao ?? "Sem descrição disponível."}</p>
+                        <h2 className="mt-3 text-lg font-black text-[#25304a]">
+                          {course.nome}
+                        </h2>
+                        <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">
+                          {course.descricao ?? "Sem descrição disponível."}
+                        </p>
                         <div className="mt-4 flex items-center justify-between text-xs font-semibold text-slate-500">
                           <span>{course.nivel ?? "Nível não informado"}</span>
-                          <span className="inline-flex items-center gap-1"><Clock3 size={14} />{course.carga_horaria === null ? "--" : `${course.carga_horaria}h`}</span>
+                          <span className="inline-flex items-center gap-1">
+                            <Clock3 size={14} />
+                            {course.carga_horaria === null
+                              ? "--"
+                              : `${course.carga_horaria}h`}
+                          </span>
                         </div>
                       </div>
                     </article>

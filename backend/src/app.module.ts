@@ -10,6 +10,7 @@ import { Aula } from './cursos/aula.entity';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { Trilha } from './trilhas/trilha.entity';
 import { TrilhaCurso } from './trilhas/trilha-curso.entity';
+import { UsuarioTrilha } from './trilhas/usuario-trilha.entity';
 import { TrilhasModule } from './trilhas/trilhas.module';
 import { Address } from './auth/address.entity';
 import { Matricula } from './jornada/matricula.entity';
@@ -20,6 +21,13 @@ import { CertificadosModule } from './certificados/certificados.module';
 import { PlaybackSession } from './jornada/playback-session.entity';
 import { APP_FILTER } from '@nestjs/core';
 import { ApiExceptionFilter } from './common/api-exception.filter';
+import {
+  AlternativaQuestionario,
+  PerguntaQuestionario,
+  Questionario,
+  RespostaQuestionario,
+  TentativaQuestionario,
+} from './cursos/questionario.entity';
 
 @Module({
   imports: [
@@ -37,10 +45,16 @@ import { ApiExceptionFilter } from './common/api-exception.filter';
         Aula,
         Trilha,
         TrilhaCurso,
+        UsuarioTrilha,
         Matricula,
         ProgressoAula,
         Certificado,
         PlaybackSession,
+        Questionario,
+        PerguntaQuestionario,
+        AlternativaQuestionario,
+        TentativaQuestionario,
+        RespostaQuestionario,
       ],
       synchronize: process.env.DB_SYNCHRONIZE === 'true',
     }),

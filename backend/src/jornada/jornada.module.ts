@@ -12,9 +12,19 @@ import { ProgressoAula } from './progresso-aula.entity';
 import { PlaybackSession } from './playback-session.entity';
 import { PlaybackService } from './playback.service';
 import { ClockService } from './clock.service';
+import { QuestionarioService } from './questionario.service';
+import {
+  AlternativaQuestionario,
+  PerguntaQuestionario,
+  Questionario,
+  RespostaQuestionario,
+  TentativaQuestionario,
+} from '../cursos/questionario.entity';
+import { CursosModule } from '../cursos/cursos.module';
 
 @Module({
   imports: [
+    CursosModule,
     TypeOrmModule.forFeature([
       User,
       Curso,
@@ -23,10 +33,21 @@ import { ClockService } from './clock.service';
       ProgressoAula,
       Certificado,
       PlaybackSession,
+      Questionario,
+      PerguntaQuestionario,
+      AlternativaQuestionario,
+      TentativaQuestionario,
+      RespostaQuestionario,
     ]),
   ],
   controllers: [JornadaController],
-  providers: [JornadaService, PlaybackService, ClockService, RolesGuard],
+  providers: [
+    JornadaService,
+    PlaybackService,
+    QuestionarioService,
+    ClockService,
+    RolesGuard,
+  ],
   exports: [JornadaService],
 })
 export class JornadaModule {}
