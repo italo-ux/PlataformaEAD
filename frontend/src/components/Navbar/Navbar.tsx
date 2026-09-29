@@ -300,6 +300,17 @@ function AuthenticatedNavigation({ user }: { user: User }) {
               Minha área
             </p>
             <div className="mt-3 space-y-1.5">
+              {user.role !== "aluno" && (
+                <NavLink
+                  to="/certificados"
+                  onClick={closeMobile}
+                  className={itemClass}
+                  title={collapsed ? "Certificados" : undefined}
+                >
+                  <Award size={20} className="shrink-0" />
+                  <span className={labelClass}>Certificados</span>
+                </NavLink>
+              )}
               {user.role === "aluno" && (
                 <>
                   <Link
@@ -526,14 +537,6 @@ function AuthenticatedNavigation({ user }: { user: User }) {
               <Menu size={21} />
             </button>
 
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600">
-                Ambiente de aprendizagem
-              </p>
-              <p className="hidden text-sm text-slate-500 sm:block">
-                Continue de onde parou
-              </p>
-            </div>
           </div>
 
           <Link

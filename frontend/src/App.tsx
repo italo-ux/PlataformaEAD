@@ -17,6 +17,7 @@ import VerifyEmailPage from "./pages/VerifyEmailPage";
 import AdminStatsPage from "./pages/AdminStatsPage";
 import { AuthProvider } from "./context/AuthContext";
 import CertificateValidationPage from "./pages/CertificateValidationPage";
+import CertificateTemplatesPage from "./pages/CertificateTemplatesPage";
 
 function App() {
   return (
@@ -52,6 +53,10 @@ function App() {
         <Route
           element={<ProtectedRoute allowedRoles={["professor", "admin"]} />}
         >
+          <Route
+            path="/certificados"
+            element={<CertificateTemplatesPage />}
+          />
           <Route
             path="/professor/cursos/novo"
             element={<ProfessorCourseCreatePage />}
