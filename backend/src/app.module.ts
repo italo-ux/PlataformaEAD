@@ -38,6 +38,13 @@ import {
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASSWORD ?? '',
       database: process.env.DB_NAME ?? 'plataforma_ead',
+      ssl:
+        process.env.DB_SSL === 'true'
+          ? { rejectUnauthorized: false }
+          : false,
+      extra: {
+        max: Number(process.env.DB_POOL_MAX ?? 5),
+      },
       entities: [
         User,
         Address,
