@@ -14,19 +14,44 @@ database/
 
 ## 🚀 Como Usar
 
+Execute os comandos abaixo a partir da pasta `backend/`. Substitua
+`seu_usuario` e `plataforma_ead` pelos valores do ambiente e configure host e
+porta do PostgreSQL quando necessário. O `psql` não carrega `backend/.env`
+automaticamente.
+
+Faça backup antes de atualizar um banco com dados. Use `DB_SYNCHRONIZE=false`.
+Execute cada comando somente após o anterior terminar com sucesso;
+`ON_ERROR_STOP=1` interrompe o arquivo atual, mas não impede que o shell execute
+outro comando colado em seguida.
+
 ### 1️⃣ Criar o Banco de Dados
 
 ```bash
 createdb plataforma_ead
 ```
 
-### 2️⃣ Executar o Schema Completo (Primeira Vez)
+### 2️⃣ Escolher o caminho de instalação
+
+Para um banco vazio, prefira aplicar as migrations 1 a 15 na sequência abaixo.
+Como alternativa, `schema.sql` cria o esquema consolidado em um banco vazio:
 
 ```bash
-psql -U seu_usuario -d plataforma_ead -f database/schema.sql
+psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/schema.sql
 ```
 
-### 3️⃣ Ou Executar Migrations em Ordem
+Escolha apenas um desses caminhos para a instalação inicial. Para atualizar um
+banco existente, identifique quais migrations já foram aplicadas e execute
+somente as pendentes, em ordem numérica, até a 14. Por exemplo, um banco
+atualizado até a 9 precisa das migrations 10, 11, 12, 13, 14 e 15.
+
+Os scripts são executados manualmente, sem um registro automático de versões
+aplicadas. Registre cada aplicação no controle de implantação e confira o schema
+quando o histórico for desconhecido; a existência de papéis ou de uma tabela
+isolada não comprova que todas as migrations anteriores foram executadas.
+
+### 3️⃣ Executar migrations em ordem numérica
+
+Não use ordenação alfabética: ela coloca `10_...` antes de `2_...`.
 
 ```bash
 psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/1_initial_schema.sql
@@ -38,18 +63,57 @@ psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/
 psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/7_student_journey_and_certificates.sql
 psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/8_trusted_youtube_playback.sql
 psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/9_course_deletion_cascades.sql
+psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/10_test_course_environment.sql
+psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/11_explicit_trail_following.sql
+psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/12_trail_background_color.sql
+psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/13_relational_quizzes.sql
+psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/14_quiz_policy_70_three_attempts.sql
+psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/15_certificate_templates.sql
 ```
 
 > Use somente os scripts desta versão: a migração 3 histórica era destrutiva.
 > A versão integrada é transacional e não remove dados. Ela aborta se cursos
 > ou aulas tiverem proprietários ausentes/inválidos. Faça backup antes de qualquer
 > aplicação e forneça um mapeamento explícito de cada registro para um usuário
-> existente; o script não inventa proprietários. A migração 4 adiciona os campos
-> de recuperação de senha. Scripts já aplicados não precisam ser repetidos;
-> bancos que já têm papéis e propriedade devem aplicar as migrações 4 e 5.
-> A sequência completa foi validada automaticamente em PostgreSQL descartável
-> com `npm run test:postgres`. Nenhuma migration é aplicada por esse comando
-> ao banco configurado em `DB_NAME`.
+> existente; o script não inventa proprietários. Scripts já aplicados não devem
+> ser repetidos automaticamente. Em caso de erro, interrompa a sequência e
+> confira o estado do banco antes de retomar; nem todos os arquivos possuem
+> uma transação explícita.
+
+As migrations mais recentes adicionam o ambiente de teste (10), a unicidade do
+seguimento de trilhas (11), a cor das trilhas (12), os questionários relacionais
+(13), a política de aprovação com nota mínima de 70% e três tentativas (14) e
+os modelos persistentes de certificado com snapshot imutável (15). A migration
+14 também atualiza essa política nos questionários existentes. A migration 15
+semeia uma única vez os três modelos conhecidos, cria um índice parcial que
+permite no máximo um padrão e guarda PNGs em `BYTEA`.
+
+Para validar a sequência em um PostgreSQL descartável, execute
+`npm run test:postgres` a partir de `backend/`. O comando exige permissão de
+`CREATE DATABASE`, cria e remove um banco temporário e não aplica migrations
+ao banco configurado em `DB_NAME`.
+
+Antes da migration 7, diagnostique matrículas duplicadas:
+
+```sql
+SELECT id_usuario, id_curso, COUNT(*) AS quantidade
+FROM matricula
+GROUP BY id_usuario, id_curso
+HAVING COUNT(*) > 1;
+```
+
+Antes da migration 11, confira também seguimentos duplicados:
+
+```sql
+SELECT id_usuario, id_trilha, COUNT(*) AS quantidade
+FROM usuario_trilha
+GROUP BY id_usuario, id_trilha
+HAVING COUNT(*) > 1;
+```
+
+Se houver resultados, resolva os registros explicitamente antes de continuar.
+A migration 7 aborta diante de matrículas duplicadas e o índice único da 11
+falha diante de seguimentos duplicados.
 
 Para diagnosticar cursos legados, depois de confirmar que a coluna
 `id_instrutor` existe, consulte registros com proprietário nulo ou ausente:
@@ -123,6 +187,18 @@ psql -U seu_usuario -d plataforma_ead -f database/seeds/seed.sql
 
 - Um certificado por matrícula, com código público e dados congelados.
 - Situação `valido` ou `revogado`.
+- `modelo_snapshot` congela textos e cores usados na emissão; certificados
+  anteriores continuam válidos com valor `NULL` e layout legado.
+
+### `modelos_certificado` e imagens
+
+- `modelos_certificado`: textos, cores, referência idempotente de importação e
+  indicador do padrão atual.
+- `modelo_certificado_imagens`: logos e assinaturas PNG do modelo em `BYTEA`.
+- `certificado_imagens_snapshot`: cópias das imagens ligadas ao certificado,
+  para que alterações futuras no modelo não mudem documentos já emitidos.
+- O índice `uq_modelo_certificado_padrao` garante no máximo um padrão. A API
+  usa também lock transacional para trocar o padrão sem uma janela sem seleção.
 
 ### Relações de conteúdo
 

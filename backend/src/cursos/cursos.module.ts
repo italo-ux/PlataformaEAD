@@ -16,9 +16,11 @@ import {
   TentativaQuestionario,
 } from './questionario.entity';
 import { YoutubeVideoValidationService } from './youtube-video-validation.service';
+import { CertificadosModule } from '../certificados/certificados.module';
 
 @Module({
   imports: [
+    CertificadosModule,
     TypeOrmModule.forFeature([
       Curso,
       Aula,

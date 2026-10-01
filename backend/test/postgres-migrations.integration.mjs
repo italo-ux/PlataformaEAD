@@ -56,7 +56,10 @@ try {
            'perguntas_questionario',
            'alternativas_questionario',
            'tentativas_questionario',
-           'respostas_questionario'
+           'respostas_questionario',
+           'modelos_certificado',
+           'modelo_certificado_imagens',
+           'certificado_imagens_snapshot'
          )`,
     );
     assert.deepEqual(
@@ -71,6 +74,9 @@ try {
         'alternativas_questionario',
         'tentativas_questionario',
         'respostas_questionario',
+        'modelos_certificado',
+        'modelo_certificado_imagens',
+        'certificado_imagens_snapshot',
       ]),
     );
 
@@ -98,6 +104,36 @@ try {
     );
     assert.equal(lessonColumnMap.get('tipo')?.udt_name, 'aula_tipo');
     assert.equal(lessonColumnMap.get('url_video')?.is_nullable, 'YES');
+
+    const certificateSnapshotColumn = await testDatabase.query(
+      `SELECT data_type
+       FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'certificados'
+         AND column_name = 'modelo_snapshot'`,
+    );
+    assert.equal(certificateSnapshotColumn.rows[0]?.data_type, 'jsonb');
+
+    const defaultTemplates = await testDatabase.query(
+      `SELECT client_reference, is_default
+       FROM modelos_certificado
+       ORDER BY client_reference`,
+    );
+    assert.equal(defaultTemplates.rowCount, 3);
+    assert.equal(
+      defaultTemplates.rows.filter(({ is_default }) => is_default).length,
+      1,
+    );
+
+    const defaultIndex = await testDatabase.query(
+      `SELECT indexdef
+       FROM pg_indexes
+       WHERE schemaname = 'public'
+         AND indexname = 'uq_modelo_certificado_padrao'`,
+    );
+    assert.equal(defaultIndex.rowCount, 1);
+    assert.match(defaultIndex.rows[0].indexdef, /UNIQUE INDEX/i);
+    assert.match(defaultIndex.rows[0].indexdef, /WHERE \(is_default = true\)/i);
 
     const constraints = await testDatabase.query(
       `SELECT conname

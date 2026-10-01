@@ -43,6 +43,10 @@ navegador e encerra a sessão; não exclui a conta do servidor.
 
 ## Banco e configuração: aplicação posterior, não executada aqui
 
+Esta seção registra o estado da integração de 2026-09-02. Para instalar ou
+atualizar a versão atual, siga o [guia do banco](backend/database/README.md),
+que documenta a sequência completa até a migration 15.
+
 Nenhum SQL foi executado no banco existente. Antes de aplicar qualquer script,
 faça backup e confirme o estado do schema.
 
@@ -51,7 +55,9 @@ faça backup e confirme o estado do schema.
   e aborta com diagnóstico quando falta um mapeamento de cursos/aulas para usuários.
 - Não use a migração 3 de versões antigas: ela era destrutiva.
 - Migração 4: adiciona somente os campos de recuperação de senha.
-- Bancos já atualizados para papéis/propriedade precisam apenas da migração 4.
+- Naquela integração, a migração 4 adicionava a recuperação de senha. Na versão
+  atual, bancos existentes precisam de todas as migrations ainda pendentes,
+  identificadas pelo histórico de implantação e aplicadas em ordem numérica.
 - Manter `DB_SYNCHRONIZE=false`; não habilitar sincronização automática para
   contornar uma migração pendente.
 - Configurar JWT, banco e SMTP em `backend/.env`. Em produção, SMTP é obrigatório.

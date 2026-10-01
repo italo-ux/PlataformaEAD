@@ -330,6 +330,16 @@ describe("ProfessorCourseCreatePage", () => {
 
     const user = userEvent.setup();
     await user.type(screen.getByLabelText("Nome do curso"), course.nome);
+    expect(screen.queryByLabelText("Nível")).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Nome da categoria" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Adicionar categoria" }));
+    await user.type(screen.getByRole("textbox", { name: "Nome da categoria" }), "Tecnologia{Enter}");
+    await user.click(screen.getByRole("button", { name: "Adicionar categoria" }));
+    await user.type(screen.getByRole("textbox", { name: "Nome da categoria" }), "tecnologia{Enter}");
+    expect(screen.getByText("Esta categoria já foi adicionada.")).toBeTruthy();
+    await user.clear(screen.getByRole("textbox", { name: "Nome da categoria" }));
+    await user.type(screen.getByRole("textbox", { name: "Nome da categoria" }), "Educação{Enter}");
+    await user.click(screen.getByRole("button", { name: "Remover categoria Tecnologia" }));
     await user.click(
       screen.getByRole("checkbox", { name: /Ambiente de teste/ }),
     );
@@ -338,6 +348,7 @@ describe("ProfessorCourseCreatePage", () => {
       expect(courseService.createCourse).toHaveBeenCalledWith({
         nome: course.nome,
         ambiente_teste: true,
+        categoria: "Educação",
       }),
     );
     expect(

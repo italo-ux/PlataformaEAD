@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ChangeEvent, type DragEvent, typ
 import { ArrowUpDown, ChevronDown, ChevronUp, ClipboardList, FileText, GripVertical, Image as ImageIcon, Link2, Pencil, PlusCircle, Save, Trash2, Video, X } from "lucide-react";
 import courseService, { type Aula, type AulaInput, type AulaTipo, type PerguntaQuestionario } from "../services/courseService";
 import { formatDigitalDuration, parseDigitalDuration } from "../utils/duration";
+import YoutubeDurationPreview from "./YoutubeDurationPreview";
 
 const QUIZ_PASS_PERCENTAGE = 70;
 const QUIZ_MAX_ATTEMPTS = 3;
@@ -90,7 +91,7 @@ export default function CourseLessonsEditor({
   }, [courseId]);
 
   const reset = () => { setEditingId(null); setForm(emptyForm()); };
-  const change = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { const { name, value } = event.target; setForm((current) => ({ ...current, [name]: value })); };
+  const change = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { const { name, value } = event.target; setForm((current) => ({ ...current, [name]: value, ...(name === "url_video" ? { duracao: "" } : {}) })); };
   const updateQuestion = (index: number, patch: Partial<PerguntaQuestionario>) => setForm((current) => ({ ...current, perguntas: current.perguntas.map((item, i) => i === index ? { ...item, ...patch } : item) }));
   const updateAlternative = (qi: number, ai: number, texto: string) => setForm((current) => ({ ...current, perguntas: current.perguntas.map((question, i) => i !== qi ? question : { ...question, alternativas: question.alternativas.map((alternative, j) => j === ai ? { ...alternative, texto } : alternative) }) }));
   const setCorrect = (qi: number, ai: number) => setForm((current) => ({ ...current, perguntas: current.perguntas.map((question, i) => i !== qi ? question : { ...question, alternativas: question.alternativas.map((alternative, j) => ({ ...alternative, correta: j === ai })) }) }));
@@ -214,6 +215,7 @@ export default function CourseLessonsEditor({
       {form.tipo === "video" ? <div className="grid gap-5 sm:grid-cols-2">
         <label className="sm:col-span-2 text-sm font-bold text-[#25304a]">URL do vídeo no YouTube<input name="url_video" type="url" value={form.url_video} onChange={change} className={fieldClass} required/></label>
         <label className="text-sm font-bold text-[#25304a]">Duração do vídeo (MM:SS)<input name="duracao" aria-label="Duração do vídeo (MM:SS)" pattern="[0-9]+:[0-5][0-9]" value={form.duracao} onChange={change} className={fieldClass} required/></label>
+        <YoutubeDurationPreview key={`${editingId ?? "new"}:${form.url_video.trim()}`} videoUrl={form.url_video.trim()} onDuration={(seconds) => setForm((current) => ({ ...current, duracao: formatDigitalDuration(seconds) }))} />
       </div> : <div className="space-y-5">
         <div className="grid gap-4 sm:grid-cols-3"><label className="text-sm font-bold text-[#25304a]">Nota mínima (%)<input aria-label="Nota mínima (%)" type="number" value={QUIZ_PASS_PERCENTAGE} readOnly className={`${fieldClass} bg-slate-100`}/></label><label className="text-sm font-bold text-[#25304a]">Máximo de tentativas<input aria-label="Máximo de tentativas" type="number" value={QUIZ_MAX_ATTEMPTS} readOnly className={`${fieldClass} bg-slate-100`}/></label><label className="text-sm font-bold text-[#25304a]">Pontos bônus<input name="pontos_base" type="number" min="0" value={form.pontos_base} onChange={change} className={fieldClass}/></label></div>
         {form.perguntas.map((question, qi) => <fieldset key={qi} className="rounded-2xl border border-slate-200 bg-slate-50 p-5"><div className="flex items-center justify-between"><legend className="font-black text-[#25304a]">Pergunta {qi + 1}</legend>{form.perguntas.length > 1 && <button type="button" onClick={() => setForm((current) => ({ ...current, perguntas: current.perguntas.filter((_, i) => i !== qi) }))} className="text-sm font-bold text-red-600">Remover pergunta</button>}</div>

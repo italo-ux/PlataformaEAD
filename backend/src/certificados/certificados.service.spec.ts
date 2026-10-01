@@ -45,8 +45,46 @@ describe('CertificadosService', () => {
     expect(result).not.toHaveProperty('matricula');
   });
 
-  it('generates a PDF document with the certificate data', async () => {
+  it('mantém o PDF legado para certificados emitidos sem snapshot', async () => {
     await expect(service.generatePdf(certificate)).resolves.toEqual(
+      expect.objectContaining({
+        0: 0x25,
+        1: 0x50,
+        2: 0x44,
+        3: 0x46,
+      }),
+    );
+  });
+
+  it('gera o PDF com o snapshot e as imagens congeladas do modelo', async () => {
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      'base64',
+    );
+    const modeledCertificate = {
+      ...certificate,
+      modelo_snapshot: {
+        templateId: '33333333-3333-4333-8333-333333333333',
+        name: 'Modelo congelado',
+        eyebrow: 'Instituição',
+        title: 'Certificado personalizado',
+        body: '{aluno} concluiu {curso}.',
+        signature: 'Coordenação',
+        primaryColor: '#112233',
+        accentColor: '#445566',
+      },
+      snapshot_images: [
+        {
+          kind: 'logo',
+          ordem: 1,
+          name: 'logo.png',
+          png_data: png,
+          identification: null,
+        },
+      ],
+    } as Certificado;
+
+    await expect(service.generatePdf(modeledCertificate)).resolves.toEqual(
       expect.objectContaining({
         0: 0x25,
         1: 0x50,

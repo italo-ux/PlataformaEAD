@@ -5,13 +5,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { randomBytes } from 'node:crypto';
 import { DataSource, EntityManager } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.interface';
-import {
-  Certificado,
-  CertificadoStatus,
-} from '../certificados/certificado.entity';
+import { Certificado } from '../certificados/certificado.entity';
+import { CertificateIssuanceService } from '../certificados/certificate-issuance.service';
 import { AulaTipo } from '../cursos/aula.entity';
 import { QUIZ_MAX_ATTEMPTS, QUIZ_PASS_PERCENTAGE } from '../cursos/quiz-policy';
 import {
@@ -25,7 +22,10 @@ import { ProgressoAula } from './progresso-aula.entity';
 
 @Injectable()
 export class QuestionarioService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly certificateIssuance: CertificateIssuanceService,
+  ) {}
 
   submit(
     courseId: string,
@@ -214,17 +214,13 @@ export class QuestionarioService {
         .getRepository(Certificado)
         .existsBy({ id_matricula: enrollment.id }))
     ) {
-      await manager.save(
-        manager.create(Certificado, {
-          id_matricula: enrollment.id,
-          codigo: randomBytes(16).toString('hex').toUpperCase(),
-          nome_aluno: enrollment.usuario.name,
-          nome_curso: enrollment.curso.nome,
-          carga_horaria: enrollment.curso.carga_horaria ?? 0,
-          concluido_em: enrollment.concluido_em!,
-          status: CertificadoStatus.VALIDO,
-        }),
-      );
+      await this.certificateIssuance.issue(manager, {
+        enrollmentId: enrollment.id,
+        studentName: enrollment.usuario.name,
+        courseName: enrollment.curso.nome,
+        courseHours: enrollment.curso.carga_horaria ?? 0,
+        completedAt: enrollment.concluido_em!,
+      });
     }
   }
 }

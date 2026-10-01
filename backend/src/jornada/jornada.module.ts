@@ -21,10 +21,12 @@ import {
   TentativaQuestionario,
 } from '../cursos/questionario.entity';
 import { CursosModule } from '../cursos/cursos.module';
+import { CertificadosModule } from '../certificados/certificados.module';
 
 @Module({
   imports: [
     CursosModule,
+    CertificadosModule,
     TypeOrmModule.forFeature([
       User,
       Curso,

@@ -21,6 +21,7 @@ import { CursosService } from '../src/cursos/cursos.service';
 import { Matricula } from '../src/jornada/matricula.entity';
 import { DataSource } from 'typeorm';
 import { YoutubeVideoValidationService } from '../src/cursos/youtube-video-validation.service';
+import { CertificateIssuanceService } from '../src/certificados/certificate-issuance.service';
 
 const testSecret = 'e2e-test-secret';
 const courseId = '11111111-1111-4111-8111-111111111111';
@@ -165,6 +166,10 @@ describe('Cursos authorization (e2e)', () => {
       providers: [
         CursosService,
         AulasService,
+        {
+          provide: CertificateIssuanceService,
+          useValue: { issue: jest.fn().mockResolvedValue({}) },
+        },
         {
           provide: YoutubeVideoValidationService,
           useValue: {

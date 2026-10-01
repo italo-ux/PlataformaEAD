@@ -54,10 +54,6 @@ function App() {
           element={<ProtectedRoute allowedRoles={["professor", "admin"]} />}
         >
           <Route
-            path="/certificados"
-            element={<CertificateTemplatesPage />}
-          />
-          <Route
             path="/professor/cursos/novo"
             element={<ProfessorCourseCreatePage />}
           />
@@ -68,6 +64,7 @@ function App() {
         </Route>
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
           <Route path="/admin/estatisticas" element={<AdminStatsPage />} />
+          <Route path="/certificados" element={<CertificateTemplatesPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

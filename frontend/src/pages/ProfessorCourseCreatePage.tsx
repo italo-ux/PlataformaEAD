@@ -13,6 +13,8 @@ import {
   BookOpen,
   ListVideo,
   PlusCircle,
+  Plus,
+  X,
   Rocket,
   Save,
   UsersRound,
@@ -30,7 +32,6 @@ interface CourseFormState {
   url_foto: string;
   carga_horaria: string;
   categoria: string;
-  nivel: string;
   ambiente_teste: boolean;
 }
 
@@ -40,7 +41,6 @@ const initialForm: CourseFormState = {
   url_foto: "",
   carga_horaria: "",
   categoria: "",
-  nivel: "",
   ambiente_teste: false,
 };
 
@@ -54,6 +54,9 @@ export default function ProfessorCourseCreatePage() {
   const user = getAuthenticatedUser();
   const isEditing = Boolean(courseId);
   const [form, setForm] = useState(initialForm);
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [categoryDraft, setCategoryDraft] = useState("");
+  const [categoryError, setCategoryError] = useState("");
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -91,7 +94,6 @@ export default function ProfessorCourseCreatePage() {
           url_foto: course.url_foto ?? "",
           carga_horaria: course.carga_horaria?.toString() ?? "",
           categoria: course.categoria ?? "",
-          nivel: course.nivel ?? "",
           ambiente_teste: course.ambiente_teste,
         });
         setCourseStatus(course.status);
@@ -138,8 +140,38 @@ export default function ProfessorCourseCreatePage() {
     setForm((current) => ({ ...current, [name]: value }));
   };
 
+  const categories = form.categoria.split(",").map((item) => item.trim()).filter(Boolean);
+  const addCategory = () => {
+    const value = categoryDraft.trim();
+    if (!value) {
+      setCategoryError("Digite o nome da categoria.");
+      return;
+    }
+    if (value.includes(",")) {
+      setCategoryError("Adicione uma categoria por vez, sem vírgulas.");
+      return;
+    }
+    if (categories.some((item) => item.toLocaleLowerCase("pt-BR") === value.toLocaleLowerCase("pt-BR"))) {
+      setCategoryError("Esta categoria já foi adicionada.");
+      return;
+    }
+    const next = [...categories, value].join(", ");
+    if (next.length > 255) {
+      setCategoryError("As categorias atingiram o limite de 255 caracteres.");
+      return;
+    }
+    setForm((current) => ({ ...current, categoria: next }));
+    setCategoryDraft("");
+    setCategoryError("");
+    setAddingCategory(false);
+  };
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (categoryDraft.trim()) {
+      setCategoryError("Adicione ou cancele a categoria antes de salvar o curso.");
+      return;
+    }
     setError("");
     setStatus("");
     setSaving(true);
@@ -150,8 +182,7 @@ export default function ProfessorCourseCreatePage() {
     };
     if (form.descricao.trim()) payload.descricao = form.descricao.trim();
     if (form.url_foto.trim()) payload.url_foto = form.url_foto.trim();
-    if (form.categoria.trim()) payload.categoria = form.categoria.trim();
-    if (form.nivel.trim()) payload.nivel = form.nivel.trim();
+    if (isEditing || categories.length > 0) payload.categoria = categories.join(", ");
     if (form.carga_horaria.trim()) {
       payload.carga_horaria = Number(form.carga_horaria);
     }
@@ -348,24 +379,46 @@ export default function ProfessorCourseCreatePage() {
                   className={`${fieldClass} mt-2`}
                 />
               </label>
-              <label className="text-sm font-bold text-[#25304a]">
-                Categoria
-                <input
-                  name="categoria"
-                  value={form.categoria}
-                  onChange={handleChange}
-                  className={`${fieldClass} mt-2`}
-                />
-              </label>
-              <label className="text-sm font-bold text-[#25304a]">
-                Nível
-                <input
-                  name="nivel"
-                  value={form.nivel}
-                  onChange={handleChange}
-                  className={`${fieldClass} mt-2`}
-                />
-              </label>
+              <div className="sm:col-span-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-[#25304a]">Categoria</span>
+                  <button type="button" aria-label="Adicionar categoria" aria-expanded={addingCategory}
+                    onClick={() => { setAddingCategory(true); setCategoryError(""); }}
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-blue-600 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-blue-600">
+                    <Plus size={20} />
+                  </button>
+                </div>
+                {categories.length > 0 && (
+                  <ul aria-label="Categorias adicionadas" className="mt-2 flex flex-wrap gap-2">
+                    {categories.map((category, index) => (
+                      <li key={`${category}-${index}`} className="inline-flex items-center gap-1 rounded-full bg-blue-50 py-1 pl-3 pr-1 text-sm font-semibold text-blue-800">
+                        {category}
+                        <button type="button" aria-label={`Remover categoria ${category}`}
+                          onClick={() => setForm((current) => ({ ...current, categoria: categories.filter((_, i) => i !== index).join(", ") }))}
+                          className="rounded-full p-1.5 hover:bg-blue-100">
+                          <X size={14} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {addingCategory && (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <input aria-label="Nome da categoria" autoFocus value={categoryDraft} maxLength={255}
+                      aria-invalid={Boolean(categoryError)} aria-describedby={categoryError ? "category-error" : undefined}
+                      placeholder="Nome da categoria"
+                      onChange={(event) => { setCategoryDraft(event.target.value); setCategoryError(""); }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") { event.preventDefault(); addCategory(); }
+                        if (event.key === "Escape") { event.preventDefault(); setAddingCategory(false); setCategoryDraft(""); setCategoryError(""); }
+                      }}
+                      className={`${fieldClass} flex-1 basis-48`} />
+                    <button type="button" onClick={addCategory} className="rounded-lg bg-blue-600 px-4 py-3 text-sm font-bold text-white">Adicionar</button>
+                    <button type="button" aria-label="Cancelar categoria" onClick={() => { setAddingCategory(false); setCategoryDraft(""); setCategoryError(""); }} className="rounded-lg p-3 text-slate-500 hover:bg-slate-100"><X size={18} /></button>
+                  </div>
+                )}
+                {categoryError && <p id="category-error" role="alert" className="mt-2 text-sm text-red-700">{categoryError}</p>}
+              </div>
             </div>
             </fieldset>
 

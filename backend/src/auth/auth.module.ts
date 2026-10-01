@@ -11,6 +11,7 @@ import { MailService } from './mail.service';
 import { Address } from './address.entity';
 import { CepService } from './cep.service';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { FeedbackController } from './feedback.controller';
 
 const jwtSecret = process.env.JWT_SECRET;
 
@@ -34,7 +35,7 @@ if (!jwtSecret) {
       signOptions: { expiresIn: '1h' }, // token expira em 1 hora
     }),
   ],
-  controllers: [AuthController], //lista os controlers que pertencem a esse módulo
+  controllers: [AuthController, FeedbackController],
   providers: [AuthService, JwtStrategy, MailService, CepService],
   exports: [AuthService],
 })

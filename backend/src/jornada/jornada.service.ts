@@ -4,16 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { randomBytes } from 'node:crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.interface';
 import { UserRole } from '../auth/user-role.enum';
 import { User } from '../auth/user.entity';
-import {
-  Certificado,
-  CertificadoStatus,
-} from '../certificados/certificado.entity';
+import { Certificado } from '../certificados/certificado.entity';
+import { CertificateIssuanceService } from '../certificados/certificate-issuance.service';
 import { Aula } from '../cursos/aula.entity';
 import { CursosService } from '../cursos/cursos.service';
 import { Matricula } from './matricula.entity';
@@ -34,6 +31,7 @@ export class JornadaService {
     @InjectRepository(Certificado)
     private readonly certificatesRepository: Repository<Certificado>,
     private readonly cursosService: CursosService,
+    private readonly certificateIssuance: CertificateIssuanceService,
   ) {}
 
   async enroll(courseId: string, actor: AuthenticatedUser) {
@@ -99,17 +97,13 @@ export class JornadaService {
           ),
         );
         if (completeImmediately) {
-          await manager.save(
-            manager.create(Certificado, {
-              id_matricula: enrollment.id,
-              codigo: randomBytes(16).toString('hex').toUpperCase(),
-              nome_aluno: user.name,
-              nome_curso: course.nome,
-              carga_horaria: courseHours,
-              concluido_em: completedAt!,
-              status: CertificadoStatus.VALIDO,
-            }),
-          );
+          await this.certificateIssuance.issue(manager, {
+            enrollmentId: enrollment.id,
+            studentName: user.name,
+            courseName: course.nome,
+            courseHours,
+            completedAt: completedAt!,
+          });
         }
       });
     } catch (error) {

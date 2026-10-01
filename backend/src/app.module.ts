@@ -18,6 +18,11 @@ import { ProgressoAula } from './jornada/progresso-aula.entity';
 import { JornadaModule } from './jornada/jornada.module';
 import { Certificado } from './certificados/certificado.entity';
 import { CertificadosModule } from './certificados/certificados.module';
+import {
+  CertificateTemplate,
+  CertificateTemplateAsset,
+} from './certificados/certificate-template.entity';
+import { CertificateSnapshotImage } from './certificados/certificate-snapshot-image.entity';
 import { PlaybackSession } from './jornada/playback-session.entity';
 import { APP_FILTER } from '@nestjs/core';
 import { ApiExceptionFilter } from './common/api-exception.filter';
@@ -56,6 +61,9 @@ import {
         Matricula,
         ProgressoAula,
         Certificado,
+        CertificateTemplate,
+        CertificateTemplateAsset,
+        CertificateSnapshotImage,
         PlaybackSession,
         Questionario,
         PerguntaQuestionario,

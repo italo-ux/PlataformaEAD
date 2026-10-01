@@ -12,6 +12,7 @@ describe('MailService', () => {
     'SMTP_USER',
     'SMTP_PASS',
     'SMTP_FROM',
+    'INSTITUTION_EMAIL',
   ];
   let previous: Record<string, string | undefined>;
   let log: jest.SpyInstance;
@@ -45,6 +46,31 @@ describe('MailService', () => {
     ).resolves.toBeUndefined();
     expect(nodemailer.createTransport).not.toHaveBeenCalled();
     expect(log).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not pretend feedback was sent without SMTP or a destination', async () => {
+    const service = new MailService();
+    await expect(service.sendInstitutionFeedback('Aluno', 'aluno@example.com', 'Dúvida', 'Mensagem')).rejects.toThrow();
+    expect(log).not.toHaveBeenCalled();
+  });
+
+  it('sends feedback only to the institution and rejects SMTP failures', async () => {
+    Object.assign(process.env, {
+      SMTP_HOST: 'smtp.example.test', SMTP_USER: 'test', SMTP_PASS: 'test',
+      SMTP_FROM: 'sender@example.com', INSTITUTION_EMAIL: 'institution@example.com',
+    });
+    const sendMail = jest.fn().mockResolvedValue({ accepted: ['institution@example.com'], rejected: [] });
+    jest.mocked(nodemailer.createTransport).mockReturnValue({ sendMail } as unknown as ReturnType<typeof nodemailer.createTransport>);
+    const service = new MailService();
+    await service.sendInstitutionFeedback('Aluno', 'aluno@example.com', 'Dúvida', '<b>Mensagem</b>');
+    expect(sendMail).toHaveBeenCalledWith(expect.objectContaining({
+      to: 'institution@example.com', from: 'sender@example.com', replyTo: 'aluno@example.com',
+      text: 'Nome: Aluno\nE-mail: aluno@example.com\n\n<b>Mensagem</b>',
+    }));
+    sendMail.mockResolvedValueOnce({ accepted: [], rejected: ['institution@example.com'] });
+    await expect(service.sendInstitutionFeedback('Aluno', 'aluno@example.com', 'Dúvida', 'Mensagem')).rejects.toThrow();
+    sendMail.mockRejectedValueOnce(new Error('SMTP failed'));
+    await expect(service.sendInstitutionFeedback('Aluno', 'aluno@example.com', 'Dúvida', 'Mensagem')).rejects.toThrow();
   });
 
   it('refuses to start in production without SMTP', () => {

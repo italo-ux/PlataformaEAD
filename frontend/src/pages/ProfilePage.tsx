@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import {
   BookOpen,
   CheckCircle2,
+  ChevronDown,
   KeyRound,
   Layers3,
   Lock,
@@ -249,6 +250,7 @@ export default function ProfilePage() {
   const [generalError, setGeneralError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isTrailManagementOpen, setIsTrailManagementOpen] = useState(false);
   const [passwordValues, setPasswordValues] = useState<PasswordFormValues>({
     currentPassword: "",
     nextPassword: "",
@@ -481,6 +483,7 @@ export default function ProfilePage() {
                 <>
                   <a
                     href="#gerenciar-trilhas"
+                    onClick={() => setIsTrailManagementOpen(true)}
                     className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-slate-950"
                   >
                     <Layers3 className="h-4 w-4" /> Gerenciar trilhas
@@ -650,13 +653,24 @@ export default function ProfilePage() {
                         Administração
                       </p>
                       <h2 className="mt-2 text-2xl font-black text-[#25304a]">
-                        Gerenciar trilhas
+                        <button
+                          type="button"
+                          aria-expanded={isTrailManagementOpen}
+                          aria-controls="trail-management-content"
+                          onClick={() => setIsTrailManagementOpen((current) => !current)}
+                          className="flex w-full items-center justify-between gap-3 rounded-lg py-2 text-left focus-visible:outline-2 focus-visible:outline-blue-600"
+                        >
+                          Gerenciar trilhas
+                          <ChevronDown aria-hidden="true" className={`h-5 w-5 shrink-0 transition-transform ${isTrailManagementOpen ? "rotate-180" : ""}`} />
+                        </button>
                       </h2>
-                      <p className="mt-2 text-sm text-slate-600">
+                      <p hidden={!isTrailManagementOpen} className="mt-2 text-sm text-slate-600">
                         Crie trilhas e organize os cursos disponíveis.
                       </p>
                     </div>
-                    <AdminTrailManagement embedded />
+                    <div id="trail-management-content" hidden={!isTrailManagementOpen}>
+                      <AdminTrailManagement embedded />
+                    </div>
                   </section>
                   <section
                     id="cadastrar-equipe"

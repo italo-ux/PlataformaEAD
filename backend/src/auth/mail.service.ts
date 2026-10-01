@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { isEmail } from 'class-validator';
 import * as nodemailer from 'nodemailer';
 import { Transporter } from 'nodemailer';
 
@@ -28,6 +29,25 @@ export class MailService {
     this.logger.warn(
       'SMTP is not configured; verification codes will be logged in development.',
     );
+  }
+
+  async sendInstitutionFeedback(name: string, email: string, subject: string, message: string) {
+    const recipient = process.env.INSTITUTION_EMAIL?.trim();
+    if (!this.transporter || !recipient || !isEmail(recipient)) {
+      throw new ServiceUnavailableException('O envio de mensagens está indisponível no momento.');
+    }
+    try {
+      const result = await this.transporter.sendMail({
+        from: process.env.SMTP_FROM ?? '"Plataforma EAD" <no-reply@localhost>',
+        to: recipient,
+        replyTo: email,
+        subject: `[Feedback EAD] ${subject.replace(/[\r\n]+/g, ' ')}`,
+        text: `Nome: ${name}\nE-mail: ${email}\n\n${message}`,
+      });
+      if (!result.accepted?.length || result.rejected?.length) throw new Error('Recipient rejected');
+    } catch {
+      throw new ServiceUnavailableException('Não foi possível enviar a mensagem. Tente novamente em instantes.');
+    }
   }
 
   async sendVerificationCode(email: string, code: string) {

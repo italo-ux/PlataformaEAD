@@ -105,6 +105,7 @@ describe("Login and route permissions", () => {
     "/course/11111111-1111-4111-8111-111111111111",
     "/feedback",
     "/admin/estatisticas",
+    "/certificados",
   ])("redirects unauthenticated access to %s", async (path) => {
     window.history.pushState({}, "", path);
     render(<App />);

@@ -8,6 +8,7 @@ import {
 } from '../cursos/questionario.entity';
 import { Matricula } from './matricula.entity';
 import { QuestionarioService } from './questionario.service';
+import { CertificateIssuanceService } from '../certificados/certificate-issuance.service';
 
 describe('QuestionarioService', () => {
   const actor = {
@@ -80,8 +81,11 @@ describe('QuestionarioService', () => {
     const dataSource = {
       transaction: jest.fn((work) => work(manager)),
     } as unknown as DataSource;
+    const certificateIssuance = {
+      issue: jest.fn().mockResolvedValue({}),
+    } as unknown as jest.Mocked<CertificateIssuanceService>;
     return {
-      service: new QuestionarioService(dataSource),
+      service: new QuestionarioService(dataSource, certificateIssuance),
       enrollmentRepository,
       lessonProgress,
     };

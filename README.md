@@ -22,8 +22,9 @@ conclusão e certificado PDF verificável.
 1. Copie `.env.example` para `backend/.env` e preencha banco, JWT e SMTP.
 2. Crie o banco configurado em `DB_NAME`.
 3. Faça backup se o banco já contiver dados.
-4. Aplique, em ordem, os scripts de `backend/database/migrations/` com
-   `ON_ERROR_STOP=1`. A migration 7 aborta se encontrar matrículas duplicadas.
+4. Em um banco vazio, aplique as migrations **1 a 15 em ordem numérica**, com
+   `ON_ERROR_STOP=1`, seguindo o [guia do banco](backend/database/README.md).
+   Em um banco existente, aplique somente as pendentes e pare no primeiro erro.
 5. Instale e execute cada aplicação:
 
 ```bash
@@ -48,7 +49,22 @@ endereço.
 - Professor: cria o curso em rascunho, cadastra as aulas, publica e usa a
   pré-visualização sem gerar progresso.
 - Administrador: gerencia conteúdo/equipe e consulta as métricas reais de
-  matrículas, aulas, cursos concluídos e certificados.
+  matrículas, aulas, cursos concluídos e certificados. Também gerencia os
+  modelos persistentes usados nas próximas emissões.
+
+### Modelos de certificado
+
+A tela administrativa `/certificados` lista, cria, edita e define o modelo
+padrão através da API. Logos e assinaturas PNG são persistidos em `BYTEA` no
+PostgreSQL, com limite de 1 MiB por arquivo e até quatro itens de cada tipo.
+Na primeira abertura, os modelos antigos da chave local
+`ead.certificate.templates` são enviados ao endpoint idempotente de
+sincronização; a chave local não é apagada e registros já importados não são
+sobrescritos.
+
+Cada nova emissão copia para o certificado um snapshot JSON do modelo e cópias
+binárias das imagens. Assim, editar um modelo não altera PDFs já emitidos.
+Certificados anteriores à migration 15 continuam usando o layout legado.
 
 Uma aula conclui com 90% de cobertura única do vídeo. Temporariamente, a duração
 é informada como `MM:SS` pelo professor ou administrador; o frontend a converte
@@ -100,12 +116,17 @@ login, matrícula, aulas sequenciais, conclusão concorrente, PDF e validação.
 
 1. Execute `npm run test:postgres` em desenvolvimento.
 2. Faça backup do banco de homologação.
-3. Rode o diagnóstico de duplicidade descrito em
-   `backend/database/README.md`.
-4. Aplique a migration 7 em homologação com parada em qualquer erro.
+3. Identifique as migrations já aplicadas e rode os diagnósticos de duplicidade
+   e propriedade descritos no [guia do banco](backend/database/README.md).
+4. Aplique todas as migrations pendentes até a 15 em homologação, em ordem
+   numérica, interrompendo a sequência em qualquer erro.
 5. A migration 8 retorna cursos antigos sem ID e duração cadastrados para
    rascunho. Revise a URL e informe a duração de cada aula antes de republicar.
-6. Faça o fluxo completo com um curso piloto.
-7. Só então repita o procedimento em produção.
+6. A migration 14 fixa a aprovação dos questionários existentes em 70% e três
+   tentativas. Faça o fluxo completo com um curso piloto, incluindo questionário
+   e certificado.
+7. A migration 15 cria os modelos persistentes e os snapshots imutáveis dos
+   certificados; confirme que existe exatamente um modelo padrão.
+8. Só então repita o procedimento em produção.
 
 Mantenha `DB_SYNCHRONIZE=false` fora de bancos descartáveis.

@@ -248,8 +248,87 @@ CREATE TABLE IF NOT EXISTS certificados (
     concluido_em TIMESTAMPTZ NOT NULL,
     status certificado_status NOT NULL DEFAULT 'valido',
     emitido_em TIMESTAMPTZ DEFAULT NOW(),
+    modelo_snapshot JSONB,
     FOREIGN KEY (id_matricula) REFERENCES matricula(id) ON DELETE RESTRICT
 );
+
+CREATE TABLE IF NOT EXISTS modelos_certificado (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    client_reference VARCHAR(100) UNIQUE,
+    name VARCHAR(120) NOT NULL,
+    eyebrow VARCHAR(180) NOT NULL,
+    title VARCHAR(180) NOT NULL,
+    body VARCHAR(1000) NOT NULL,
+    signature VARCHAR(180) NOT NULL,
+    primary_color CHAR(7) NOT NULL,
+    accent_color CHAR(7) NOT NULL,
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CHECK (primary_color ~ '^#[0-9A-Fa-f]{6}$'),
+    CHECK (accent_color ~ '^#[0-9A-Fa-f]{6}$')
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_modelo_certificado_padrao
+    ON modelos_certificado (is_default) WHERE is_default = TRUE;
+
+CREATE TABLE IF NOT EXISTS modelo_certificado_imagens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_modelo UUID NOT NULL REFERENCES modelos_certificado(id) ON DELETE CASCADE,
+    kind VARCHAR(20) NOT NULL CHECK (kind IN ('logo', 'signature')),
+    name VARCHAR(255) NOT NULL,
+    png_data BYTEA NOT NULL,
+    identification VARCHAR(150),
+    ordem INTEGER NOT NULL,
+    UNIQUE (id_modelo, kind, ordem),
+    CHECK (
+      octet_length(png_data) BETWEEN 1 AND 1048576
+      AND substring(png_data FROM 1 FOR 8) = decode('89504e470d0a1a0a', 'hex')
+    ),
+    CHECK (
+      (kind = 'logo' AND identification IS NULL)
+      OR (kind = 'signature' AND length(btrim(identification)) > 0)
+    )
+);
+
+CREATE TABLE IF NOT EXISTS certificado_imagens_snapshot (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_certificado UUID NOT NULL REFERENCES certificados(id) ON DELETE CASCADE,
+    kind VARCHAR(20) NOT NULL CHECK (kind IN ('logo', 'signature')),
+    name VARCHAR(255) NOT NULL,
+    png_data BYTEA NOT NULL,
+    identification VARCHAR(150),
+    ordem INTEGER NOT NULL,
+    UNIQUE (id_certificado, kind, ordem),
+    CHECK (
+      octet_length(png_data) BETWEEN 1 AND 1048576
+      AND substring(png_data FROM 1 FOR 8) = decode('89504e470d0a1a0a', 'hex')
+    ),
+    CHECK (
+      (kind = 'logo' AND identification IS NULL)
+      OR (kind = 'signature' AND length(btrim(identification)) > 0)
+    )
+);
+
+INSERT INTO modelos_certificado (
+    id, client_reference, name, eyebrow, title, body, signature,
+    primary_color, accent_color, is_default
+) VALUES
+    ('c0000000-0000-4000-8000-000000000001', 'institucional-azul',
+     'Institucional azul', 'Plataforma EAD Inovação Barueri',
+     'Certificado de conclusão',
+     'Certificamos que {aluno} concluiu o curso {curso}.',
+     'Inovação Barueri', '#2563EB', '#172033', TRUE),
+    ('c0000000-0000-4000-8000-000000000002', 'conquista-verde',
+     'Conquista', 'Formação e desenvolvimento', 'Certificado',
+     'Concedido a {aluno} pela conclusão do curso {curso}.',
+     'Coordenação pedagógica', '#059669', '#134E4A', FALSE),
+    ('c0000000-0000-4000-8000-000000000003', 'essencial-violeta',
+     'Essencial', 'Conhecimento que transforma',
+     'Certificado de participação',
+     'Reconhecemos a participação de {aluno} no curso {curso}.',
+     'Equipe de formação', '#7C3AED', '#312E81', FALSE)
+ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS usuario_curso (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

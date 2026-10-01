@@ -6,13 +6,9 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { randomBytes } from 'node:crypto';
 import { DataSource, EntityManager } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.interface';
-import {
-  Certificado,
-  CertificadoStatus,
-} from '../certificados/certificado.entity';
+import { CertificateIssuanceService } from '../certificados/certificate-issuance.service';
 import { EndPlaybackDto } from './dto/end-playback.dto';
 import { CursoStatus } from '../cursos/curso.entity';
 import { PlaybackHeartbeatDto } from './dto/playback-heartbeat.dto';
@@ -43,6 +39,7 @@ export class PlaybackService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly clock: ClockService,
+    private readonly certificateIssuance: CertificateIssuanceService,
   ) {}
 
   async start(
@@ -367,17 +364,13 @@ export class PlaybackService {
       enrollment.conclusao = true;
       enrollment.concluido_em = now;
       await manager.save(enrollment);
-      await manager.save(
-        manager.create(Certificado, {
-          id_matricula: enrollment.id,
-          codigo: randomBytes(16).toString('hex').toUpperCase(),
-          nome_aluno: enrollment.usuario.name,
-          nome_curso: enrollment.curso.nome,
-          carga_horaria: enrollment.curso.carga_horaria ?? 0,
-          concluido_em: now,
-          status: CertificadoStatus.VALIDO,
-        }),
-      );
+      await this.certificateIssuance.issue(manager, {
+        enrollmentId: enrollment.id,
+        studentName: enrollment.usuario.name,
+        courseName: enrollment.curso.nome,
+        courseHours: enrollment.curso.carga_horaria ?? 0,
+        completedAt: now,
+      });
     } else {
       await manager.save(enrollment);
     }

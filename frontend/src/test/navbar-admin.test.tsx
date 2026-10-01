@@ -69,6 +69,9 @@ describe("Administrator navigation", () => {
       screen.getByRole("link", { name: "Estatísticas" }).getAttribute("href"),
     ).toBe("/admin/estatisticas");
     expect(screen.getByText("Adicionar curso")).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Certificados" }).getAttribute("href"),
+    ).toBe("/certificados");
   });
 
   it("shows real journey metrics on the statistics page", async () => {
@@ -102,6 +105,7 @@ describe("Administrator navigation", () => {
     expect(screen.getByRole("link", { name: "Rascunhos" }).getAttribute("href")).toBe(
       "/courses?filtro=rascunhos",
     );
+    expect(screen.queryByRole("link", { name: "Certificados" })).toBeNull();
 
     rerender(
       <MemoryRouter>

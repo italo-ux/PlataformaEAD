@@ -232,7 +232,7 @@ function AuthenticatedNavigation({ user }: { user: User }) {
                         end={item.to === "/home"}
                         onClick={closeMobile}
                         className={({ isActive }) =>
-                          `${itemClass({ isActive })} ${isAdminCourses ? "pr-11" : ""}`
+                          `${itemClass({ isActive })} ${isAdminCourses ? (collapsed ? "pr-11 lg:pr-3" : "pr-11") : ""}`
                         }
                         title={collapsed ? item.label : undefined}
                       >
@@ -300,7 +300,7 @@ function AuthenticatedNavigation({ user }: { user: User }) {
               Minha área
             </p>
             <div className="mt-3 space-y-1.5">
-              {user.role !== "aluno" && (
+              {user.role === "admin" && (
                 <NavLink
                   to="/certificados"
                   onClick={closeMobile}

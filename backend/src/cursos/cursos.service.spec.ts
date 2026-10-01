@@ -14,6 +14,7 @@ import { Aula } from './aula.entity';
 import { TrilhaCurso } from '../trilhas/trilha-curso.entity';
 import { YoutubeVideoValidationService } from './youtube-video-validation.service';
 import { CursoStatus } from './curso.entity';
+import { CertificateIssuanceService } from '../certificados/certificate-issuance.service';
 
 describe('CursosService', () => {
   const previousTestCourseBypass = process.env.ALLOW_TEST_COURSE_BYPASS;
@@ -66,6 +67,9 @@ describe('CursosService', () => {
     validateVideo: jest.fn(),
     checkCourse: jest.fn(),
   } as unknown as jest.Mocked<YoutubeVideoValidationService>;
+  const certificateIssuance = {
+    issue: jest.fn(),
+  } as unknown as jest.Mocked<CertificateIssuanceService>;
   const deleteQueryBuilder = {
     delete: jest.fn().mockReturnThis(),
     from: jest.fn().mockReturnThis(),
@@ -91,6 +95,7 @@ describe('CursosService', () => {
     lessonsRepository,
     enrollmentsRepository,
     youtubeValidation,
+    certificateIssuance,
   );
 
   beforeEach(() => {

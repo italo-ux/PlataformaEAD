@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { randomBytes } from 'node:crypto';
 import { AuthenticatedUser } from '../auth/authenticated-user.interface';
 import { UserRole } from '../auth/user-role.enum';
 import { Matricula } from '../jornada/matricula.entity';
@@ -22,10 +21,8 @@ import { CreateCursoDto } from './dto/create-curso.dto';
 import { UpdateCursoDto } from './dto/update-curso.dto';
 import { extractYoutubeVideoId } from './youtube-video.util';
 import { TrilhaCurso } from '../trilhas/trilha-curso.entity';
-import {
-  Certificado,
-  CertificadoStatus,
-} from '../certificados/certificado.entity';
+import { Certificado } from '../certificados/certificado.entity';
+import { CertificateIssuanceService } from '../certificados/certificate-issuance.service';
 import {
   CourseVideoAvailability,
   YoutubeVideoValidationService,
@@ -49,6 +46,7 @@ export class CursosService {
     @InjectRepository(Matricula)
     private readonly matriculasRepository: Repository<Matricula>,
     private readonly youtubeValidation: YoutubeVideoValidationService,
+    private readonly certificateIssuance: CertificateIssuanceService,
   ) {}
 
   create(createCursoDto: CreateCursoDto, actor: AuthenticatedUser) {
@@ -262,17 +260,13 @@ export class CursosService {
           id_matricula: enrollment.id,
         }))
       ) {
-        await manager.save(
-          manager.create(Certificado, {
-            id_matricula: enrollment.id,
-            codigo: randomBytes(16).toString('hex').toUpperCase(),
-            nome_aluno: enrollment.usuario.name,
-            nome_curso: enrollment.curso.nome,
-            carga_horaria: enrollment.curso.carga_horaria ?? 0,
-            concluido_em: enrollment.concluido_em!,
-            status: CertificadoStatus.VALIDO,
-          }),
-        );
+        await this.certificateIssuance.issue(manager, {
+          enrollmentId: enrollment.id,
+          studentName: enrollment.usuario.name,
+          courseName: enrollment.curso.nome,
+          courseHours: enrollment.curso.carga_horaria ?? 0,
+          completedAt: enrollment.concluido_em!,
+        });
       }
     }
   }
