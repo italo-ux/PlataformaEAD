@@ -7,6 +7,8 @@ import {
   Clock3,
   Download,
   Trophy,
+  Award,
+  BarChart2,
 } from "lucide-react";
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
@@ -16,6 +18,8 @@ import journeyService, {
   type CertificateSummary,
   type EnrollmentSummary,
 } from "../services/journeyService";
+import { AchievementsTab } from "../components/studentDashboard/AchievementsTab";
+import { RankingTab } from "../components/studentDashboard/RankingTab";
 
 function formatStudyTime(totalSeconds: number) {
   const totalMinutes = Math.floor(totalSeconds / 60);
@@ -24,10 +28,12 @@ function formatStudyTime(totalSeconds: number) {
   return hours ? `${hours}h ${String(minutes).padStart(2, "0")}m` : `${minutes}m`;
 }
 
+type ActiveTab = "cursos" | "conquistas" | "ranking" | "certificados";
+
 export default function DashboardAluno() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<"cursos" | "certificados">("cursos");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("cursos");
   const [enrollments, setEnrollments] = useState<EnrollmentSummary[]>([]);
   const [certificates, setCertificates] = useState<CertificateSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,6 +102,13 @@ export default function DashboardAluno() {
     { label: "Certificados", value: String(certificates.length), icon: Trophy },
   ];
 
+  const tabButtons = [
+    { id: "cursos", label: "Cursos", icon: BookOpen },
+    { id: "conquistas", label: "Conquistas", icon: Award },
+    { id: "ranking", label: "Ranking", icon: BarChart2 },
+    { id: "certificados", label: "Certificados", icon: Trophy },
+  ] as const;
+
   return (
     <div className="min-h-screen bg-[#f6f9ff] text-slate-950">
       <Navbar user={user} />
@@ -137,16 +150,32 @@ export default function DashboardAluno() {
           })}
         </section>
 
-        <div className="mt-8 flex gap-2">
-          <button type="button" onClick={() => setActiveTab("cursos")} className={`rounded-lg px-4 py-2 font-bold ${activeTab === "cursos" ? "bg-blue-600 text-white" : "bg-white text-slate-700"}`}>
-            Meus cursos
-          </button>
-          <button type="button" onClick={() => setActiveTab("certificados")} className={`rounded-lg px-4 py-2 font-bold ${activeTab === "certificados" ? "bg-blue-600 text-white" : "bg-white text-slate-700"}`}>
-            Certificados
-          </button>
-        </div>
+        <nav className="mt-8" aria-label="Abas do painel do aluno">
+          <div className="flex flex-wrap gap-2 overflow-x-auto pb-2" role="tablist">
+            {tabButtons.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setActiveTab(tab.id as ActiveTab)}
+                  className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 font-bold transition-colors min-h-11 whitespace-nowrap ${
+                    isActive
+                      ? "bg-blue-600 text-white"
+                      : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-50"
+                  }`}
+                >
+                  <Icon size={16} />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
 
-        {loading ? (
+        {loading && activeTab === "cursos" ? (
           <p className="py-12 text-center text-slate-600">Carregando dados da jornada...</p>
         ) : activeTab === "cursos" ? (
           <section className="mt-6 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
@@ -187,6 +216,10 @@ export default function DashboardAluno() {
               ))
             )}
           </section>
+        ) : activeTab === "conquistas" ? (
+          <AchievementsTab />
+        ) : activeTab === "ranking" ? (
+          <RankingTab user={user} />
         ) : (
           <section className="mt-6 space-y-4">
             {certificates.length === 0 ? (
@@ -211,7 +244,7 @@ export default function DashboardAluno() {
           </section>
         )}
 
-        {stats.completedCourses > 0 && (
+        {activeTab === "cursos" && stats.completedCourses > 0 && (
           <p className="mt-8 text-center text-sm font-semibold text-emerald-700">
             {stats.completedCourses} {stats.completedCourses === 1 ? "curso concluído" : "cursos concluídos"}.
           </p>
