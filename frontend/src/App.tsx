@@ -15,6 +15,7 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
 import AdminStatsPage from "./pages/AdminStatsPage";
+import AdminDashboard from "./pages/AdminDashboard";
 import { AuthProvider } from "./context/AuthContext";
 import CertificateValidationPage from "./pages/CertificateValidationPage";
 
@@ -61,7 +62,8 @@ function App() {
             element={<ProfessorCourseCreatePage />}
           />
         </Route>
-        <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+        <Route element={<ProtectedRoute allowedRoles={["admin"]} allowedProfileTypes={["funcionario"]} />}>
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/estatisticas" element={<AdminStatsPage />} />
         </Route>
       </Routes>

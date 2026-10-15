@@ -1,12 +1,16 @@
 import { Navigate, Outlet } from "react-router-dom";
-import type { UserRole } from "../data/userMock";
+import type { UserRole, User } from "../data/userMock";
 import { useAuth } from "../context/auth-context";
 
 interface ProtectedRouteProps {
   allowedRoles: UserRole[];
+  allowedProfileTypes?: User["profileType"][];
 }
 
-export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
+export const ProtectedRoute = ({
+  allowedRoles,
+  allowedProfileTypes,
+}: ProtectedRouteProps) => {
   const { loading, user } = useAuth();
 
   if (loading) {
@@ -17,7 +21,12 @@ export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (!allowedRoles.includes(user.role)) {
+  const hasRole = allowedRoles.includes(user.role);
+  const hasProfileType =
+    allowedProfileTypes?.includes(user.profileType as "cidadao" | "estagiario" | "funcionario") ??
+    false;
+
+  if (!hasRole && !hasProfileType) {
     return <Navigate to="/home" replace />;
   }
 
