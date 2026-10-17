@@ -103,13 +103,6 @@ export function CourseTrackComparison({
               tick={{ fontSize: 11, fill: "#64748b" }}
               axisLine={{ stroke: "#e2e8f0" }}
               tickLine={false}
-              label={{
-                value: LABELS[sortBy],
-                position: "insideBottom",
-                offset: -25,
-                fill: "#94a3b8",
-                fontSize: 11,
-              }}
             />
             <YAxis
               type="category"
@@ -152,6 +145,8 @@ export function CourseTrackComparison({
           </BarChart>
         </ResponsiveContainer>
       </div>
+
+      <div className="border-t border-slate-200 my-4" />
 
       <div className="mt-4 overflow-x-auto">
         <table className="w-full text-sm min-w-[600px]">

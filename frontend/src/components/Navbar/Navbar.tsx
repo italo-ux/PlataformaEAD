@@ -53,8 +53,7 @@ function Navbar({
   const showPerformanceLink = canAccessPerformance(user);
   const showCreateCourseLink =
     canCreateCourses(user) && user?.role === "professor";
-  const showAdminStatsLink = user?.role === "admin";
-  const showAdminDashboardLink = canAccessAdminDashboard(user);
+  const showAdminStatsLink = canAccessAdminDashboard(user);
 
   useEffect(() => {
     if (!isUserMenuOpen) {
@@ -169,14 +168,6 @@ function Navbar({
                   className={transparentActionClass}
                 >
                   Estatísticas
-                </Link>
-              )}
-              {showAdminDashboardLink && (
-                <Link
-                  to="/admin/dashboard"
-                  className={transparentActionClass}
-                >
-                  Dashboard Admin
                 </Link>
               )}
               <div className="relative" ref={userMenuRef}>
@@ -347,15 +338,6 @@ function Navbar({
                       className={mobileActionClass}
                     >
                       Estatísticas
-                    </Link>
-                  )}
-                  {showAdminDashboardLink && (
-                    <Link
-                      to="/admin/dashboard"
-                      onClick={closeMobileMenu}
-                      className={mobileActionClass}
-                    >
-                      Dashboard Admin
                     </Link>
                   )}
                   <Link

@@ -1,15 +1,16 @@
 import type { LearningFunnelStage } from "../../types/dashboard";
+import { Users, PlayCircle, TrendingUp, CheckCircle } from "lucide-react";
 
 interface LearningFunnelProps {
   data: LearningFunnelStage[];
   loading?: boolean;
 }
 
-const STAGE_ICONS: Record<string, string> = {
-  matriculados: "👥",
-  iniciaram: "▶️",
-  avancaram: "📈",
-  concluiram: "✅",
+const STAGE_ICONS: Record<string, React.ReactNode> = {
+  matriculados: <Users size={20} className="text-blue-600" />,
+  iniciaram: <PlayCircle size={20} className="text-green-600" />,
+  avancaram: <TrendingUp size={20} className="text-amber-600" />,
+  concluiram: <CheckCircle size={20} className="text-emerald-600" />,
 };
 
 export function LearningFunnel({ data, loading }: LearningFunnelProps) {
@@ -46,6 +47,13 @@ export function LearningFunnel({ data, loading }: LearningFunnelProps) {
         Acompanhe a jornada dos alunos desde a matrícula até a conclusão.
       </p>
 
+      <div className="flex flex-wrap gap-4 text-xs text-slate-500 mb-4">
+        <span className="flex items-center gap-1"><Users size={12} className="text-blue-600" /> Matriculados = total inscrito</span>
+        <span className="flex items-center gap-1"><PlayCircle size={12} className="text-green-600" /> Iniciaram = acessaram conteúdo</span>
+        <span className="flex items-center gap-1"><TrendingUp size={12} className="text-amber-600" /> Avançaram = progrediram etapas</span>
+        <span className="flex items-center gap-1"><CheckCircle size={12} className="text-emerald-600" /> Concluíram = certificados</span>
+      </div>
+
       <div className="space-y-3">
         {data.map((stage, index) => {
           const width = maxQuantidade > 0 ? (stage.quantidade / maxQuantidade) * 100 : 0;
@@ -60,7 +68,7 @@ export function LearningFunnel({ data, loading }: LearningFunnelProps) {
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-3 min-w-[180px]">
                   <span className="text-2xl" aria-hidden="true">
-                    {STAGE_ICONS[stage.etapa.toLowerCase()] || "📊"}
+                    {STAGE_ICONS[stage.etapa.toLowerCase()] || <div className="w-5 h-5 text-slate-400" />}
                   </span>
                   <div>
                     <p className="font-medium text-[#25304a]">{stage.etapa}</p>
@@ -81,7 +89,7 @@ export function LearningFunnel({ data, loading }: LearningFunnelProps) {
                   className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-500"
                   style={{ width: `${width}%` }}
                 />
-                <div className="absolute inset-0 flex items-center justify-end pr-3 text-white font-medium text-sm">
+                <div className="absolute inset-0 flex items-center justify-end pr-3 text-slate-900 font-medium text-sm bg-white/70 px-1 rounded">
                   {stage.quantidade.toLocaleString("pt-BR")}
                 </div>
               </div>

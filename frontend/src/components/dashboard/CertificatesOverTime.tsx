@@ -7,7 +7,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 import type { Granularity } from "../../types/dashboard";
 
@@ -102,7 +101,7 @@ export function CertificatesOverTime({
               tick={{ fontSize: 12, fill: "#64748b" }}
               axisLine={{ stroke: "#e2e8f0" }}
               tickLine={false}
-              interval="preserveStartEnd"
+              interval={0}
             />
             <YAxis
               tick={{ fontSize: 12, fill: "#64748b" }}
@@ -141,11 +140,6 @@ export function CertificatesOverTime({
                         : "Total acumulado",
                     ]
               }
-            />
-            <Legend
-              wrapperStyle={{ paddingTop: "16px" }}
-              layout="horizontal"
-              align="center"
             />
             <Area
               type="monotone"

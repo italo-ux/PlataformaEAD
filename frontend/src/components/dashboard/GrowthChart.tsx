@@ -7,7 +7,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 import type { GrowthDataPoint, Granularity, GrowthMetric } from "../../types/dashboard";
 
@@ -134,7 +133,7 @@ export function GrowthChart({
               tick={{ fontSize: 12, fill: "#64748b" }}
               axisLine={{ stroke: "#e2e8f0" }}
               tickLine={false}
-              interval="preserveStartEnd"
+              interval={0}
               tickFormatter={(value) => value}
             />
             <YAxis
@@ -164,11 +163,6 @@ export function GrowthChart({
                   ? [value.toLocaleString("pt-BR"), metricLabel]
                   : ["—", metricLabel]
               }
-            />
-            <Legend
-              wrapperStyle={{ paddingTop: "16px" }}
-              layout="horizontal"
-              align="center"
             />
             <Line
               type="monotone"
