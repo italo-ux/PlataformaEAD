@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Users, GraduationCap, BookOpenCheck, Award, Download } from "lucide-react";
 import Navbar from "../components/Navbar/Navbar";
+import Footer from "../components/Footer/Footer";
 import { useAuth } from "../context/auth-context";
 import dashboardService from "../services/dashboardService";
 import courseService from "../services/courseService";
@@ -85,6 +86,8 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     loadData();
+    const timeout = setTimeout(() => setLoading(false), 10000);
+    return () => clearTimeout(timeout);
   }, [loadData]);
 
   const handleUfClick = (uf: string) => {
@@ -213,14 +216,15 @@ export default function AdminDashboard() {
               Métricas consolidadas de alunos, matrículas, engajamento e conclusão.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            disabled={loading}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Download size={16} /> Exportar CSV
-          </button>
+          <div className="flex-shrink-0">
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              <Download size={16} /> Exportar CSV
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -299,6 +303,7 @@ export default function AdminDashboard() {
           />
         </section>
       </main>
+      <Footer />
     </div>
   );
 }
