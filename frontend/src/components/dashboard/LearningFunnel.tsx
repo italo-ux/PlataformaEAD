@@ -6,6 +6,10 @@ interface LearningFunnelProps {
   loading?: boolean;
 }
 
+function normalizeKey(str: string): string {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 const STAGE_ICONS: Record<string, React.ReactNode> = {
   matriculados: <Users size={20} className="text-blue-600" />,
   iniciaram: <PlayCircle size={20} className="text-green-600" />,
@@ -68,7 +72,7 @@ export function LearningFunnel({ data, loading }: LearningFunnelProps) {
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-3 min-w-[180px]">
                   <span className="text-2xl" aria-hidden="true">
-                    {STAGE_ICONS[stage.etapa.toLowerCase()] || <div className="w-5 h-5 text-slate-400" />}
+                    {STAGE_ICONS[normalizeKey(stage.etapa.toLowerCase())] || <div className="w-5 h-5 text-slate-400" />}
                   </span>
                   <div>
                     <p className="font-medium text-[#25304a]">{stage.etapa}</p>

@@ -24,7 +24,9 @@ interface GrowthChartProps {
 }
 
 function formatPeriod(period: string, granularity: Granularity): string {
-  if (granularity === "anual") return period;
+  if (granularity === "anual") {
+    return period.split("-")[0];
+  }
   const [year, month] = period.split("-");
   const months = [
     "Jan",
