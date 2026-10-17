@@ -8,8 +8,10 @@ function buildQueryString(filters: DashboardFilters): string {
   const params = new URLSearchParams();
   if (filters.periodoInicio) params.append("periodoInicio", filters.periodoInicio);
   if (filters.periodoFim) params.append("periodoFim", filters.periodoFim);
-  if (filters.cursoId) params.append("cursoId", filters.cursoId);
-  if (filters.trilhaId) params.append("trilhaId", filters.trilhaId);
+  if (filters.cursoId && filters.cursoId !== "__none__") params.append("cursoId", filters.cursoId);
+  if (filters.cursoId === "__none__") params.append("cursoId", "");
+  if (filters.trilhaId && filters.trilhaId !== "__none__") params.append("trilhaId", filters.trilhaId);
+  if (filters.trilhaId === "__none__") params.append("trilhaId", "");
   if (filters.uf) params.append("uf", filters.uf);
   return params.toString();
 }

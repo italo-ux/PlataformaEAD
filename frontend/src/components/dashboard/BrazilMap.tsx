@@ -17,18 +17,18 @@ interface BrazilMapProps {
   loading?: boolean;
 }
 
-// 5 faixas fixas (placeholders - serão calibradas com dados reais nacionais sem filtros)
+// 5 faixas calibradas com dados reais (distribuição nacional sem filtros)
 const LEGEND_THRESHOLDS = [
-  { min: 0, max: 500, label: "0 – 500" },
-  { min: 501, max: 2000, label: "501 – 2.000" },
-  { min: 2001, max: 5000, label: "2.001 – 5.000" },
-  { min: 5001, max: 15000, label: "5.001 – 15.000" },
-  { min: 15001, max: Infinity, label: "15.001+" },
+  { min: 0, max: 10, label: "0 – 10" },
+  { min: 11, max: 30, label: "11 – 30" },
+  { min: 31, max: 60, label: "31 – 60" },
+  { min: 61, max: 150, label: "61 – 150" },
+  { min: 151, max: Infinity, label: "151+" },
 ];
 
 const LEGEND_COLORS = [
-  "#eff6ff",
-  "#bfdbfe",
+  "#dbeafe",
+  "#93c5fd",
   "#60a5fa",
   "#3b82f6",
   "#1e40af",

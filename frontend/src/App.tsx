@@ -14,7 +14,6 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
-import AdminStatsPage from "./pages/AdminStatsPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import { AuthProvider } from "./context/AuthContext";
 import CertificateValidationPage from "./pages/CertificateValidationPage";
@@ -63,8 +62,7 @@ function App() {
           />
         </Route>
         <Route element={<ProtectedRoute allowedRoles={["admin"]} allowedProfileTypes={["funcionario"]} />}>
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/estatisticas" element={<AdminStatsPage />} />
+          <Route path="/admin/estatisticas" element={<AdminDashboard />} />
         </Route>
       </Routes>
     </BrowserRouter>
