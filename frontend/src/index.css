@@ -12,6 +12,35 @@
   }
 }
 
+@keyframes heroWordReveal {
+  from { opacity: 0; transform: translateY(0.65em) rotate(2deg); filter: blur(5px); }
+  to { opacity: 1; transform: translateY(0) rotate(0); filter: blur(0); }
+}
+
+@keyframes mapReveal {
+  from { opacity: 0; transform: scale(0.94) translateY(18px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.hero-title span {
+  display: inline-block;
+  opacity: 0;
+  animation: heroWordReveal 560ms cubic-bezier(.2,.75,.25,1) forwards;
+}
+
+.map-entrance {
+  animation: mapReveal 700ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-title span,
+  .map-entrance {
+    opacity: 1;
+    animation: none;
+    transform: none;
+  }
+}
+
 @layer utilities {
   .animate-fadeIn {
     animation: fadeIn 0.3s ease-in-out;

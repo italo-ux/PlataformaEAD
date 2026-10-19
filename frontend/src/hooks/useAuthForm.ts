@@ -1,9 +1,11 @@
 import { useCallback, useState } from "react";
+import { getApiErrorMessage } from "../services/api";
 
-interface UseAuthFormOptions {
+interface UseAuthFormOptions<T = void> {
   initialValues: Record<string, string>;
-  onSubmit: (values: Record<string, string>) => Promise<void>;
+  onSubmit: (values: Record<string, string>) => Promise<T>;
   validate?: (values: Record<string, string>) => Record<string, string>;
+  onSuccess?: (data: T) => void;
 }
 
 interface UseAuthFormReturn {
@@ -19,11 +21,12 @@ interface UseAuthFormReturn {
   resetForm: () => void;
 }
 
-export function useAuthForm({
+export function useAuthForm<T = void>({
   initialValues,
   onSubmit,
   validate,
-}: UseAuthFormOptions): UseAuthFormReturn {
+  onSuccess,
+}: UseAuthFormOptions<T>): UseAuthFormReturn {
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -65,17 +68,16 @@ export function useAuthForm({
       setErrors({});
       setLoading(true);
       try {
-        await onSubmit(values);
+        const result = await onSubmit(values);
         setSuccess(true);
+        onSuccess?.(result);
       } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Erro ao processar formulário";
-        setGeneralError(errorMessage);
+        setGeneralError(getApiErrorMessage(err));
       } finally {
         setLoading(false);
       }
     },
-    [values, validate, onSubmit],
+    [values, validate, onSubmit, onSuccess],
   );
 
   const resetForm = useCallback(() => {

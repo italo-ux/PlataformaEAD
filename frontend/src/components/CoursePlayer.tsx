@@ -34,7 +34,7 @@ export default function CoursePlayer({
       <div className="relative w-full overflow-hidden rounded-md bg-black shadow-sm">
         {lessonVideoUrl ? (
           <video
-            className="aspect-[16/8.2] min-h-[240px] w-full bg-black object-contain"
+            className="aspect-[16/8.2] w-full bg-black object-contain"
             controls
             poster={image}
             src={lessonVideoUrl}
@@ -43,7 +43,7 @@ export default function CoursePlayer({
           </video>
         ) : (
           <>
-            <div className="aspect-[16/8.2] min-h-[240px]">
+            <div className="aspect-[16/8.2]">
               <img
                 src={image}
                 alt={title}
@@ -65,7 +65,7 @@ export default function CoursePlayer({
         )}
 
         <div
-          className={`absolute bottom-5 left-5 max-w-[75%] text-white ${
+          className={`absolute bottom-3 left-3 max-w-[78%] text-white sm:bottom-5 sm:left-5 ${
             lessonVideoUrl ? "rounded-md bg-black/65 px-3 py-2" : ""
           }`}
         >
@@ -82,9 +82,7 @@ export default function CoursePlayer({
         </div>
 
         <div
-          className={`absolute right-5 top-5 max-w-xs rounded-md bg-white/95 px-4 py-2 backdrop-blur ${
-            lessonVideoUrl ? "hidden sm:block" : ""
-          }`}
+          className="absolute right-5 top-5 hidden max-w-xs rounded-md bg-white/95 px-4 py-2 backdrop-blur sm:block"
         >
           <p className="text-xs font-black text-gray-900">{title}</p>
           </div>

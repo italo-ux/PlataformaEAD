@@ -6,6 +6,10 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    host: 'localhost',
+    port: 5173,
+  },
   resolve: {
     alias: {
       react: fileURLToPath(new URL('./node_modules/react', import.meta.url)),

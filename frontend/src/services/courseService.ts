@@ -1,146 +1,99 @@
-import {
-  addMockCourse,
-  addMockLesson,
-  getMockCourseById,
-  type Course,
-  type CreateMockCourseInput,
-  type CreateMockLessonInput,
-  type Lesson,
-} from "../data/courseData";
+import { API_URL } from "./api";
+const AUTH_TOKEN_STORAGE_KEY = "token";
 
-const MOCK_DELAY_MS = 250;
+export interface Curso {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  url_foto: string | null;
+  carga_horaria: number | null;
+  categoria: string | null;
+  nivel: string | null;
+  id_instrutor: string;
+}
 
-function waitForMock<T>(value: T): Promise<T> {
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(value), MOCK_DELAY_MS);
+export interface CursoInput {
+  nome: string;
+  descricao?: string;
+  url_foto?: string;
+  carga_horaria?: number;
+  categoria?: string;
+  nivel?: string;
+}
+
+export interface Aula {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  url_video: string;
+  duracao_minutos: number | null;
+  ordem: number;
+}
+
+export interface AulaInput {
+  titulo: string;
+  descricao?: string;
+  url_video: string;
+  duracao_minutos?: number;
+  ordem?: number;
+}
+
+function getErrorMessage(data: unknown, fallback: string) {
+  if (!data || typeof data !== "object" || !("message" in data)) return fallback;
+  const message = (data as { message?: unknown }).message;
+  return Array.isArray(message) ? message.join(" ") : typeof message === "string" ? message : fallback;
+}
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: { "Content-Type": "application/json", ...options.headers },
   });
+
+  if (!response.ok) {
+    let data: unknown;
+    try { data = await response.json(); } catch { data = null; }
+    throw new Error(getErrorMessage(data, "Não foi possível concluir a operação."));
+  }
+
+  if (response.status === 204) return undefined as T;
+  return response.json() as Promise<T>;
 }
 
-async function failMock(message: string): Promise<never> {
-  await waitForMock(null);
-  throw new Error(message);
+function authenticatedHeaders() {
+  const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  if (!token) throw new Error("Faça login para gerenciar cursos.");
+  return { Authorization: `Bearer ${token}` };
 }
 
-// Servico de cursos mockado. Quando a API de cursos estiver pronta, troque os
-// metodos internos por chamadas HTTP mantendo as assinaturas publicas.
-class CourseService {
-  async createCourse(courseData: CreateMockCourseInput): Promise<Course> {
-    const lessonTitles = courseData.lessonTitles
-      .map((lessonTitle) => lessonTitle.trim())
-      .filter(Boolean);
-    const instructors =
-      courseData.instructors && courseData.instructors.length > 0
-        ? courseData.instructors
-        : courseData.instructor
-          ? [courseData.instructor]
-          : [];
+const courseService = {
+  listCourses: () => request<Curso[]>("/cursos"),
+  getCourse: (id: string) => request<Curso>(`/cursos/${id}`),
+  createCourse: (curso: CursoInput) =>
+    request<Curso>("/cursos", { method: "POST", headers: authenticatedHeaders(), body: JSON.stringify(curso) }),
+  updateCourse: (id: string, curso: Partial<CursoInput>) =>
+    request<Curso>(`/cursos/${id}`, { method: "PATCH", headers: authenticatedHeaders(), body: JSON.stringify(curso) }),
+  deleteCourse: (id: string) =>
+    request<void>(`/cursos/${id}`, { method: "DELETE", headers: authenticatedHeaders() }),
+  listLessons: (courseId: string) =>
+    request<Aula[]>(`/cursos/${courseId}/aulas`),
+  createLesson: (courseId: string, aula: AulaInput) =>
+    request<Aula>(`/cursos/${courseId}/aulas`, {
+      method: "POST",
+      headers: authenticatedHeaders(),
+      body: JSON.stringify(aula),
+    }),
+  updateLesson: (courseId: string, lessonId: string, aula: Partial<AulaInput>) =>
+    request<Aula>(`/cursos/${courseId}/aulas/${lessonId}`, {
+      method: "PATCH",
+      headers: authenticatedHeaders(),
+      body: JSON.stringify(aula),
+    }),
+  deleteLesson: (courseId: string, lessonId: string) =>
+    request<void>(`/cursos/${courseId}/aulas/${lessonId}`, {
+      method: "DELETE",
+      headers: authenticatedHeaders(),
+    }),
+};
 
-    if (
-      !courseData.title.trim() ||
-      !courseData.description.trim() ||
-      !courseData.about.trim() ||
-      lessonTitles.length === 0 ||
-      instructors.length === 0
-    ) {
-      return failMock("Preencha os dados obrigatórios do curso");
-    }
-
-    // Hoje o curso nasce no array mockado em memoria. No backend real, este
-    // ponto deve virar uma chamada HTTP autenticada feita pelo professor/admin.
-    const createdCourse = addMockCourse({
-      ...courseData,
-      instructors,
-      lessonTitles,
-    });
-
-    return waitForMock(createdCourse);
-  }
-
-  async getCourse(courseId: number): Promise<Course> {
-    const course = getMockCourseById(courseId);
-
-    if (!course) {
-      return failMock("Curso não encontrado");
-    }
-
-    return waitForMock(course);
-  }
-
-  async getCourseLessons(courseId: number): Promise<Lesson[]> {
-    const course = getMockCourseById(courseId);
-
-    if (!course) {
-      return failMock("Curso não encontrado");
-    }
-
-    return waitForMock(course.lessons);
-  }
-
-  async createLesson(
-    courseId: number,
-    lessonData: CreateMockLessonInput,
-  ): Promise<Lesson> {
-    if (!lessonData.title.trim() || !lessonData.content.trim()) {
-      return failMock("Preencha título e conteúdo da aula");
-    }
-
-    const createdLesson = addMockLesson(courseId, lessonData);
-
-    if (!createdLesson) {
-      return failMock("Curso não encontrado");
-    }
-
-    return waitForMock(createdLesson);
-  }
-
-  async completeLesson(courseId: number, lessonId: number): Promise<void> {
-    const course = getMockCourseById(courseId);
-    const lessonExists = course?.lessons.some((lesson) => lesson.id === lessonId);
-
-    if (!course || !lessonExists) {
-      return failMock("Aula não encontrada");
-    }
-
-    return waitForMock(undefined);
-  }
-
-  async updateCourseProgress(courseId: number, progress: number): Promise<void> {
-    const course = getMockCourseById(courseId);
-
-    if (!course || progress < 0 || progress > 100) {
-      return failMock("Progresso inválido");
-    }
-
-    return waitForMock(undefined);
-  }
-
-  async getLesson(courseId: number, lessonId: number): Promise<Lesson> {
-    const course = getMockCourseById(courseId);
-    const lesson = course?.lessons.find((item) => item.id === lessonId);
-
-    if (!lesson) {
-      return failMock("Aula não encontrada");
-    }
-
-    return waitForMock(lesson);
-  }
-
-  async submitLessonFeedback(
-    courseId: number,
-    lessonId: number,
-    rating: number,
-    comment?: string,
-  ): Promise<void> {
-    const course = getMockCourseById(courseId);
-    const lessonExists = course?.lessons.some((lesson) => lesson.id === lessonId);
-
-    if (!course || !lessonExists || rating < 1 || rating > 5) {
-      return failMock("Feedback inválido");
-    }
-
-    void comment;
-    return waitForMock(undefined);
-  }
-}
-
-export default new CourseService();
+export default courseService;

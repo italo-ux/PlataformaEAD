@@ -1,34 +1,19 @@
-# Course View mockada
+# Tela de cursos mockada
 
-Esta tela esta funcionando somente com dados locais enquanto o backend real nao entra.
+## Rotas
 
-## Rotas atuais
-
-- `/courses` abre a home/lista de cursos.
-- `/courses/:courseId` abre o curso mockado pelo ID da rota.
+- `/courses` lista os cursos locais.
+- `/courses/:courseId` abre um curso pelo ID mockado.
 - `/course` redireciona para `/courses/1` por compatibilidade.
-- `/professor/cursos/novo` permite que professor/admin crie um curso mockado em memoria.
+- `/professor/cursos/novo` é reservada a professor/admin e redireciona a
+  sessão atual de aluno.
 
-## Dados usados
+## Fonte dos dados
 
-- Cursos e aulas: `src/data/courseData.ts`
-- Servico mockado de cursos: `src/services/courseService.ts`
-- Sessao e usuarios mockados: `src/services/userService.tsx`
-- Documentacao geral dos mocks: `src/data/MOCKS.md`
+- Cursos, aulas e trilhas: `src/data/courseData.ts`.
+- Operações mockadas de cursos: `src/services/courseService.ts`.
+- Login, cadastro e sessão: `src/services/userService.tsx`, usando a API real.
 
-## Comportamento
-
-- Clicar em um curso na home navega para `/courses/:courseId`.
-- `CourseView` busca o curso com `getMockCourseById`.
-- Se o ID nao existir, a tela mostra `Curso nao encontrado`.
-- Trocar de aula muda titulo, duracao e conteudo exibidos no player.
-- Professor/admin pode criar um novo curso, que fica disponivel ate recarregar a pagina.
-
-## Integracao futura
-
-Quando o backend estiver pronto, mantenha as assinaturas publicas dos services sempre que possivel e troque apenas a implementacao interna de:
-
-- `userService.tsx` para login, cadastro e sessao reais.
-- `courseService.ts` para leitura de cursos, aulas, progresso e feedback.
-
-Assim os componentes continuam consumindo a mesma camada de servico e a migracao fica menor.
+Os cursos criados no fluxo mockado desaparecem após recarregar a página. A API
+de autenticação atual não fornece papéis; portanto todos os usuários reais são
+tratados como alunos até que o backend implemente professor/admin.

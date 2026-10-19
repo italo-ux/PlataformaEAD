@@ -548,7 +548,7 @@ function AdminDashboard() {
         </div>
 
         <div className="mt-12 grid gap-8 rounded-2xl bg-white p-6 shadow-md shadow-slate-400/30 lg:grid-cols-[1.3fr_0.8fr] lg:p-8">
-          <div className="relative min-h-[420px]">
+          <div className="map-entrance group relative min-h-[420px] overflow-hidden rounded-2xl">
             <div className="absolute left-4 top-4 z-10 rounded-lg border border-slate-200 bg-white/95 px-4 py-3 text-sm shadow-md">
               {hoveredState ? (
                 <>
@@ -570,7 +570,7 @@ function AdminDashboard() {
               projectionConfig={{ center: [-54, -15], scale: 690 }}
               width={620}
               height={520}
-              className="h-full w-full"
+              className="h-full w-full transition-transform duration-500 ease-out group-hover:scale-[1.025]"
             >
               <Geographies geography={brazilStatesGeography}>
                 {({ geographies }) =>
@@ -594,11 +594,12 @@ function AdminDashboard() {
                         stroke="#ffffff"
                         strokeWidth={1.3}
                         style={{
-                          default: { cursor: "pointer", outline: "none" },
+                          default: { cursor: "pointer", outline: "none", transition: "fill 180ms ease, filter 180ms ease" },
                           hover: {
                             cursor: "pointer",
                             outline: "none",
                             fill: "#2563eb",
+                            filter: "drop-shadow(0 5px 7px rgba(37, 99, 235, 0.35))",
                           },
                           pressed: { outline: "none" },
                         }}

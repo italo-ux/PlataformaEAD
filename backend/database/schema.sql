@@ -6,12 +6,23 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+DO $$ BEGIN
+    CREATE TYPE user_role AS ENUM ('aluno', 'professor', 'admin');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
 -- Tabela: Usuários
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
+    is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    verification_code VARCHAR,
+    password_reset_code VARCHAR,
+    password_reset_expires_at TIMESTAMP,
+    role user_role NOT NULL DEFAULT 'aluno',
     cpf VARCHAR(11) NOT NULL,
     celular VARCHAR(11),
     foto_perfil VARCHAR(255),
@@ -44,6 +55,7 @@ CREATE TABLE IF NOT EXISTS trilhas (
 
 CREATE TABLE IF NOT EXISTS cursos (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_instrutor UUID NOT NULL,
     nome VARCHAR(255) NOT NULL,
     descricao TEXT,
     url_foto VARCHAR(255),
@@ -51,7 +63,8 @@ CREATE TABLE IF NOT EXISTS cursos (
     categoria VARCHAR(255),
     nivel VARCHAR(100),
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    FOREIGN KEY (id_instrutor) REFERENCES users(id) ON DELETE RESTRICT
 );
 
 CREATE TABLE IF NOT EXISTS aulas (
@@ -60,12 +73,14 @@ CREATE TABLE IF NOT EXISTS aulas (
     id_instrutor UUID NOT NULL,
     titulo VARCHAR(255) NOT NULL,
     descricao TEXT,
-    url_video VARCHAR(255),
+    url_video VARCHAR(500),
     ordem INTEGER,
     duracao INTERVAL,
+    duracao_minutos INTEGER,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    FOREIGN KEY (id_curso) REFERENCES cursos(id)
+    FOREIGN KEY (id_curso) REFERENCES cursos(id) ON DELETE CASCADE,
+    FOREIGN KEY (id_instrutor) REFERENCES users(id) ON DELETE RESTRICT
 );
 
 CREATE TABLE IF NOT EXISTS matricula (

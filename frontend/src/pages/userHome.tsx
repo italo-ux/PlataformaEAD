@@ -1,31 +1,20 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
-import {
-  formatCourseInstructorNames,
-  getMockTrailsWithCourses,
-  mockCourses,
-} from "../data/courseData";
+import { getMockTrailsWithCourses } from "../data/courseData";
+import courseService, { type Curso } from "../services/courseService";
+import { getStartedCourseIds } from "../services/courseProgressService";
 import { getAuthenticatedUser } from "../services/userService";
 import {
   ArrowRight,
   BadgeCheck,
   BookOpen,
   Clock3,
-  Gamepad2,
-  GraduationCap,
   Headset,
-  Play,
   Sparkles,
-  type LucideIcon,
 } from "lucide-react";
 import HomeIMG from "../assets/home/HomeIMG.png";
-const courseIcons: Record<number, LucideIcon> = {
-  1: Gamepad2,
-  2: BookOpen,
-  3: Sparkles,
-  4: GraduationCap,
-};
 
 function colorWithAlpha(hexColor: string, alpha: number) {
   const normalized = hexColor.replace("#", "");
@@ -45,9 +34,47 @@ function colorWithAlpha(hexColor: string, alpha: number) {
 export default function UserHome() {
   const navigate = useNavigate();
   const user = getAuthenticatedUser();
+  const userId = user?.id;
   const trails = getMockTrailsWithCourses();
+  const [startedCourses, setStartedCourses] = useState<Curso[]>([]);
+  const [loadingStartedCourses, setLoadingStartedCourses] = useState(
+    Boolean(userId),
+  );
 
-  const handleStartCourse = (courseId: number) => {
+  useEffect(() => {
+    if (!userId) return;
+
+    let cancelled = false;
+    const startedCourseIds = new Set(getStartedCourseIds(userId));
+
+    courseService
+      .listCourses()
+      .then((courses) => {
+        if (!cancelled) {
+          setStartedCourses(
+            courses.filter((course) => startedCourseIds.has(course.id)),
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setStartedCourses([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingStartedCourses(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  const handleStartCourse = () => {
+    // O progresso ainda é mockado, enquanto os detalhes reais usam UUIDs da API.
+    // O catálogo permite abrir o curso correspondente quando ele estiver disponível.
+    navigate("/courses");
+  };
+
+  const handleOpenCourse = (courseId: string) => {
     navigate(`/courses/${courseId}`);
   };
 
@@ -82,7 +109,7 @@ export default function UserHome() {
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <button
-                  onClick={() => handleStartCourse(1)}
+                  onClick={handleStartCourse}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
                 >
                   Continuar aprendendo
@@ -135,42 +162,49 @@ export default function UserHome() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-            {mockCourses.map((course) => {
-              const Icon = courseIcons[course.id] ?? BookOpen;
-              const instructorCount = course.instructors?.length ?? 1;
+          {loadingStartedCourses ? (
+            <p className="text-sm text-slate-600">Carregando cursos iniciados...</p>
+          ) : startedCourses.length > 0 ? (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+              {startedCourses.map((course) => {
               return (
                 <article
                   key={course.id}
-                  onClick={() => handleStartCourse(course.id)}
+                  onClick={() => handleOpenCourse(course.id)}
                   className="group cursor-pointer overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-900/10"
                   role="button"
                   tabIndex={0}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
-                      handleStartCourse(course.id);
+                      handleOpenCourse(course.id);
                     }
                   }}
                 >
                   <div className="relative h-44 overflow-hidden bg-slate-200">
-                    <img
-                      src={course.image}
-                      alt={course.title}
-                      className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                    />
+                    {course.url_foto ? (
+                      <img
+                        src={course.url_foto}
+                        alt={course.nome}
+                        className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-blue-600">
+                        <BookOpen size={40} />
+                      </div>
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-950/10 to-transparent" />
                     <div className="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-xl bg-white/95 text-blue-600 shadow">
-                      <Icon size={20} />
+                      <BookOpen size={20} />
                     </div>
                     <div className="absolute bottom-4 left-4 right-4">
                       <div className="mb-2 flex items-center justify-between text-xs font-bold text-white">
-                        <span>{course.progress}% concluído</span>
-                        <span>{course.totalLessons} aulas</span>
+                        <span>Curso iniciado</span>
+                        <span>{course.nivel ?? "Sem nível"}</span>
                       </div>
                       <div className="h-2 rounded-full bg-white/30">
                         <div
                           className="h-full rounded-full bg-white"
-                          style={{ width: `${course.progress}%` }}
+                          style={{ width: "100%" }}
                         />
                       </div>
                     </div>
@@ -178,27 +212,45 @@ export default function UserHome() {
 
                   <div className="p-5">
                     <h3 className="line-clamp-2 text-lg font-black text-[#25304a] transition group-hover:text-blue-700">
-                      {course.title}
+                      {course.nome}
                     </h3>
                     <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">
-                      {course.description}
+                      {course.descricao ?? "Sem descrição disponível."}
                     </p>
                     <div className="mt-5 flex items-center justify-between gap-3">
                       <p className="text-xs font-semibold text-slate-500">
-                        {instructorCount > 1 ? "Professores: " : "Professor: "}
+                        Categoria:
                         <span className="text-slate-700">
-                          {formatCourseInstructorNames(course)}
+                          {course.categoria ?? "Não informada"}
                         </span>
                       </p>
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white transition group-hover:bg-blue-700">
-                        <Play size={16} className="fill-white" />
+                        <ArrowRight size={16} />
                       </div>
                     </div>
                   </div>
                 </article>
               );
-            })}
-          </div>
+              })}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
+              <p className="font-bold text-[#25304a]">
+                Nenhum curso em andamento
+              </p>
+              <p className="mt-2 text-sm text-slate-500">
+                Inicie um curso pelo catálogo para ele aparecer aqui.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate("/courses")}
+                className="mt-5 inline-flex items-center gap-2 font-bold text-blue-700 transition hover:text-blue-900"
+              >
+                Ver cursos
+                <ArrowRight size={18} />
+              </button>
+            </div>
+          )}
         </section>
 
         <section

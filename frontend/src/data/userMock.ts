@@ -1,13 +1,16 @@
 export type UserRole = "aluno" | "professor" | "admin";
+export type UserId = number | string;
 
 export interface User {
-  id: number;
+  id: UserId;
   name: string;
   email: string;
   avatar?: string;
   cpf?: string;
   phone?: string;
   role: UserRole;
+  profileType?: "cidadao" | "estagiario" | "funcionario";
+  verificationStatus?: "nao_aplicavel" | "pendente";
 }
 
 export interface MockUserCredential {

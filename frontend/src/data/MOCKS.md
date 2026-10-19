@@ -1,17 +1,14 @@
-# Mocks do frontend
+# Dados mockados do frontend
 
-O frontend esta temporariamente padronizado para funcionar sem chamadas reais de API.
+Os cursos, aulas e trilhas continuam locais em `courseData.ts`. A criação de
+curso e aula usa `courseService.ts` e existe somente em memória até a página
+ser recarregada.
 
-- Usuarios mockados ficam em `userMock.ts`.
-- As contas mockadas atuais sao:
-  - `aluno@plataforma.com` / `aluno123`
-  - `professor@plataforma.com` / `professor123`
-  - `admin@plataforma.com` / `admin123`
-- Permissoes tambem ficam em `userMock.ts`: aluno acessa cursos/home, professor cria cursos, admin tambem podera criar professores. `Meu Desempenho` fica oculto na navbar ate a tela separada ser implementada.
-- Login, cadastro e sessao passam por `services/userService.tsx`.
-- O `localStorage` salva apenas os dados minimos da sessao simulada, sem senha.
-- Cursos e aulas mockados ficam em `courseData.ts`.
-- Criacao mockada de curso passa por `services/courseService.ts` e fica somente em memoria ate o refresh da pagina.
-- A tela de curso usa o ID da rota (`/courses/:courseId`) para buscar o curso em memoria.
+Autenticação não é mockada: login e cadastro chamam a API em
+`POST /auth/login` e `POST /auth/register`. A sessão salva no navegador contém
+somente dados públicos do usuário e o token de acesso, nunca a senha.
 
-Quando o backend estiver pronto, substitua a implementacao interna de `userService.tsx` e `courseService.ts` por chamadas HTTP reais, mantendo as mesmas assinaturas publicas sempre que possivel.
+Enquanto a API não fornecer papéis, toda sessão autenticada é tratada como
+`aluno`. Por isso, criação e gestão de cursos ficam indisponíveis para usuários
+da API. Os professores e administradores de `userMock.ts` são mantidos apenas
+para desenvolvimento futuro dos fluxos mockados de gestão.
