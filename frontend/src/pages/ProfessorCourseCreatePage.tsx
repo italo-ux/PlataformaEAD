@@ -3,43 +3,67 @@ import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-
 import { BookOpen, PlusCircle, Rocket, Save } from "lucide-react";
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
-import { canCreateCourses } from "../data/userMock";
-import courseService, { type CursoInput } from "../services/courseService";
-import { getAuthenticatedUser } from "../services/userService";
-import CourseLessonsEditor from "../components/CourseLessonsEditor";
+import { canCreateCourses, type User } from "../data/userMock";
+import type { Instructor } from "../data/courseData";
+import courseService from "../services/courseService";
+import {
+  getAuthenticatedUser,
+  getRegisteredTeachers,
+} from "../services/userService";
 
-const initialForm: Record<keyof CursoInput, string> = {
-  nome: "",
-  descricao: "",
-  url_foto: "",
-  carga_horaria: "",
-  categoria: "",
-  nivel: "",
+const initialFormState = {
+  title: "",
+  description: "",
+  image: "",
+  about: "",
+  lessons: "",
 };
 
 const fieldClass =
-  "w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-3 text-slate-900 transition focus:border-blue-600 focus:outline-none";
+  "w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-3 text-slate-900 placeholder-gray-400 transition focus:border-blue-600 focus:outline-none focus:shadow-lg";
 
-export default function ProfessorCourseCreatePage() {
+const labelClass = "mb-2 block text-sm font-bold text-[#25304a]";
+
+function mapTeacherToInstructor(teacher: User): Instructor {
+  return {
+    id: teacher.id,
+    name: teacher.name,
+    email: teacher.email,
+    image: teacher.avatar,
+    bio: "Professor da Plataforma EAD Inovação. Bio temporária até o backend enviar o perfil completo.",
+  };
+}
+  
+/*--------------------------------------- Buscar Professores --------------------------------------- */
+
+export function ProfessorCourseCreatePage() {
   const navigate = useNavigate();
-  const { courseId } = useParams();
-  const [searchParams] = useSearchParams();
   const user = getAuthenticatedUser();
-  const isEditing = Boolean(courseId);
-  const [form, setForm] = useState(initialForm);
-  const [loading, setLoading] = useState(isEditing);
-  const [saving, setSaving] = useState(false);
+
+  // 1. Criamos um ESTADO para guardar a lista real de professores vindos da API
+  const [registeredTeachers, setRegisteredTeachers] = useState<User[]>([]);
+
+  const [formValues, setFormValues] = useState(initialFormState);
+  const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>(() =>
+    user?.role === "professor" ? [String(user.id)] : [],
+  );
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [status, setStatus] = useState("");
   const [courseStatus, setCourseStatus] = useState<"rascunho" | "publicado">("rascunho");
   const [publishing, setPublishing] = useState(false);
 
+  // 2. O useEffect faz a busca assim que a tela abre no navegador
   useEffect(() => {
-    if (searchParams.get("created") === "1") {
-      setStatus("Curso criado com sucesso. Agora adicione as aulas.");
+    async function fetchTeachers() {
+      try {
+        const teachersData = await getRegisteredTeachers();
+        setRegisteredTeachers(teachersData); // Guarda os professores no estado!
+      } catch (err) {
+        console.error("Erro ao carregar professores:", err);
+      }
     }
-  }, [searchParams]);
 
   useEffect(() => {
     if (!courseId) return;
@@ -87,38 +111,61 @@ export default function ProfessorCourseCreatePage() {
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = event.target;
-    setForm((current) => ({ ...current, [name]: value }));
+    setFormValues((currentValues) => ({
+      ...currentValues,
+      [name]: value,
+    }));
+    setError("");
+  };
+
+  const handleToggleTeacher = (teacherId: string) => {
+    setSelectedTeacherIds((currentIds) =>
+      currentIds.includes(teacherId)
+        ? currentIds.filter((currentId) => currentId !== teacherId)
+        : [...currentIds, teacherId],
+    );
+    setError("");
   };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
-    setStatus("");
     setSaving(true);
 
-    const payload: CursoInput = { nome: form.nome.trim() };
-    if (form.descricao.trim()) payload.descricao = form.descricao.trim();
-    if (form.url_foto.trim()) payload.url_foto = form.url_foto.trim();
-    if (form.categoria.trim()) payload.categoria = form.categoria.trim();
-    if (form.nivel.trim()) payload.nivel = form.nivel.trim();
-    if (form.carga_horaria.trim()) {
-      payload.carga_horaria = Number(form.carga_horaria);
+    const lessonTitles = formValues.lessons
+      .split(/\r?\n/)
+      .map((lessonTitle) => lessonTitle.trim())
+      .filter(Boolean);
+
+    // 3. Agora registeredTeachers é um Array (User[]), então o .filter funciona!
+    const selectedTeachers =
+      user.role === "admin"
+        ? registeredTeachers.filter((teacher) =>
+            selectedTeacherIds.includes(String(teacher.id)),
+          )
+        : [user];
+
+    if (selectedTeachers.length === 0) {
+      setError("Selecione pelo menos um professor para o curso.");
+      setSaving(false);
+      return;
     }
 
     try {
-      if (isEditing && courseId) {
-        await courseService.updateCourse(courseId, payload);
-        setStatus("Curso atualizado com sucesso.");
-      } else {
-        const course = await courseService.createCourse(payload);
-        navigate(`/courses/${course.id}/editar?created=1`, { replace: true });
-      }
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "Não foi possível salvar o curso.",
-      );
+      const createdCourse = await courseService.createCourse({
+        title: formValues.title,
+        description: formValues.description,
+        image: formValues.image,
+        about: formValues.about,
+        instructors: selectedTeachers.map(mapTeacherToInstructor),
+        lessonTitles,
+      });
+
+      navigate(`/courses/${createdCourse.id}`);
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Erro ao criar curso";
+      setError(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -147,149 +194,205 @@ export default function ProfessorCourseCreatePage() {
   return (
     <div className="min-h-screen bg-[#f6f9ff] text-slate-950">
       <Navbar user={user} />
-      <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
-        <div className="mb-8 flex items-end justify-between gap-4">
+
+      <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-bold uppercase text-blue-600">
-              Gestão de cursos
+            <p className="text-sm font-bold uppercase tracking-wide text-blue-600">
+              Área do professor
             </p>
             <h1 className="mt-2 text-3xl font-black text-[#25304a]">
-              {isEditing ? "Editar curso" : "Adicionar novo curso"}
+              Adicionar novo curso
             </h1>
+            <p className="mt-3 max-w-2xl leading-7 text-slate-600">
+              Crie um curso mockado para validar o fluxo do professor antes da
+              integração com o backend.
+            </p>
           </div>
           <button
             type="button"
             onClick={() => navigate("/courses")}
-            className="inline-flex items-center gap-2 font-bold text-blue-700"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-4 py-3 font-bold text-blue-700 transition hover:border-blue-300 hover:bg-blue-50"
           >
             <BookOpen size={18} />
             Ver cursos
           </button>
         </div>
 
-        {loading ? (
-          <p>Carregando curso...</p>
-        ) : loadFailed ? (
-          <div className="rounded-lg border border-red-200 bg-white p-6 shadow-sm">
-            <p className="font-semibold text-red-700">{error}</p>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="rounded-lg bg-blue-600 px-5 py-3 font-bold text-white"
-              >
-                Tentar novamente
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/courses")}
-                className="rounded-lg border border-gray-200 px-5 py-3 font-bold text-slate-600"
-              >
-                Voltar aos cursos
-              </button>
+        <form
+          onSubmit={handleSubmit}
+          className="rounded-lg border border-blue-100 bg-white p-6 shadow-sm sm:p-8"
+        >
+          {error && (
+            <div className="mb-6 rounded-lg bg-red-100 p-4 text-sm font-semibold text-red-700">
+              {error}
+            </div>
+          )}
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <div>
+              <label htmlFor="title" className={labelClass}>
+                Título do curso
+              </label>
+              <div className="relative">
+                <FileText
+                  className="pointer-events-none absolute left-4 top-3.5 text-gray-400"
+                  size={20}
+                />
+                <input
+                  id="title"
+                  name="title"
+                  value={formValues.title}
+                  onChange={handleChange}
+                  placeholder="Ex: Logica de programação"
+                  className={`${fieldClass} pl-12`}
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="image" className={labelClass}>
+                URL da imagem
+              </label>
+              <div className="relative">
+                <Image
+                  className="pointer-events-none absolute left-4 top-3.5 text-gray-400"
+                  size={20}
+                />
+                <input
+                  id="image"
+                  name="image"
+                  type="url"
+                  value={formValues.image}
+                  onChange={handleChange}
+                  placeholder="Opcional"
+                  className={`${fieldClass} pl-12`}
+                />
+              </div>
             </div>
           </div>
-        ) : (
-          <form
-            onSubmit={handleSubmit}
-            className="rounded-lg border border-blue-100 bg-white p-6 shadow-sm sm:p-8"
-          >
-            {error && (
-              <div className="mb-6 rounded-lg bg-red-100 p-4 text-sm font-semibold text-red-700">
-                {error}
-              </div>
-            )}
-            {status && (
-              <div role="status" className="mb-6 rounded-lg bg-emerald-100 p-4 text-sm font-semibold text-emerald-700">
-                {status}
-              </div>
-            )}
 
-            <label className="mb-5 block text-sm font-bold text-[#25304a]">
-              Nome do curso
-              <input
-                name="nome"
-                value={form.nome}
-                onChange={handleChange}
-                className={`${fieldClass} mt-2`}
-                required
-              />
+          <div className="mt-6">
+            <label htmlFor="description" className={labelClass}>
+              Descrição curta
             </label>
+            <textarea
+              id="description"
+              name="description"
+              value={formValues.description}
+              onChange={handleChange}
+              placeholder="Resumo que aparece no card do curso"
+              className={`${fieldClass} min-h-28 resize-y`}
+              required
+            />
+          </div>
 
-            <label className="mb-5 block text-sm font-bold text-[#25304a]">
-              Descrição
-              <textarea
-                name="descricao"
-                value={form.descricao}
-                onChange={handleChange}
-                className={`${fieldClass} mt-2 min-h-28 resize-y`}
-              />
+          <div className="mt-6">
+            <label htmlFor="about" className={labelClass}>
+              Sobre o curso
             </label>
+            <textarea
+              id="about"
+              name="about"
+              value={formValues.about}
+              onChange={handleChange}
+              placeholder="Explique objetivos, conteúdos e resultado esperado"
+              className={`${fieldClass} min-h-32 resize-y`}
+              required
+            />
+          </div>
 
-            <div className="grid gap-5 sm:grid-cols-2">
-              <label className="text-sm font-bold text-[#25304a]">
-                URL da imagem
-                <input
-                  name="url_foto"
-                  type="url"
-                  value={form.url_foto}
-                  onChange={handleChange}
-                  className={`${fieldClass} mt-2`}
-                />
-              </label>
-              <label className="text-sm font-bold text-[#25304a]">
-                Carga horária (horas)
-                <input
-                  name="carga_horaria"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={form.carga_horaria}
-                  onChange={handleChange}
-                  className={`${fieldClass} mt-2`}
-                />
-              </label>
-              <label className="text-sm font-bold text-[#25304a]">
-                Categoria
-                <input
-                  name="categoria"
-                  value={form.categoria}
-                  onChange={handleChange}
-                  className={`${fieldClass} mt-2`}
-                />
-              </label>
-              <label className="text-sm font-bold text-[#25304a]">
-                Nível
-                <input
-                  name="nivel"
-                  value={form.nivel}
-                  onChange={handleChange}
-                  className={`${fieldClass} mt-2`}
-                />
-              </label>
+          <div className="mt-6">
+            <div className="mb-2 flex items-center gap-2">
+              <Users className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-bold text-[#25304a]">
+                Professores responsáveis
+              </span>
             </div>
 
-            <div className="mt-8 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => navigate("/courses")}
-                disabled={saving}
-                className="rounded-lg border border-gray-200 px-5 py-3 font-bold text-slate-600 disabled:opacity-60"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-3 font-bold text-white disabled:opacity-60"
-              >
-                {isEditing ? <Save size={20} /> : <PlusCircle size={20} />}
-                {saving
-                  ? "Salvando..."
-                  : isEditing
-                    ? "Salvar alterações"
-                    : "Salvar curso"}
-              </button>
+            {user.role === "admin" ? (
+              <div className="grid gap-3 rounded-lg border border-blue-100 bg-blue-50/50 p-4 sm:grid-cols-2">
+                {registeredTeachers.length > 0 ? (
+                  registeredTeachers.map((teacher) => {
+                    const isSelected = selectedTeacherIds.includes(teacher.id);
+
+                    return (
+                      <label
+                        key={teacher.id}
+                        className={`flex cursor-pointer items-center gap-3 rounded-lg border bg-white p-3 transition ${
+                          isSelected
+                            ? "border-blue-400 shadow-sm"
+                            : "border-slate-200 hover:border-blue-200"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleTeacher(teacher.id)}
+                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-sm font-bold text-white">
+                          {teacher.avatar ? (
+                            <img
+                              src={teacher.avatar}
+                              alt={`${teacher.name} avatar`}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <UserRound className="h-5 w-5" />
+                          )}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-bold text-[#25304a]">
+                            {teacher.name}
+                          </span>
+                          <span className="block truncate text-xs text-slate-500">
+                            {teacher.email}
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })
+                ) : (
+                  <p className="text-sm font-semibold text-slate-600">
+                    Nenhum professor cadastrado no mock atual.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 rounded-lg border border-emerald-100 bg-emerald-50 p-4">
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-[#25304a]">
+                    {user.name}
+                  </p>
+                  <p className="truncate text-xs text-slate-500">
+                    {user.email}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-6">
+            <label htmlFor="lessons" className={labelClass}>
+              Aulas
+            </label>
+            <div className="relative">
+              <ListChecks
+                className="pointer-events-none absolute left-4 top-3.5 text-gray-400"
+                size={20}
+              />
+              <textarea
+                id="lessons"
+                name="lessons"
+                value={formValues.lessons}
+                onChange={handleChange}
+                placeholder={"Introdução ao curso\nPrimeiro projeto\nRevisão final"}
+                className={`${fieldClass} min-h-40 resize-y pl-12`}
+                required
+              />
             </div>
           </form>
         )}
@@ -322,6 +425,7 @@ export default function ProfessorCourseCreatePage() {
           </>
         )}
       </main>
+
       <Footer />
     </div>
   );

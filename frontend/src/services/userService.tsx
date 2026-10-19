@@ -1,14 +1,13 @@
+/*------------------------------------------------------- */ //saveAuthenticatedUser(user)
 import {
   isUserRole,
   type User,
-  type UserId,
 } from "../data/userMock";
 import { AUTH_CHANGED_EVENT, apiFetch, clearStoredSession } from "./api";
 
-const AUTH_USER_STORAGE_KEY = "ead.auth.user";
-const AUTH_TOKEN_STORAGE_KEY = "token";
-const PROFILE_METADATA_STORAGE_KEY = "ead.profile.metadata";
+const AUTH_USER_STORAGE_KEY = "ead.auth.user";  //nome da chave
 
+// Interface atualizada com o campo CPF 
 export interface RegisterUserInput {
   name: string;
   email: string;
@@ -56,10 +55,7 @@ function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
-function isUserId(value: unknown): value is UserId {
-  return typeof value === "string" || typeof value === "number";
-}
-
+// cria um objeto novo sem informações sensíveis vindas do back-end
 function sanitizeUser(user: User): User {
   return {
     id: user.id,
@@ -153,24 +149,20 @@ export async function loginUser(
   }, false);
 
   if (!response.ok) {
-    throw new Error(
-      await readResponseError(response, "Email ou senha incorretos."),
-    );
+    throw new Error("Email ou senha incorretos");
   }
 
-  const data = (await response.json()) as AuthResponse;
+  const data = await response.json();
+  
+console.log("RESPOSTA DO LOGIN DO NESTJS:", data);
 
-  if (
-    typeof data.access_token !== "string" ||
-    !data.user ||
-    !isUserId(data.user.id) ||
-    typeof data.user.email !== "string" ||
-    !isUserRole(data.user.role)
-  ) {
-    throw new Error("Resposta de autenticacao invalida.");
+  //salva token JWT
+  if (data.access_token) {
+    localStorage.setItem("token", data.access_token);
   }
 
-  localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, data.access_token);
+  //extrai as informações do usuário
+  const userPayload = data.user || data;
 
   return {
     id: data.user.id,
@@ -184,13 +176,24 @@ export async function loginUser(
     mustChangePassword: data.user.mustChangePassword === true,
     ...institutionalMetadata(readProfileMetadata()[String(data.user.id)]),
   };
+
+  //atualiza a sessão no localStorage
+  saveAuthenticatedUser(userToSave);
+  console.log("USUÁRIO SALVO NO LOCALSTORAGE:", userToSave);
+
+  return userToSave;
 }
+
+/*--------------------------------------- Função de cadastro --------------------------------------- */
 
 export async function createUser(userData: RegisterUserInput): Promise<User> {
   const response = await apiFetch("/auth/register", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+    headers: {
+      "Content-Type": "application/json",
+    },
+    // Passa exatamente o que 'auth.controller.ts' espera receber no body
+    body: JSON.stringify({  //transformaobjeto de código em tetxo puro
       name: userData.name.trim(),
       email: normalizeEmail(userData.email),
       password: userData.password,
@@ -200,15 +203,11 @@ export async function createUser(userData: RegisterUserInput): Promise<User> {
   }, false);
 
   if (!response.ok) {
-    throw new Error(
-      await readResponseError(
-        response,
-        "Erro ao realizar o cadastro no banco.",
-      ),
-    );
+    const errorData = await response.json();
+    throw new Error(errorData.message || "Erro ao realizar o cadastro no banco.");
   }
 
-  const data = (await response.json()) as RegisterResponse;
+  const data = await response.json();  //peg o ID real e transforma em data
 
   if (!isUserId(data.id) || typeof data.email !== "string") {
     throw new Error("Resposta de cadastro invalida.");
@@ -226,13 +225,16 @@ export async function createUser(userData: RegisterUserInput): Promise<User> {
 
   return {
     id: data.id,
-    name: userData.name.trim(),
+    name: data.name || userData.name.trim(),
     email: data.email,
     role: "aluno",
-    ...institutionalMetadata(userData.profileType),
   };
-}
 
+  return newUser;
+}
+/*--------------------------------------- Gerenciamento de localstorage --------------------------------------- */
+
+//essa função pega o user, passa pelo sanity pra limpar, transforma em texto e tranca no storage
 export function saveAuthenticatedUser(user: User) {
   localStorage.setItem(
     AUTH_USER_STORAGE_KEY,
@@ -257,25 +259,13 @@ export async function refreshAuthenticatedUser(): Promise<User> {
 
 export function getAuthenticatedUser(): User | null {
   const storedUser = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+  if (!storedUser) return null;
 
-  if (!storedUser) {
-    return null;
-  }
-
-  try {
+  try { //tenta executar oque ta no storage
     const parsedUser = JSON.parse(storedUser) as Partial<User>;
-
-    if (
-      !isUserId(parsedUser.id) ||
-      typeof parsedUser.name !== "string" ||
-      typeof parsedUser.email !== "string" ||
-      (parsedUser.role !== "aluno" &&
-        parsedUser.role !== "professor" &&
-        parsedUser.role !== "admin")
-    ) {
-      throw new Error("Sessao invalida");
+    if (!parsedUser.id || !parsedUser.name || !parsedUser.email) {
+      throw new Error("Sessão inválida");
     }
-
     return sanitizeUser(parsedUser as User);
   } catch {
     localStorage.removeItem(AUTH_USER_STORAGE_KEY);
@@ -284,13 +274,22 @@ export function getAuthenticatedUser(): User | null {
 }
 
 export async function updateAuthenticatedUserProfile(
-  userId: UserId,
-  profile: UpdateUserProfileInput,
+  data: UpdateUserProfileInput
 ): Promise<User> {
-  const currentUser = getAuthenticatedUser();
+  const token = localStorage.getItem("token");
 
-  if (!currentUser || currentUser.id !== userId) {
-    throw new Error("Sessao invalida");
+  const response = await fetch("http://localhost:3000/profile/me", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || "Erro ao atualizar o perfil.");
   }
 
   const response = await apiFetch("/usuarios/me", {
@@ -318,6 +317,7 @@ export async function updateAuthenticatedUserProfile(
     ...((await response.json()) as User),
   });
   saveAuthenticatedUser(updatedUser);
+
   return updatedUser;
 }
 
@@ -382,4 +382,36 @@ export async function createManagedUser(input: CreateManagedUserInput) {
 
 export function clearAuthenticatedUser() {
   clearStoredSession();
+}
+
+// Salva as alterações feitas no formulário
+export async function updateProfile(data: { name?: string; phone?: string; avatar?: string; cpf?: string }): Promise<User> {
+  const token = localStorage.getItem('token');
+
+  const response = await fetch('http://localhost:3000/profile/me', {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(data)
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Erro ao atualizar o perfil.');
+  }
+
+  const backendData = await response.json();
+  const currentUser = getAuthenticatedUser() || ({} as User);
+
+  // Garante que o ID e Email antigos não sumam se o backend responder só com os campos alterados
+  const updatedUser: User = {
+    ...currentUser,
+    ...(backendData.user || backendData), // Trata caso o NestJS devolva { user: {...} } ou o objeto direto
+  };
+
+  saveAuthenticatedUser(updatedUser);
+
+  return updatedUser;
 }

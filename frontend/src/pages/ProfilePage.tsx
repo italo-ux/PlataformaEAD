@@ -21,6 +21,9 @@ import type { User } from "../data/userMock";
 import { useAuth } from "../context/auth-context";
 import {
   changeAuthenticatedUserPassword,
+  clearAuthenticatedUser,
+  getAuthenticatedUser,
+  updateProfile,
   updateAuthenticatedUserProfile,
 } from "../services/userService";
 
@@ -127,7 +130,7 @@ function validatePassword(values: PasswordFormValues): PasswordErrors {
   }
 
   if (values.nextPassword !== values.confirmPassword) {
-    errors.confirmPassword = "As senhas nao conferem.";
+    errors.confirmPassword = "As senhas não conferem.";
   }
 
   return errors;
@@ -297,20 +300,20 @@ export default function ProfilePage() {
     });
   };
 
-  const handleSubmitProfile = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setStatusMessage("");
-    setGeneralError("");
+ const handleSubmitProfile = async (event: FormEvent<HTMLFormElement>) => {
+  event.preventDefault();
+  setStatusMessage("");
+  setGeneralError("");
 
-    const validationErrors = validateProfile(formValues);
+  const validationErrors = validateProfile(formValues);
 
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      return;
-    }
+  if (Object.keys(validationErrors).length > 0) {
+    setErrors(validationErrors);
+    return;
+  }
 
-    setErrors({});
-    setIsSaving(true);
+  setErrors({});
+  setIsSaving(true);
 
     try {
       const updatedUser = await updateAuthenticatedUserProfile(user.id, {

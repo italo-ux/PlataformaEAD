@@ -6,6 +6,8 @@
   },
   "dependencies": {
     "@nestjs/typeorm": "^11.0.1",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
     "lucide-react": "^1.14.0",
     "pg": "^8.21.0",
     "typeorm": "^1.0.0"
