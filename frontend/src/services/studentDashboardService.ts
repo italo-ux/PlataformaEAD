@@ -23,6 +23,38 @@ export class StudentDashboardApiError extends Error {
   }
 }
 
+/**
+ * Contrato da API: GET /aluno/ranking
+ * 
+ * Query params:
+ * - scope: "nacional" | "municipal" (obrigatório)
+ * - municipality: string (obrigatório se scope === "municipal")
+ * - currentUserId: string (opcional)
+ * - currentUserName: string (opcional)
+ * 
+ * Response (RankingResponse):
+ * {
+ *   scope: "nacional" | "municipal",
+ *   top10: RankingParticipant[],
+ *   currentUserPosition?: number,
+ *   distanceToTop10?: number,
+ *   municipality?: string,
+ *   municipalityRequired?: boolean
+ * }
+ * 
+ * RankingParticipant:
+ * {
+ *   position: number,
+ *   userId: string,
+ *   name: string,
+ *   avatarUrl?: string,
+ *   initials: string,
+ *   achievementsCount: number,
+ *   completedCoursesCount: number,
+ *   certificatesCount?: number,  // NOVO: substitui trophies
+ *   isCurrentUser: boolean
+ * }
+ */
 const realService = {
   getRanking: async (scope: RankingScope, municipality?: string, currentUserId?: string, currentUserName?: string): Promise<RankingResponse> => {
     const params = new URLSearchParams({ scope });
@@ -40,6 +72,30 @@ const realService = {
     return response.json();
   },
 
+  /**
+   * Contrato da API: GET /aluno/conquistas
+   * 
+   * Query params:
+   * - filter: "todas" | "conquistadas" | "bloqueadas" (default: "todas")
+   * 
+   * Response (AchievementsResponse):
+   * {
+   *   achievements: Achievement[],
+   *   stats: { total: number; conquered: number; locked: number }
+   * }
+   * 
+   * Achievement:
+   * {
+   *   id: string,
+   *   title: string,
+   *   description: string,
+   *   unlockCondition: string,
+   *   icon: string,
+   *   status: "conquistada" | "bloqueada",
+   *   acquiredAt?: string,      // ISO 8601
+   *   progress?: { current: number; target: number }
+   * }
+   */
   getAchievements: async (filter: AchievementFilter = "todas"): Promise<AchievementsResponse> => {
     const response = await apiFetch(`/aluno/conquistas?filter=${filter}`);
     if (!response.ok) {

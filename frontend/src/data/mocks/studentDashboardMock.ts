@@ -8,24 +8,24 @@ import type {
 } from "../../types/studentDashboard";
 
 const MOCK_PARTICIPANTS_BASE: Omit<RankingParticipant, "position" | "isCurrentUser" | "initials">[] = [
-  { userId: "1", name: "Ana Silva", avatarUrl: undefined, achievementsCount: 12, completedCoursesCount: 8, trophies: 3 },
-  { userId: "2", name: "Bruno Costa", avatarUrl: undefined, achievementsCount: 10, completedCoursesCount: 7, trophies: 2 },
-  { userId: "3", name: "Carla Souza", avatarUrl: undefined, achievementsCount: 9, completedCoursesCount: 6, trophies: 2 },
-  { userId: "4", name: "Daniel Oliveira", avatarUrl: undefined, achievementsCount: 8, completedCoursesCount: 5, trophies: 1 },
-  { userId: "5", name: "Eduarda Lima", avatarUrl: undefined, achievementsCount: 7, completedCoursesCount: 5, trophies: 1 },
-  { userId: "6", name: "Felipe Santos", avatarUrl: undefined, achievementsCount: 6, completedCoursesCount: 4, trophies: 1 },
-  { userId: "7", name: "Gabriela Rocha", avatarUrl: undefined, achievementsCount: 5, completedCoursesCount: 4, trophies: 0 },
-  { userId: "8", name: "Henrique Alves", avatarUrl: undefined, achievementsCount: 4, completedCoursesCount: 3, trophies: 0 },
-  { userId: "9", name: "Isabela Martins", avatarUrl: undefined, achievementsCount: 3, completedCoursesCount: 2, trophies: 0 },
-  { userId: "10", name: "João Pereira", avatarUrl: undefined, achievementsCount: 2, completedCoursesCount: 2, trophies: 0 },
-  { userId: "11", name: "Karen Dias", avatarUrl: undefined, achievementsCount: 1, completedCoursesCount: 1, trophies: 0 },
-  { userId: "12", name: "Lucas Ferreira", avatarUrl: undefined, achievementsCount: 1, completedCoursesCount: 1, trophies: 0 },
+  { userId: "1", name: "Ana Silva", avatarUrl: undefined, achievementsCount: 12, completedCoursesCount: 8, certificatesCount: 3 },
+  { userId: "2", name: "Bruno Costa", avatarUrl: undefined, achievementsCount: 10, completedCoursesCount: 7, certificatesCount: 2 },
+  { userId: "3", name: "Carla Souza", avatarUrl: undefined, achievementsCount: 9, completedCoursesCount: 6, certificatesCount: 2 },
+  { userId: "4", name: "Daniel Oliveira", avatarUrl: undefined, achievementsCount: 8, completedCoursesCount: 5, certificatesCount: 1 },
+  { userId: "5", name: "Eduarda Lima", avatarUrl: undefined, achievementsCount: 7, completedCoursesCount: 5, certificatesCount: 1 },
+  { userId: "6", name: "Felipe Santos", avatarUrl: undefined, achievementsCount: 6, completedCoursesCount: 4, certificatesCount: 1 },
+  { userId: "7", name: "Gabriela Rocha", avatarUrl: undefined, achievementsCount: 5, completedCoursesCount: 4, certificatesCount: 0 },
+  { userId: "8", name: "Henrique Alves", avatarUrl: undefined, achievementsCount: 4, completedCoursesCount: 3, certificatesCount: 0 },
+  { userId: "9", name: "Isabela Martins", avatarUrl: undefined, achievementsCount: 3, completedCoursesCount: 2, certificatesCount: 0 },
+  { userId: "10", name: "João Pereira", avatarUrl: undefined, achievementsCount: 2, completedCoursesCount: 2, certificatesCount: 0 },
+  { userId: "11", name: "Karen Dias", avatarUrl: undefined, achievementsCount: 1, completedCoursesCount: 1, certificatesCount: 0 },
+  { userId: "12", name: "Lucas Ferreira", avatarUrl: undefined, achievementsCount: 1, completedCoursesCount: 1, certificatesCount: 0 },
 ];
 
 const CURRENT_USER_METRICS = {
   achievementsCount: 5,
   completedCoursesCount: 3,
-  trophies: 1,
+  certificatesCount: 1,
 };
 
 function buildRankingData(currentUserId: string, currentUserName: string) {

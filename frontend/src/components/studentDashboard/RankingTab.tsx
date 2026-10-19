@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Trophy, MapPin, User as UserIcon, AlertCircle } from "lucide-react";
+import { Trophy, MapPin, User as UserIcon, AlertCircle, Medal, Award } from "lucide-react";
 import { studentDashboardService } from "../../services/studentDashboardService";
 import type { RankingScope, RankingResponse, RankingParticipant } from "../../types/studentDashboard";
 import type { User } from "../../data/userMock";
@@ -98,10 +98,6 @@ function RankingHeader({ scope, setScope, userMunicipality }: { scope: RankingSc
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Trophy className="h-6 w-6 text-amber-500" />
-          <h2 className="text-xl font-bold text-[#25304a]">Ranking</h2>
-        </div>
         <div className="flex items-center gap-2 border border-slate-300 rounded-lg p-1 bg-white" role="tablist">
           {(["nacional", "municipal"] as RankingScope[]).map((s) => (
             <button
@@ -167,7 +163,7 @@ function RankingTable({ data, setScope }: { data: RankingResponse; setScope: (s:
                   Cursos
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">
-                  Troféus
+                  Certificados
                 </th>
               </tr>
             </thead>
@@ -180,9 +176,9 @@ function RankingTable({ data, setScope }: { data: RankingResponse; setScope: (s:
                   }`}
                 >
                   <td className="px-4 py-3 font-bold text-[#25304a]">
-                    {participant.position === 1 && <span className="text-amber-500">1º 🥇</span>}
-                    {participant.position === 2 && <span className="text-slate-400">2º 🥈</span>}
-                    {participant.position === 3 && <span className="text-amber-700">3º 🥉</span>}
+                    {participant.position === 1 && <span className="text-amber-500 flex items-center gap-1">1º <Medal size={16} /></span>}
+                    {participant.position === 2 && <span className="text-slate-400 flex items-center gap-1">2º <Medal size={16} /></span>}
+                    {participant.position === 3 && <span className="text-amber-700 flex items-center gap-1">3º <Medal size={16} /></span>}
                     {participant.position > 3 && <span className="text-slate-600">{participant.position}º</span>}
                     {participant.isCurrentUser && (
                       <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Você</span>
@@ -213,8 +209,8 @@ function RankingTable({ data, setScope }: { data: RankingResponse; setScope: (s:
                   </td>
                   <td className="px-4 py-3 text-center hidden lg:table-cell">
                     <span className="inline-flex items-center gap-1 text-sm font-medium text-slate-700">
-                      <Trophy size={14} className="text-amber-500" />
-                      {participant.trophies ?? 0}
+                      <Award size={14} className="text-amber-500" />
+                      {participant.certificatesCount ?? 0}
                     </span>
                   </td>
                 </tr>
@@ -249,7 +245,18 @@ function RankingTable({ data, setScope }: { data: RankingResponse; setScope: (s:
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-[#25304a]">
-                    {participant.position === 1 ? "1º 🥇" : participant.position === 2 ? "2º 🥈" : participant.position === 3 ? "3º 🥉" : `${participant.position}º`}
+                    {participant.position === 1 ? (
+                      <>1º <Medal size={14} className="text-amber-500" />
+                      </>
+                    ) : participant.position === 2 ? (
+                      <>2º <Medal size={14} className="text-slate-400" />
+                      </>
+                    ) : participant.position === 3 ? (
+                      <>3º <Medal size={14} className="text-amber-700" />
+                      </>
+                    ) : (
+                      `${participant.position}º`
+                    )}
                   </span>
                   <span className="font-medium truncate">{participant.name}</span>
                   {participant.isCurrentUser && (
@@ -265,6 +272,10 @@ function RankingTable({ data, setScope }: { data: RankingResponse; setScope: (s:
                     <UserIcon size={10} className="text-blue-500" />
                     <span>{participant.completedCoursesCount} cursos</span>
                   </span>
+                  <span className="flex items-center gap-1">
+                    <Award size={10} className="text-amber-500" />
+                    <span>{participant.certificatesCount ?? 0} certificados</span>
+                  </span>
                 </div>
               </div>
             </article>
@@ -275,7 +286,7 @@ function RankingTable({ data, setScope }: { data: RankingResponse; setScope: (s:
       {currentUserInTop10 && (
         <div className="px-4 py-3 bg-blue-50 border-t border-slate-200 flex items-center justify-between text-sm">
           <span className="text-blue-700 font-medium">Sua posição: {currentUserInTop10.position}º</span>
-          <span className="text-slate-500">{currentUserInTop10.achievementsCount} conquistas · {currentUserInTop10.completedCoursesCount} cursos</span>
+          <span className="text-slate-500">{currentUserInTop10.achievementsCount} conquistas · {currentUserInTop10.completedCoursesCount} cursos · {currentUserInTop10.certificatesCount ?? 0} certificados</span>
         </div>
       )}
 

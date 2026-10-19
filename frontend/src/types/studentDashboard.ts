@@ -10,7 +10,7 @@ export interface RankingParticipant {
   initials: string;
   achievementsCount: number;
   completedCoursesCount: number;
-  trophies?: number;
+  certificatesCount?: number;
   isCurrentUser: boolean;
 }
 

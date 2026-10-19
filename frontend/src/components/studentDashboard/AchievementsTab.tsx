@@ -92,10 +92,6 @@ export function AchievementsTab() {
     <div className="space-y-4">
       {/* Header + Stats - SEMPRE visível */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Trophy className="h-6 w-6 text-amber-500" />
-          <h2 className="text-xl font-bold text-[#25304a]">Conquistas</h2>
-        </div>
         <div className="text-sm text-slate-600">
           <span className="font-semibold text-amber-600">{data?.stats.conquered ?? 0}</span> de <span className="font-semibold">{data?.stats.total ?? 0}</span> conquistadas
         </div>

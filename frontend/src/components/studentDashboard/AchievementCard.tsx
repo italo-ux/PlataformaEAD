@@ -10,6 +10,7 @@ import {
   Users,
   MessageSquare,
   Map,
+  CheckCircle2,
 } from "lucide-react";
 import type { Achievement } from "../../types/studentDashboard";
 
@@ -62,7 +63,7 @@ export function AchievementCard({
         isConquered
           ? "bg-amber-50 border-amber-200"
           : "bg-slate-50 border-slate-200 grayscale"
-      }`}
+      } ${isExpanded ? "ring-2 ring-blue-500 ring-offset-2" : ""}`}
     >
       <button
         type="button"
@@ -125,10 +126,15 @@ export function AchievementCard({
       </button>
 
       {isExpanded && (
-        <div className="border-t px-5 pb-5 bg-white/50" style={{ borderColor: isConquered ? "#fde68a" : "#e2e8f0" }}>
+        <div className="border-t px-5 pb-5 bg-white/50" style={{ borderColor: isExpanded ? "rgb(59 130 246)" : isConquered ? "#fde68a" : "#e2e8f0" }}>
           <div className="mt-4 space-y-3">
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Requisito</p>
+              <div className="flex items-center gap-2">
+                {isConquered && <CheckCircle2 size={14} className="text-green-500" />}
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  {isConquered ? "Requisito concluído" : "Requisito"}
+                </p>
+              </div>
               <p className="text-sm text-slate-700 mt-1">{achievement.unlockCondition}</p>
             </div>
             {!isConquered && achievement.progress && (
