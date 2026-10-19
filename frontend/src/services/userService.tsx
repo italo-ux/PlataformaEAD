@@ -29,7 +29,7 @@ export interface CreateManagedUserInput {
 
 export type UpdateUserProfileInput = Pick<
   User,
-  "name" | "email" | "cpf" | "phone"
+  "name" | "email" | "cpf" | "phone" | "municipality"
 >;
 
 interface AuthResponse {
@@ -40,6 +40,7 @@ interface AuthResponse {
     email?: unknown;
     cpf?: unknown;
     phone?: unknown;
+    municipality?: unknown;
     role?: unknown;
     mustChangeEmail?: unknown;
     mustChangePassword?: unknown;
@@ -66,6 +67,7 @@ function sanitizeUser(user: User): User {
     email: user.email,
     cpf: user.cpf,
     phone: user.phone,
+    municipality: user.municipality,
     role: user.role,
     mustChangeEmail: user.mustChangeEmail,
     mustChangePassword: user.mustChangePassword,
@@ -176,6 +178,7 @@ export async function loginUser(
     email: data.user.email,
     cpf: typeof data.user.cpf === "string" ? data.user.cpf : undefined,
     phone: typeof data.user.phone === "string" ? data.user.phone : undefined,
+    municipality: typeof data.user.municipality === "string" ? data.user.municipality : undefined,
     role: data.user.role,
     mustChangeEmail: data.user.mustChangeEmail === true,
     mustChangePassword: data.user.mustChangePassword === true,
@@ -300,6 +303,7 @@ export async function updateAuthenticatedUserProfile(
       email: normalizeEmail(profile.email ?? currentUser.email),
       cpf: profile.cpf?.replace(/\D/g, ""),
       phone: profile.phone?.replace(/\D/g, ""),
+      municipality: profile.municipality ?? currentUser.municipality,
     }),
   });
 

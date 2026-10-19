@@ -12,6 +12,7 @@ export interface User {
   mustChangePassword?: boolean;
   profileType?: "cidadao" | "estagiario" | "funcionario";
   verificationStatus?: "nao_aplicavel" | "pendente";
+  municipality?: string;
 }
 
 export interface UserPermissions {
