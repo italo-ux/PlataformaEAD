@@ -33,4 +33,28 @@ export class User {
 
   @DeleteDateColumn({ name: 'deleted_at', nullable: true })
   deletedAt?: Date; // coluna que desativa a conta do usuário
+  @Column({ name: 'celular', type: 'varchar', length: 11, nullable: true })
+  phone!: string | null;
+
+  @Column({
+    name: 'foto_perfil',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  avatar!: string | null;
+
+  @Column({ default: false })
+  must_change_email!: boolean;
+
+  @Column({ default: false })
+  must_change_password!: boolean;
+
+  @Column({
+    type: 'enum',
+    enum: UserRole,
+    enumName: 'user_role',
+    default: UserRole.ALUNO,
+  })
+  role!: UserRole;
 }

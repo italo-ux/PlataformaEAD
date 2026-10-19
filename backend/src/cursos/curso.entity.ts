@@ -1,5 +1,17 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { Aula } from './aula.entity';
+
+export enum CursoStatus {
+  RASCUNHO = 'rascunho',
+  PUBLICADO = 'publicado',
+}
 
 @Entity('cursos')
 export class Curso {
@@ -26,6 +38,23 @@ export class Curso {
 
   @Column({ type: 'uuid' })
   id_instrutor!: string;
+
+  @Column({
+    type: 'enum',
+    enum: CursoStatus,
+    enumName: 'curso_status',
+    default: CursoStatus.RASCUNHO,
+  })
+  status!: CursoStatus;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  publicado_em!: Date | null;
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at!: Date;
+
+  @UpdateDateColumn({ type: 'timestamptz' })
+  updated_at!: Date;
 
   @OneToMany(() => Aula, (aula) => aula.curso)
   aulas!: Aula[];

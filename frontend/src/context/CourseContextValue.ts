@@ -4,7 +4,6 @@ export interface CourseContextUser {
   id: number;
   name: string;
   email: string;
-  avatar?: string;
 }
 
 export interface CourseContextType {

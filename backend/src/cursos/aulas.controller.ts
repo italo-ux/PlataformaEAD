@@ -23,6 +23,8 @@ import { CreateAulaDto } from './dto/create-aula.dto';
 import { UpdateAulaDto } from './dto/update-aula.dto';
 
 @Controller('cursos/:cursoId/aulas')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.PROFESSOR, UserRole.ADMIN)
 export class AulasController {
   constructor(private readonly aulasService: AulasService) {}
 
@@ -32,7 +34,6 @@ export class AulasController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.PROFESSOR, UserRole.ADMIN)
   create(
     @Param('cursoId', new ParseUUIDPipe()) cursoId: string,
@@ -43,7 +44,6 @@ export class AulasController {
   }
 
   @Patch(':aulaId')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.PROFESSOR, UserRole.ADMIN)
   update(
     @Param('cursoId', new ParseUUIDPipe()) cursoId: string,
@@ -60,7 +60,6 @@ export class AulasController {
   }
 
   @Delete(':aulaId')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.PROFESSOR, UserRole.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(

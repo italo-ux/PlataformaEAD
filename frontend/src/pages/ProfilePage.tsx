@@ -1,11 +1,11 @@
-import { useState, type ChangeEvent, type FormEvent } from "react"; //getAuthenticatedUser());
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import {
-  Camera,
   CheckCircle2,
   KeyRound,
   Lock,
   Mail,
+  MapPin,
   Phone,
   Save,
   Shield,
@@ -14,13 +14,17 @@ import {
 } from "lucide-react";
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
-import AdminDashboard from "../components/AdminDashboard";
+import AdminUserManagement from "../components/AdminUserManagement";
+import AdminTrailManagement from "../components/AdminTrailManagement";
+import CollapsibleSection from "../components/CollapsibleSection";
 import type { User } from "../data/userMock";
+import { useAuth } from "../context/auth-context";
 import {
   changeAuthenticatedUserPassword,
   clearAuthenticatedUser,
   getAuthenticatedUser,
   updateProfile,
+  updateAuthenticatedUserProfile,
 } from "../services/userService";
 
 interface ProfileFormValues {
@@ -29,7 +33,7 @@ interface ProfileFormValues {
   email: string;
   cpf: string;
   phone: string;
-  avatar: string;
+  municipality: string;
 }
 
 interface PasswordFormValues {
@@ -70,25 +74,12 @@ function mapUserToFormValues(user: User | null): ProfileFormValues {
     email: user?.email ?? "",
     cpf: user?.cpf ?? "",
     phone: user?.phone ?? "",
-    avatar: user?.avatar ?? "",
+    municipality: user?.municipality ?? "",
   };
 }
 
 function onlyDigits(value: string) {
   return value.replace(/\D/g, "");
-}
-
-function isValidImageUrl(value: string) {
-  if (!value.trim()) {
-    return true;
-  }
-
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 
 function validateProfile(values: ProfileFormValues): FormErrors {
@@ -117,10 +108,6 @@ function validateProfile(values: ProfileFormValues): FormErrors {
     errors.phone = "Informe um celular com DDD.";
   }
 
-  if (!isValidImageUrl(values.avatar)) {
-    errors.avatar = "Use uma URL de imagem iniciada por http ou https.";
-  }
-
   return errors;
 }
 
@@ -131,8 +118,15 @@ function validatePassword(values: PasswordFormValues): PasswordErrors {
     errors.currentPassword = "Informe a senha atual.";
   }
 
-  if (values.nextPassword.length < 6) {
-    errors.nextPassword = "A nova senha deve ter pelo menos 6 caracteres.";
+  if (values.nextPassword.length < 8) {
+    errors.nextPassword = "A nova senha deve ter pelo menos 8 caracteres.";
+  } else if (
+    !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])[\s\S]+$/.test(
+      values.nextPassword,
+    )
+  ) {
+    errors.nextPassword =
+      "Use maiúscula, minúscula, número e caractere especial.";
   }
 
   if (values.nextPassword !== values.confirmPassword) {
@@ -235,16 +229,21 @@ function PasswordInput({
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const [user, setUser] = useState<User | null>(() => getAuthenticatedUser());
+  const { user: sessionUser, logout } = useAuth();
+  const [user, setUser] = useState<User | null>(sessionUser);
   const [formValues, setFormValues] = useState<ProfileFormValues>(() =>
-    mapUserToFormValues(getAuthenticatedUser()),
+    mapUserToFormValues(sessionUser),
   );
+
+  useEffect(() => {
+    setUser(sessionUser);
+    setFormValues(mapUserToFormValues(sessionUser));
+  }, [sessionUser]);
   const [errors, setErrors] = useState<FormErrors>({});
   const [statusMessage, setStatusMessage] = useState("");
   const [generalError, setGeneralError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [isAvatarEditorOpen, setIsAvatarEditorOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [passwordValues, setPasswordValues] = useState<PasswordFormValues>({
     currentPassword: "",
@@ -316,31 +315,29 @@ export default function ProfilePage() {
   setErrors({});
   setIsSaving(true);
 
-  try {
-    //  Chame a função 'updateProfile' enviando todos os dados necessários
-    const updatedUser = await updateProfile({
-      name: `${formValues.firstName.trim()} ${formValues.lastName.trim()}`,
-      phone: formValues.phone,
-      avatar: formValues.avatar,
-    });
+    try {
+      const updatedUser = await updateAuthenticatedUserProfile(user.id, {
+        name: `${formValues.firstName.trim()} ${formValues.lastName.trim()}`,
+        email: formValues.email,
+        cpf: formValues.cpf,
+        phone: formValues.phone,
+        municipality: formValues.municipality,
+      });
 
-    //  Atualiza a tela com as informações retornadas da API/Storage
-    setUser(updatedUser);
-    setFormValues(mapUserToFormValues(updatedUser));
-
-    setStatusMessage("Perfil atualizado com sucesso!");
-    setIsAvatarEditorOpen(false);
-    setIsEditingProfile(false);
-  } catch (error) {
-    setGeneralError(
-      error instanceof Error
-        ? error.message
-        : "Não foi possível salvar o perfil.",
-    );
-  } finally {
-    setIsSaving(false);
-  }
-};
+      setUser(updatedUser);
+      setFormValues(mapUserToFormValues(updatedUser));
+      setStatusMessage("Perfil atualizado com sucesso.");
+      setIsEditingProfile(false);
+    } catch (error) {
+      setGeneralError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar o perfil.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleSubmitPassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -358,17 +355,21 @@ export default function ProfilePage() {
     setIsChangingPassword(true);
 
     try {
-      await changeAuthenticatedUserPassword(
+      const updatedUser = await changeAuthenticatedUserPassword(
+        user.id,
         passwordValues.currentPassword,
         passwordValues.nextPassword,
       );
 
+      setUser(updatedUser);
+      setFormValues(mapUserToFormValues(updatedUser));
       setPasswordValues({
         currentPassword: "",
         nextPassword: "",
         confirmPassword: "",
       });
-      setPasswordStatus("Senha alterada no mock com sucesso.");
+      setIsPasswordModalOpen(false);
+      setStatusMessage("Senha alterada com sucesso.");
     } catch (error) {
       setPasswordGeneralError(
         error instanceof Error
@@ -381,7 +382,7 @@ export default function ProfilePage() {
   };
 
   const handleLogout = () => {
-    clearAuthenticatedUser();
+    logout();
     navigate("/login");
   };
 
@@ -420,7 +421,6 @@ export default function ProfilePage() {
     setFormValues(mapUserToFormValues(user));
     setErrors({});
     setGeneralError("");
-    setIsAvatarEditorOpen(false);
     setIsEditingProfile(false);
   };
 
@@ -432,6 +432,9 @@ export default function ProfilePage() {
         <section className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
           <div className="mb-8 border-b-2 border-slate-600 pb-3">
             <h1 className="text-3xl font-black text-slate-950">Meu perfil</h1>
+            <p className="mt-3 text-sm text-amber-800">
+              As alterações são salvas na sua conta e valem no próximo acesso.
+            </p>
           </div>
 
           <div className="mb-8 flex items-center gap-2 text-sm font-semibold text-slate-600">
@@ -460,15 +463,7 @@ export default function ProfilePage() {
             <div className="mx-auto max-w-3xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
                 <div className="flex h-28 w-28 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-4xl font-bold text-white shadow-lg shadow-blue-600/20">
-                  {formValues.avatar ? (
-                    <img
-                      src={formValues.avatar}
-                      alt={`${displayName} avatar`}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <span>{getInitials(displayName)}</span>
-                  )}
+                  <span>{getInitials(displayName)}</span>
                 </div>
 
                 <div className="min-w-0 flex-1 text-center sm:text-left">
@@ -501,6 +496,12 @@ export default function ProfilePage() {
                       </span>
                       {formValues.phone || "Não informado"}
                     </p>
+                    <p>
+                      <span className="block font-bold text-slate-900">
+                        Município
+                      </span>
+                      {formValues.municipality || "Não informado"}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -529,41 +530,9 @@ export default function ProfilePage() {
           {isEditingProfile && (
             <form onSubmit={handleSubmitProfile}>
               <div className="mb-10 flex flex-col items-center gap-4">
-                <div className="relative">
-                  <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-4xl font-bold text-white shadow-lg shadow-blue-600/20">
-                    {formValues.avatar ? (
-                      <img
-                        src={formValues.avatar}
-                        alt={`${displayName} avatar`}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <span>{getInitials(displayName)}</span>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsAvatarEditorOpen((current) => !current)}
-                    className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-blue-600 shadow transition hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    aria-label="Editar imagem do perfil"
-                  >
-                    <Camera className="h-4 w-4" />
-                  </button>
+                <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-4xl font-bold text-white shadow-lg shadow-blue-600/20">
+                  <span>{getInitials(displayName)}</span>
                 </div>
-
-                {isAvatarEditorOpen && (
-                  <div className="w-full max-w-xl">
-                    <TextInput
-                      icon={Camera}
-                      label="URL da imagem"
-                      name="avatar"
-                      placeholder="https://exemplo.com/avatar.jpg"
-                      value={formValues.avatar}
-                      onChange={handleProfileChange}
-                      error={errors.avatar}
-                    />
-                  </div>
-                )}
               </div>
 
               <div className="mx-auto grid max-w-3xl gap-5 md:grid-cols-2">
@@ -612,6 +581,15 @@ export default function ProfilePage() {
                   value={formValues.phone}
                   onChange={handleProfileChange}
                   error={errors.phone}
+                />
+                <TextInput
+                  icon={MapPin}
+                  label="Município"
+                  name="municipality"
+                  placeholder="São Paulo"
+                  value={formValues.municipality}
+                  onChange={handleProfileChange}
+                  error={errors.municipality}
                 />
                 <div className="flex items-end">
                   <button
@@ -674,9 +652,25 @@ export default function ProfilePage() {
               </button>
             )}
           </div>
+
         </section>
 
-        {user.role === "admin" && <AdminDashboard />}
+        {user.role === "admin" && (
+          <>
+            <CollapsibleSection
+              title="Gerenciar trilhas"
+              description="Crie trilhas e organize os cursos disponíveis."
+            >
+              <AdminTrailManagement embedded />
+            </CollapsibleSection>
+            <CollapsibleSection
+              title="Cadastrar equipe"
+              description="Cadastre professores e outros administradores."
+            >
+              <AdminUserManagement embedded />
+            </CollapsibleSection>
+          </>
+        )}
       </main>
 
       <Footer />
@@ -698,7 +692,7 @@ export default function ProfilePage() {
                   Alterar senha
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Atualização válida apenas no mock desta sessão.
+                  Informe a senha atual e escolha uma nova senha segura.
                 </p>
               </div>
               <button
@@ -766,6 +760,7 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

@@ -27,5 +27,34 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
   controllers: [AuthController, UsuarioController, ProfileController],
   providers: [AuthService, JwtStrategy, MailService],
   exports: [AuthService, PassportModule, JwtModule, JwtStrategy],
+import { Address } from './address.entity';
+import { CepService } from './cep.service';
+import { ThrottlerModule } from '@nestjs/throttler';
+
+const jwtSecret = process.env.JWT_SECRET;
+
+if (!jwtSecret) {
+  throw new Error('JWT_SECRET deve ser configurado para iniciar a API.');
+}
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([User, Address]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60_000,
+        limit: 10,
+      },
+    ]),
+    PassportModule, //habilita o uso de AuthGuard
+    //configura o módulo JWT, definindo a chave secreta e o tempo de expiração dos tokens:
+    JwtModule.register({
+      secret: jwtSecret,
+      signOptions: { expiresIn: '1h' }, // token expira em 1 hora
+    }),
+  ],
+  controllers: [AuthController], //lista os controlers que pertencem a esse módulo
+  providers: [AuthService, JwtStrategy, MailService, CepService],
+  exports: [AuthService],
 })
 export class AuthModule {}

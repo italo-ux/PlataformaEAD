@@ -1,15 +1,6 @@
-import { useState, useEffect, type ChangeEvent, type FormEvent } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
-import {
-  BookOpen,
-  CheckCircle2,
-  FileText,
-  Image,
-  ListChecks,
-  PlusCircle,
-  UserRound,
-  Users,
-} from "lucide-react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { BookOpen, PlusCircle, Rocket, Save } from "lucide-react";
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
 import { canCreateCourses, type User } from "../data/userMock";
@@ -58,6 +49,10 @@ export function ProfessorCourseCreatePage() {
   );
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [status, setStatus] = useState("");
+  const [courseStatus, setCourseStatus] = useState<"rascunho" | "publicado">("rascunho");
+  const [publishing, setPublishing] = useState(false);
 
   // 2. O useEffect faz a busca assim que a tela abre no navegador
   useEffect(() => {
@@ -70,14 +65,47 @@ export function ProfessorCourseCreatePage() {
       }
     }
 
-    if (user?.role === "admin") {
-      fetchTeachers();
-    }
-  }, [user]);
+  useEffect(() => {
+    if (!courseId) return;
 
-  if (!user || !canCreateCourses(user)) {
-    return <Navigate to={user ? "/home" : "/login"} replace />;
-  }
+    let cancelled = false;
+    setLoading(true);
+    setLoadFailed(false);
+    courseService
+      .getCourse(courseId)
+      .then((course) => {
+        if (cancelled) return;
+        setForm({
+          nome: course.nome,
+          descricao: course.descricao ?? "",
+          url_foto: course.url_foto ?? "",
+          carga_horaria: course.carga_horaria?.toString() ?? "",
+          categoria: course.categoria ?? "",
+          nivel: course.nivel ?? "",
+        });
+        setCourseStatus(course.status);
+      })
+      .catch((reason: unknown) => {
+        if (!cancelled) {
+          setLoadFailed(true);
+          setError(
+            reason instanceof Error
+              ? reason.message
+              : "Não foi possível carregar o curso.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [courseId]);
+
+  if (!user) return <Navigate to="/login" replace />;
+  if (!canCreateCourses(user)) return <Navigate to="/home" replace />;
 
   const handleChange = (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -143,6 +171,25 @@ export function ProfessorCourseCreatePage() {
     }
   };
 
+  const handlePublish = async () => {
+    if (!courseId) return;
+    setPublishing(true);
+    setError("");
+    setStatus("");
+    try {
+      const course = await courseService.publishCourse(courseId);
+      setCourseStatus(course.status);
+      setStatus("Curso publicado e disponível para matrícula.");
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Não foi possível publicar o curso.",
+      );
+    } finally {
+      setPublishing(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#f6f9ff] text-slate-950">
@@ -347,30 +394,36 @@ export function ProfessorCourseCreatePage() {
                 required
               />
             </div>
-            <p className="mt-2 text-sm text-slate-500">
-              Escreva uma aula por linha. O backend futuro poderá trocar este
-              campo por um editor completo de módulos e aulas.
-            </p>
-          </div>
-
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              onClick={() => navigate("/courses")}
-              className="rounded-lg border border-gray-200 bg-white px-5 py-3 font-bold text-slate-600 transition hover:border-gray-300 hover:bg-gray-50"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <PlusCircle size={20} />
-              {saving ? "Salvando..." : "Salvar curso"}
-            </button>
-          </div>
-        </form>
+          </form>
+        )}
+        {isEditing && courseId && !loading && !loadFailed && (
+          <>
+            <CourseLessonsEditor courseId={courseId} />
+            <section className="mt-6 rounded-xl border border-blue-100 bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-black text-[#25304a]">Disponibilidade</h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {courseStatus === "publicado"
+                      ? "Este curso está publicado e aceita matrículas."
+                      : "Publique após informar a carga horária e cadastrar pelo menos uma aula."}
+                  </p>
+                </div>
+                {courseStatus === "rascunho" && (
+                  <button
+                    type="button"
+                    onClick={handlePublish}
+                    disabled={publishing}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-3 font-bold text-white disabled:opacity-60"
+                  >
+                    <Rocket size={18} />
+                    {publishing ? "Publicando..." : "Publicar curso"}
+                  </button>
+                )}
+              </div>
+            </section>
+          </>
+        )}
       </main>
 
       <Footer />

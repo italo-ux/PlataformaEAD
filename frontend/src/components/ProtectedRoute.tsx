@@ -1,20 +1,32 @@
 import { Navigate, Outlet } from "react-router-dom";
-import type { UserRole } from "../data/userMock";
-import { getAuthenticatedUser } from "../services/userService";
+import type { UserRole, User } from "../data/userMock";
+import { useAuth } from "../context/auth-context";
 
 interface ProtectedRouteProps {
   allowedRoles: UserRole[];
+  allowedProfileTypes?: User["profileType"][];
 }
 
-export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
-  const token = localStorage.getItem("token");
-  const user = getAuthenticatedUser();
+export const ProtectedRoute = ({
+  allowedRoles,
+  allowedProfileTypes,
+}: ProtectedRouteProps) => {
+  const { loading, user } = useAuth();
 
-  if (!token || !user) {
+  if (loading) {
+    return <div className="p-8 text-center text-slate-600">Restaurando sessão...</div>;
+  }
+
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  if (!allowedRoles.includes(user.role)) {
+  const hasRole = allowedRoles.includes(user.role);
+  const hasProfileType =
+    allowedProfileTypes?.includes(user.profileType as "cidadao" | "estagiario" | "funcionario") ??
+    false;
+
+  if (!hasRole && !hasProfileType) {
     return <Navigate to="/home" replace />;
   }
 

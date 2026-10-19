@@ -36,6 +36,14 @@ export class RegisterDto extends EmailDto {
   @Length(11, 11)
   @Matches(/^\d{11}$/)
   cpf!: string;
+
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.replace(/\D/g, '') : value,
+  )
+  @IsString()
+  @Length(8, 8)
+  @Matches(/^\d{8}$/)
+  cep!: string;
 }
 
 export class VerifyEmailDto extends EmailDto {

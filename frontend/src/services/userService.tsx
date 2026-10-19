@@ -1,7 +1,9 @@
 /*------------------------------------------------------- */ //saveAuthenticatedUser(user)
 import {
+  isUserRole,
   type User,
 } from "../data/userMock";
+import { AUTH_CHANGED_EVENT, apiFetch, clearStoredSession } from "./api";
 
 const AUTH_USER_STORAGE_KEY = "ead.auth.user";  //nome da chave
 
@@ -10,7 +12,43 @@ export interface RegisterUserInput {
   name: string;
   email: string;
   password: string;
-  cpf: string; 
+  cpf: string;
+  cep: string;
+  profileType?: User["profileType"];
+  verificationProof?: string;
+}
+
+export interface CreateManagedUserInput {
+  name: string;
+  email: string;
+  password: string;
+  cpf: string;
+  role: "professor" | "admin";
+}
+
+export type UpdateUserProfileInput = Pick<
+  User,
+  "name" | "email" | "cpf" | "phone" | "municipality"
+>;
+
+interface AuthResponse {
+  access_token?: unknown;
+  user?: {
+    id?: unknown;
+    name?: unknown;
+    email?: unknown;
+    cpf?: unknown;
+    phone?: unknown;
+    municipality?: unknown;
+    role?: unknown;
+    mustChangeEmail?: unknown;
+    mustChangePassword?: unknown;
+  };
+}
+
+interface RegisterResponse {
+  id?: unknown;
+  email?: unknown;
 }
 
 function normalizeEmail(email: string) {
@@ -20,25 +58,95 @@ function normalizeEmail(email: string) {
 // cria um objeto novo sem informações sensíveis vindas do back-end
 function sanitizeUser(user: User): User {
   return {
-    id: user?.id,
-    name: user?.name ?? "",
-    email: user?.email ?? "",
-    avatar: user?.avatar ?? "",
-    role: user?.role ?? "aluno",
-    phone: user?.phone ?? "",
-    cpf: user?.cpf ?? "",
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    cpf: user.cpf,
+    phone: user.phone,
+    municipality: user.municipality,
+    role: user.role,
+    mustChangeEmail: user.mustChangeEmail,
+    mustChangePassword: user.mustChangePassword,
+    profileType: user.profileType,
+    verificationStatus: user.verificationStatus,
   };
 }
 
-/*--------------------------------------- Função de login real --------------------------------------- */
-export async function loginUser(email: string, password: string): Promise<User> { 
-  const response = await fetch("http://localhost:3000/auth/login", {
+function persistableUser(user: User): User {
+  const sanitized = sanitizeUser(user);
+  delete sanitized.cpf;
+  delete sanitized.phone;
+  return sanitized;
+}
+
+// Institutional information is only a browser demonstration, never authorization.
+function readProfileMetadata(): Record<string, User["profileType"]> {
+  try {
+    const value: unknown = JSON.parse(
+      localStorage.getItem(PROFILE_METADATA_STORAGE_KEY) ?? "{}",
+    );
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    return Object.fromEntries(
+      Object.entries(value).filter(
+        ([, type]) =>
+          type === "cidadao" || type === "estagiario" || type === "funcionario",
+      ),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function institutionalMetadata(
+  profileType: User["profileType"],
+): Partial<User> {
+  return profileType
+    ? {
+        profileType,
+        verificationStatus:
+          profileType === "cidadao" ? "nao_aplicavel" : "pendente",
+      }
+    : {};
+}
+
+function getResponseErrorMessage(data: unknown, fallback: string) {
+  if (!data || typeof data !== "object" || !("message" in data)) {
+    return fallback;
+  }
+
+  const { message } = data as { message?: unknown };
+
+  if (typeof message === "string") {
+    return message;
+  }
+
+  if (
+    Array.isArray(message) &&
+    message.every((item) => typeof item === "string")
+  ) {
+    return message.join(" ");
+  }
+
+  return fallback;
+}
+
+async function readResponseError(response: Response, fallback: string) {
+  try {
+    return getResponseErrorMessage(await response.json(), fallback);
+  } catch {
+    return fallback;
+  }
+}
+
+export async function loginUser(
+  email: string,
+  password: string,
+): Promise<User> {
+  const response = await apiFetch("/auth/login", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ email, password }),
-  });
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: normalizeEmail(email), password }),
+  }, false);
 
   if (!response.ok) {
     throw new Error("Email ou senha incorretos");
@@ -56,11 +164,17 @@ console.log("RESPOSTA DO LOGIN DO NESTJS:", data);
   //extrai as informações do usuário
   const userPayload = data.user || data;
 
-  const userToSave: User = {
-    id: userPayload.id, 
-    name: userPayload.name,
-    email: userPayload.email,
-    role: userPayload.role || "aluno", 
+  return {
+    id: data.user.id,
+    name: typeof data.user.name === "string" ? data.user.name : data.user.email,
+    email: data.user.email,
+    cpf: typeof data.user.cpf === "string" ? data.user.cpf : undefined,
+    phone: typeof data.user.phone === "string" ? data.user.phone : undefined,
+    municipality: typeof data.user.municipality === "string" ? data.user.municipality : undefined,
+    role: data.user.role,
+    mustChangeEmail: data.user.mustChangeEmail === true,
+    mustChangePassword: data.user.mustChangePassword === true,
+    ...institutionalMetadata(readProfileMetadata()[String(data.user.id)]),
   };
 
   //atualiza a sessão no localStorage
@@ -73,7 +187,7 @@ console.log("RESPOSTA DO LOGIN DO NESTJS:", data);
 /*--------------------------------------- Função de cadastro --------------------------------------- */
 
 export async function createUser(userData: RegisterUserInput): Promise<User> {
-  const response = await fetch("http://localhost:3000/auth/register", {
+  const response = await apiFetch("/auth/register", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -82,10 +196,11 @@ export async function createUser(userData: RegisterUserInput): Promise<User> {
     body: JSON.stringify({  //transformaobjeto de código em tetxo puro
       name: userData.name.trim(),
       email: normalizeEmail(userData.email),
-      password: userData.password, 
-      cpf: userData.cpf, // Passando o CPF digitado na tela
+      password: userData.password,
+      cpf: userData.cpf.replace(/\D/g, ""),
+      cep: userData.cep.replace(/\D/g, ""),
     }),
-  });
+  }, false);
 
   if (!response.ok) {
     const errorData = await response.json();
@@ -94,7 +209,21 @@ export async function createUser(userData: RegisterUserInput): Promise<User> {
 
   const data = await response.json();  //peg o ID real e transforma em data
 
- const newUser: User = {
+  if (!isUserId(data.id) || typeof data.email !== "string") {
+    throw new Error("Resposta de cadastro invalida.");
+  }
+
+  if (userData.profileType) {
+    localStorage.setItem(
+      PROFILE_METADATA_STORAGE_KEY,
+      JSON.stringify({
+        ...readProfileMetadata(),
+        [String(data.id)]: userData.profileType,
+      }),
+    );
+  }
+
+  return {
     id: data.id,
     name: data.name || userData.name.trim(),
     email: data.email,
@@ -107,11 +236,27 @@ export async function createUser(userData: RegisterUserInput): Promise<User> {
 
 //essa função pega o user, passa pelo sanity pra limpar, transforma em texto e tranca no storage
 export function saveAuthenticatedUser(user: User) {
-  localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(sanitizeUser(user)));
-  window.dispatchEvent(new Event("auth-change"));
+  localStorage.setItem(
+    AUTH_USER_STORAGE_KEY,
+    JSON.stringify(persistableUser(user)),
+  );
+  window.dispatchEvent(
+    new CustomEvent<User>(AUTH_CHANGED_EVENT, { detail: sanitizeUser(user) }),
+  );
 }
 
-//essa função recupera sessão ativa para verificar se tem alguém logado
+export async function refreshAuthenticatedUser(): Promise<User> {
+  const response = await apiFetch("/usuarios/me");
+  if (!response.ok) {
+    throw new Error(
+      await readResponseError(response, "Não foi possível restaurar a sessão."),
+    );
+  }
+  const user = sanitizeUser((await response.json()) as User);
+  saveAuthenticatedUser(user);
+  return user;
+}
+
 export function getAuthenticatedUser(): User | null {
   const storedUser = localStorage.getItem(AUTH_USER_STORAGE_KEY);
   if (!storedUser) return null;
@@ -126,48 +271,6 @@ export function getAuthenticatedUser(): User | null {
     localStorage.removeItem(AUTH_USER_STORAGE_KEY);
     return null;
   }
-}
-
-
-//essa função é responsável pelo logout
-export function clearAuthenticatedUser() {
-  localStorage.removeItem(AUTH_USER_STORAGE_KEY);
-  localStorage.removeItem("token");
-  window.dispatchEvent(new Event("auth-change"));
-}
-
-/*--------------------------------------- Alterar Senha --------------------------------------- */
-
-export async function changeAuthenticatedUserPassword(
-  currentPassword: string,
-  newPassword: string
-): Promise<void> {
-  const token = localStorage.getItem("token");
-
-  const response = await fetch("http://localhost:3000/profile/change-password", {
-    method: "PATCH", 
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`, // Envia o token JWT para saber qual usuário é
-    },
-    body: JSON.stringify({
-      currentPassword,
-      newPassword,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || "Erro ao alterar a senha.");
-  }
-}
-
-/*--------------------------------------- Atualizar Perfil --------------------------------------- */
-
-export interface UpdateUserProfileInput {
-  name?: string;
-  email?: string;
-  avatar?: string;
 }
 
 export async function updateAuthenticatedUserProfile(
@@ -189,53 +292,96 @@ export async function updateAuthenticatedUserProfile(
     throw new Error(errorData.message || "Erro ao atualizar o perfil.");
   }
 
-  const updatedUser = await response.json();
+  const response = await apiFetch("/usuarios/me", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name: profile.name.trim(),
+      email: normalizeEmail(profile.email ?? currentUser.email),
+      cpf: profile.cpf?.replace(/\D/g, ""),
+      phone: profile.phone?.replace(/\D/g, ""),
+      municipality: profile.municipality ?? currentUser.municipality,
+    }),
+  });
 
-  // Atualiza também as informações salvas no localStorage
+  if (!response.ok) {
+    throw new Error(
+      await readResponseError(response, "Não foi possível salvar o perfil."),
+    );
+  }
+
+  const updatedUser = sanitizeUser({
+    ...currentUser,
+    ...((await response.json()) as User),
+  });
   saveAuthenticatedUser(updatedUser);
 
   return updatedUser;
 }
 
-/*--------------------------------------- Buscar Professores --------------------------------------- */
+export async function changeAuthenticatedUserPassword(
+  userId: UserId,
+  currentPassword: string,
+  nextPassword: string,
+): Promise<User> {
+  if (getAuthenticatedUser()?.id !== userId) {
+    throw new Error("Sessao invalida");
+  }
 
-export async function getRegisteredTeachers(): Promise<User[]> {
-  
-  const token = localStorage.getItem("token");
-
-  const response = await fetch("http://localhost:3000/users/teachers", {
-    method: "GET",
+  const response = await apiFetch("/usuarios/me/password", {
+    method: "PATCH",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
     },
+    body: JSON.stringify({ currentPassword, newPassword: nextPassword }),
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || "Erro ao buscar a lista de professores.");
+    throw new Error(
+      await readResponseError(response, "Não foi possível alterar a senha."),
+    );
   }
 
-  return await response.json();
-}
-
-/*----------------------------------------------- CRUD - PERFIL -----------------------------------------------*/
-
-// Define o tipo para os dados que podem ser atualizados no perfil
-export interface UpdateProfileDto {
-  name?: string;
-  phone?: string;
-  cpf?: string;
-  [key: string]: unknown; // Permite outros campos dinâmicos sem usar 'any'
-}
-
-//  Busca os dados reais
-export async function getProfile() {
-  const token = localStorage.getItem('token');
-  const response = await fetch('http://localhost:3000/profile/me', {
-    headers: { Authorization: `Bearer ${token}` }
+  const currentUser = getAuthenticatedUser()!;
+  const updatedUser = sanitizeUser({
+    ...currentUser,
+    ...((await response.json()) as User),
   });
-  return response.json();
+  saveAuthenticatedUser(updatedUser);
+  return updatedUser;
+}
+
+export async function createManagedUser(input: CreateManagedUserInput) {
+  const response = await apiFetch("/usuarios", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      ...input,
+      email: normalizeEmail(input.email),
+      cpf: input.cpf.replace(/\D/g, ""),
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await readResponseError(response, "Não foi possível criar o usuário."),
+    );
+  }
+
+  return response.json() as Promise<{
+    id: string;
+    name: string;
+    email: string;
+    role: "professor" | "admin";
+  }>;
+}
+
+export function clearAuthenticatedUser() {
+  clearStoredSession();
 }
 
 // Salva as alterações feitas no formulário

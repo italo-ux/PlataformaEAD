@@ -26,7 +26,7 @@ export default function CourseHeader() {
               Home
             </Link>
             <Link
-              to="/home#quem-somos"
+              to="/quem-somos"
               className="text-gray-700 hover:text-blue-600 font-medium transition"
             >
               Quem Somos
@@ -76,7 +76,7 @@ export default function CourseHeader() {
               Home
             </Link>
             <Link
-              to="/home#quem-somos"
+              to="/quem-somos"
               className="text-gray-700 hover:text-blue-600 font-medium py-2 px-2 rounded hover:bg-gray-50 transition"
             >
               Quem Somos

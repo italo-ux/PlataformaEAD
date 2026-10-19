@@ -33,6 +33,11 @@ psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/
 psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/2_course_lessons.sql
 psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/3_roles_and_course_ownership.sql
 psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/4_password_recovery.sql
+psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/5_profile_and_bootstrap_flags.sql
+psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/6_registration_address_from_cep.sql
+psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/7_student_journey_and_certificates.sql
+psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/8_trusted_youtube_playback.sql
+psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/9_course_deletion_cascades.sql
 ```
 
 > Use somente os scripts desta versão: a migração 3 histórica era destrutiva.
@@ -41,8 +46,10 @@ psql -v ON_ERROR_STOP=1 -U seu_usuario -d plataforma_ead -f database/migrations/
 > aplicação e forneça um mapeamento explícito de cada registro para um usuário
 > existente; o script não inventa proprietários. A migração 4 adiciona os campos
 > de recuperação de senha. Scripts já aplicados não precisam ser repetidos;
-> bancos que já têm papéis e propriedade devem aplicar somente a migração 4.
-> Nenhuma migração foi executada no banco existente durante esta integração.
+> bancos que já têm papéis e propriedade devem aplicar as migrações 4 e 5.
+> A sequência completa foi validada automaticamente em PostgreSQL descartável
+> com `npm run test:postgres`. Nenhuma migration é aplicada por esse comando
+> ao banco configurado em `DB_NAME`.
 
 Para diagnosticar cursos legados, depois de confirmar que a coluna
 `id_instrutor` existe, consulte registros com proprietário nulo ou ausente:
@@ -71,43 +78,65 @@ psql -U seu_usuario -d plataforma_ead -f database/seeds/seed.sql
 - Armazena contas de alunos, professores e administradores.
 - Campos principais: `id`, `name`, `email`, `password_hash`, `cpf`,
   `is_verified`, `verification_code`, `password_reset_code`,
-  `password_reset_expires_at` e `role`.
+  `password_reset_expires_at`, `role`, `celular`, `foto_perfil`,
+  `must_change_email` e `must_change_password`.
 
 ### `cursos`
 
 - Cursos criados por instrutores
-- Campos: `id`, `nome`, `descricao`, `id_instrutor`, `categoria`, `nivel`, etc.
+- Campos: `id`, `nome`, `descricao`, `id_instrutor`, `categoria`,
+  `nivel`, `status` e `publicado_em`.
+
+### `endereco`
+
+- Criado automaticamente no cadastro público a partir do CEP consultado no ViaCEP.
+- Guarda `cep`, `rua`, `bairro`, `cidade`, `uf`, `estado` e o
+  `complemento` retornado pelo serviço. Campos vazios são gravados como `NULL`.
+- Não possui número do imóvel porque essa informação não é fornecida pelo CEP.
 
 ### `aulas`
 
 - Aulas que compõem os cursos
 - Campos: `id`, `id_curso`, `id_instrutor`, `titulo`, `url_video`,
-  `duracao_minutos`, `ordem`, etc.
+  `youtube_video_id`, `duracao_segundos`, `youtube_embeddable`,
+  `youtube_validado_em`, `duracao_minutos`, `ordem`, etc.
+- `duracao_segundos` é informada pela gestão nesta fase. Os campos de validação
+  do YouTube permanecem reservados para uma futura reativação da integração.
 
 ### `matricula`
 
-- Controla quais alunos estão inscritos em quais cursos
-- Campos: `id_usuario`, `id_curso`, `progresso`, `conclusao`, etc.
+- Registro canônico e único por aluno/curso.
+- Guarda progresso, conclusão, última aula, tempo estudado e datas.
+
+### `progresso_aula`
+
+- Guarda o snapshot da ordem e intervalos únicos assistidos por matrícula/aula.
+- Persistência da duração cadastrada, orçamento temporal validado, retomada,
+  percentual e conclusão.
+
+### `sessao_reproducao`
+
+- Sessões sequenciais de player com posição, estado e expiração.
+- O índice parcial permite somente uma sessão ativa por progresso de aula.
+
+### `certificados`
+
+- Um certificado por matrícula, com código público e dados congelados.
+- Situação `valido` ou `revogado`.
 
 ### Relações de conteúdo
 
-- `usuario_curso`: vínculo e conclusão de cursos por usuário.
+- `usuario_curso`: vínculo legado; não é usado pela jornada atual.
 - `usuario_trilha`: progresso e conclusão de trilhas por usuário.
 - `trilha_curso`: ordenação dos cursos dentro de uma trilha.
 
 ## 🔐 Papéis de usuário
 
-O cadastro público sempre cria usuários com papel `aluno`. Depois de confirmar
-o e-mail do usuário, um operador autorizado pode promover a conta diretamente
-no banco:
-
-```sql
-UPDATE users SET role = 'professor' WHERE email = 'professor@example.com';
-UPDATE users SET role = 'admin' WHERE email = 'admin@example.com';
-```
-
-Substitua os endereços de exemplo. Nunca aceite `role` no cadastro público e
-nunca mantenha senhas ou credenciais reais em seeds versionados.
+O cadastro público sempre cria usuários com papel `aluno` e não aceita o campo
+`role`. Administradores autenticados cadastram professores e outros
+administradores pelo formulário **Cadastrar equipe** no próprio perfil. Essas
+contas já nascem verificadas e devem trocar a senha temporária no primeiro
+acesso. Nunca mantenha credenciais reais em seeds versionados.
 
 ## 🔄 Fluxo de Desenvolvimento
 

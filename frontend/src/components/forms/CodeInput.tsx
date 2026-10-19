@@ -90,10 +90,10 @@ export default function CodeInput({
             onKeyDown={(e) => handleKeyDown(i, e)}
             onPaste={handlePaste}
             disabled={disabled}
-            className={`w-12 h-14 text-center text-2xl font-bold border-2 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4B6FFF] ${
+            className={`w-12 h-14 text-center text-2xl font-bold border-2 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#447cfc] ${
               error
                 ? "border-red-500 focus:border-red-500 bg-red-50"
-                : "border-gray-200 focus:border-[#4B6FFF] bg-white"
+                : "border-gray-200 focus:border-[#447cfc] bg-white"
             } disabled:opacity-50 disabled:cursor-not-allowed`}
             aria-label={`Dígito ${i + 1} do código`}
           />

@@ -23,21 +23,34 @@ import { CreateCursoDto } from './dto/create-curso.dto';
 import { UpdateCursoDto } from './dto/update-curso.dto';
 
 @Controller('cursos')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ALUNO, UserRole.PROFESSOR, UserRole.ADMIN)
 export class CursosController {
   constructor(private readonly cursosService: CursosService) {}
 
   @Get()
-  findAll() {
-    return this.cursosService.findAll();
+  findAll(@Req() request: Request & { user: AuthenticatedUser }) {
+    return this.cursosService.findAll(request.user);
   }
 
   @Get(':id')
-  findOne(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.cursosService.findOne(id);
+  findOne(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() request: Request & { user: AuthenticatedUser },
+  ) {
+    return this.cursosService.findOne(id, request.user);
+  }
+
+  @Post(':id/publicar')
+  @Roles(UserRole.PROFESSOR, UserRole.ADMIN)
+  publish(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() request: Request & { user: AuthenticatedUser },
+  ) {
+    return this.cursosService.publish(id, request.user);
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.PROFESSOR, UserRole.ADMIN)
   create(
     @Req() request: Request & { user: AuthenticatedUser },
@@ -47,7 +60,6 @@ export class CursosController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.PROFESSOR, UserRole.ADMIN)
   update(
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -58,7 +70,6 @@ export class CursosController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.PROFESSOR, UserRole.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(

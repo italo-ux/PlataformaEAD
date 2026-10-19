@@ -123,7 +123,7 @@ export default function VerifyEmailForm({ onSuccess }: VerifyEmailFormProps) {
             <button
               type="submit"
               disabled={loading || success}
-              className="w-full bg-[#4B6FFF] text-white font-bold text-lg py-4 rounded-lg transition-all duration-300 hover:bg-blue-700 hover:shadow-xl transform hover:-translate-y-1 active:translate-y-0 cursor-pointer disabled:opacity-50"
+              className="w-full bg-[#447cfc] text-white font-bold text-lg py-4 rounded-lg transition-all duration-300 hover:bg-blue-700 hover:shadow-xl transform hover:-translate-y-1 active:translate-y-0 cursor-pointer disabled:opacity-50"
             >
               {loading ? "Verificando..." : "Verificar e-mail"}
             </button>
@@ -143,7 +143,7 @@ export default function VerifyEmailForm({ onSuccess }: VerifyEmailFormProps) {
             <button
               type="submit"
               disabled={resendLoading || success}
-              className="w-full text-[#4B6FFF] hover:text-blue-700 font-bold text-sm transition-colors duration-200 bg-none border-none cursor-pointer disabled:opacity-50"
+              className="w-full text-[#447cfc] hover:text-blue-700 font-bold text-sm transition-colors duration-200 bg-none border-none cursor-pointer disabled:opacity-50"
             >
               {resendLoading ? "Reenviando..." : "Não recebeu? Reenviar código"}
             </button>
@@ -154,7 +154,7 @@ export default function VerifyEmailForm({ onSuccess }: VerifyEmailFormProps) {
               Já tem conta?{" "}
               <a
                 href="/login"
-                className="text-[#4B6FFF] hover:text-blue-700 font-bold transition-colors duration-200 ml-1"
+                className="text-[#447cfc] hover:text-blue-700 font-bold transition-colors duration-200 ml-1"
               >
                 Faça login
               </a>

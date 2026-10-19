@@ -68,7 +68,7 @@ export default function FormInput({
           } py-3 bg-white border-2 rounded-lg text-[#333] placeholder-gray-400 transition-all duration-300 focus:outline-none focus:shadow-lg hover:border-gray-300 ${
             error
               ? "border-red-500 focus:border-red-500"
-              : "border-gray-200 focus:border-[#4B6FFF]"
+              : "border-gray-200 focus:border-[#447cfc]"
           } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
         />
         {isPasswordField && onTogglePassword && (
@@ -76,7 +76,7 @@ export default function FormInput({
             type="button"
             onClick={onTogglePassword}
             disabled={disabled}
-            className="absolute right-4 text-gray-400 hover:text-[#4B6FFF] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="absolute right-4 text-gray-400 hover:text-[#447cfc] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Toggle password visibility"
           >
             <FontAwesomeIcon

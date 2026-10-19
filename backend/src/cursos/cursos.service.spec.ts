@@ -1,10 +1,17 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
-import { Repository } from 'typeorm';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+import { DataSource, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.interface';
 import { UserRole } from '../auth/user-role.enum';
 import { Curso } from './curso.entity';
 import { CursosService } from './cursos.service';
+import { Matricula } from '../jornada/matricula.entity';
+import { Aula } from './aula.entity';
+import { TrilhaCurso } from '../trilhas/trilha-curso.entity';
 
 describe('CursosService', () => {
   const owner: AuthenticatedUser = {
@@ -41,9 +48,42 @@ describe('CursosService', () => {
     merge: jest.fn(),
     remove: jest.fn(),
   } as unknown as jest.Mocked<Repository<Curso>>;
-  const service = new CursosService(repository);
+  const lessonsRepository = {
+    count: jest.fn(),
+  } as unknown as jest.Mocked<Repository<import('./aula.entity').Aula>>;
+  const enrollmentsRepository = {
+    existsBy: jest.fn(),
+  } as unknown as jest.Mocked<Repository<Matricula>>;
+  const deleteQueryBuilder = {
+    delete: jest.fn().mockReturnThis(),
+    from: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    execute: jest.fn().mockResolvedValue({}),
+  };
+  const transactionManager = {
+    delete: jest.fn().mockResolvedValue({}),
+    createQueryBuilder: jest.fn().mockReturnValue(deleteQueryBuilder),
+    remove: jest.fn().mockResolvedValue(undefined),
+  };
+  const dataSource = {
+    transaction: jest
+      .fn()
+      .mockImplementation(
+        (work: (manager: typeof transactionManager) => unknown) =>
+          Promise.resolve(work(transactionManager)),
+      ),
+  } as unknown as DataSource;
+  const service = new CursosService(
+    dataSource,
+    repository,
+    lessonsRepository,
+    enrollmentsRepository,
+  );
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    enrollmentsRepository.existsBy.mockResolvedValue(false);
+  });
 
   it('cria o curso atribuindo o usuário autenticado como proprietário', async () => {
     const createdCourse = course();
@@ -72,6 +112,28 @@ describe('CursosService', () => {
     await expect(
       service.remove(existingCourse.id, owner),
     ).resolves.toBeUndefined();
+    expect(transactionManager.delete).toHaveBeenCalledWith(TrilhaCurso, {
+      id_curso: existingCourse.id,
+    });
+    expect(deleteQueryBuilder.from).toHaveBeenCalledWith(Aula);
+    expect(deleteQueryBuilder.where).toHaveBeenCalledWith('"id_curso" = :id', {
+      id: existingCourse.id,
+    });
+    expect(transactionManager.remove).toHaveBeenCalledWith(
+      Curso,
+      existingCourse,
+    );
+  });
+
+  it('não remove cursos que possuem matrículas', async () => {
+    const existingCourse = course();
+    repository.findOneBy.mockResolvedValue(existingCourse);
+    enrollmentsRepository.existsBy.mockResolvedValue(true);
+
+    await expect(
+      service.remove(existingCourse.id, owner),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(dataSource.transaction).not.toHaveBeenCalled();
   });
 
   it('permite que o administrador gerencie qualquer curso', async () => {
@@ -85,11 +147,19 @@ describe('CursosService', () => {
     ).resolves.toEqual(existingCourse);
   });
 
-  it('bloqueia outro professor', async () => {
-    repository.findOneBy.mockResolvedValue(course());
+  it('bloqueia outro professor de gerenciar o curso', async () => {
+    const existingCourse = course();
+    repository.findOneBy.mockResolvedValue(existingCourse);
 
     await expect(
-      service.findManageable(course().id, otherProfessor),
+      service.update(
+        existingCourse.id,
+        { nome: 'Outro professor' },
+        otherProfessor,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.findManageable(existingCourse.id, otherProfessor),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
