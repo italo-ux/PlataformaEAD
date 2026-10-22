@@ -29,8 +29,11 @@ export class AulasController {
   constructor(private readonly aulasService: AulasService) {}
 
   @Get()
-  findAll(@Param('cursoId', new ParseUUIDPipe()) cursoId: string) {
-    return this.aulasService.findAll(cursoId);
+  findAll(
+    @Param('cursoId', new ParseUUIDPipe()) cursoId: string,
+    @Req() request: Request & { user: AuthenticatedUser },
+  ) {
+    return this.aulasService.findAll(cursoId, request.user);
   }
 
   @Post()

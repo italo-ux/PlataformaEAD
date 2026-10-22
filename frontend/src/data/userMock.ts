@@ -69,5 +69,5 @@ export function canCreateTeachers(user: User | null) {
 }
 
 export function canAccessAdminDashboard(user: User | null) {
-  return Boolean(user && (user.role === "admin" || user.profileType === "funcionario"));
+  return user?.role === "admin";
 }

@@ -52,18 +52,27 @@ export class CursosService {
       where:
         actor?.role === UserRole.ALUNO
           ? { status: CursoStatus.PUBLICADO }
-          : undefined,
+          : actor?.role === UserRole.PROFESSOR
+            ? [
+                { status: CursoStatus.PUBLICADO },
+                { id_instrutor: actor.userId },
+              ]
+            : undefined,
       order: { nome: 'ASC' },
     });
   }
 
   async findOne(id: string, actor?: AuthenticatedUser) {
-    const curso = await this.cursosRepository.findOneBy({
-      id,
-      ...(actor?.role === UserRole.ALUNO
-        ? { status: CursoStatus.PUBLICADO }
-        : {}),
-    });
+    const curso = await this.cursosRepository.findOneBy(
+      actor?.role === UserRole.ALUNO
+        ? { id, status: CursoStatus.PUBLICADO }
+        : actor?.role === UserRole.PROFESSOR
+          ? [
+              { id, status: CursoStatus.PUBLICADO },
+              { id, id_instrutor: actor.userId },
+            ]
+          : { id },
+    );
 
     if (!curso) {
       throw new NotFoundException('Curso não encontrado');

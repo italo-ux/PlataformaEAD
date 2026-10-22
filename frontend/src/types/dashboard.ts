@@ -19,6 +19,8 @@ export interface DashboardData {
     nome: string;
     valor: number;
   }[];
+}
+
 export interface DashboardFilters {
   periodoInicio: string;
   periodoFim: string;
@@ -83,7 +85,7 @@ export interface DashboardSummaryResponse {
   growthSeries: GrowthDataPoint[];
   courseTrackPerformance: CourseTrackPerformance[];
   learningFunnel: LearningFunnelStage[];
-  certificatesOverTime: GrowthDataPoint[];
+  certificatesOverTime: Array<{ periodo: string; certificados: number; totalAcumulado: number }>;
 }
 
 export type Granularity = "mensal" | "anual";

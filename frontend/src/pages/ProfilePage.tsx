@@ -5,7 +5,6 @@ import {
   KeyRound,
   Lock,
   Mail,
-  MapPin,
   Phone,
   Save,
   Shield,
@@ -21,9 +20,6 @@ import type { User } from "../data/userMock";
 import { useAuth } from "../context/auth-context";
 import {
   changeAuthenticatedUserPassword,
-  clearAuthenticatedUser,
-  getAuthenticatedUser,
-  updateProfile,
   updateAuthenticatedUserProfile,
 } from "../services/userService";
 
@@ -33,7 +29,6 @@ interface ProfileFormValues {
   email: string;
   cpf: string;
   phone: string;
-  municipality: string;
 }
 
 interface PasswordFormValues {
@@ -74,7 +69,6 @@ function mapUserToFormValues(user: User | null): ProfileFormValues {
     email: user?.email ?? "",
     cpf: user?.cpf ?? "",
     phone: user?.phone ?? "",
-    municipality: user?.municipality ?? "",
   };
 }
 
@@ -130,7 +124,7 @@ function validatePassword(values: PasswordFormValues): PasswordErrors {
   }
 
   if (values.nextPassword !== values.confirmPassword) {
-    errors.confirmPassword = "As senhas não conferem.";
+    errors.confirmPassword = "As senhas nao conferem.";
   }
 
   return errors;
@@ -300,20 +294,20 @@ export default function ProfilePage() {
     });
   };
 
- const handleSubmitProfile = async (event: FormEvent<HTMLFormElement>) => {
-  event.preventDefault();
-  setStatusMessage("");
-  setGeneralError("");
+  const handleSubmitProfile = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setStatusMessage("");
+    setGeneralError("");
 
-  const validationErrors = validateProfile(formValues);
+    const validationErrors = validateProfile(formValues);
 
-  if (Object.keys(validationErrors).length > 0) {
-    setErrors(validationErrors);
-    return;
-  }
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
 
-  setErrors({});
-  setIsSaving(true);
+    setErrors({});
+    setIsSaving(true);
 
     try {
       const updatedUser = await updateAuthenticatedUserProfile(user.id, {
@@ -321,7 +315,6 @@ export default function ProfilePage() {
         email: formValues.email,
         cpf: formValues.cpf,
         phone: formValues.phone,
-        municipality: formValues.municipality,
       });
 
       setUser(updatedUser);
@@ -496,12 +489,6 @@ export default function ProfilePage() {
                       </span>
                       {formValues.phone || "Não informado"}
                     </p>
-                    <p>
-                      <span className="block font-bold text-slate-900">
-                        Município
-                      </span>
-                      {formValues.municipality || "Não informado"}
-                    </p>
                   </div>
                 </div>
               </div>
@@ -581,15 +568,6 @@ export default function ProfilePage() {
                   value={formValues.phone}
                   onChange={handleProfileChange}
                   error={errors.phone}
-                />
-                <TextInput
-                  icon={MapPin}
-                  label="Município"
-                  name="municipality"
-                  placeholder="São Paulo"
-                  value={formValues.municipality}
-                  onChange={handleProfileChange}
-                  error={errors.municipality}
                 />
                 <div className="flex items-end">
                   <button
