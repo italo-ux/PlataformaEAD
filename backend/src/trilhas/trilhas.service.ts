@@ -36,8 +36,11 @@ export class TrilhasService {
         .map((vinculo) => vinculo.curso)
         .filter(
           (curso) =>
-            actor?.role !== UserRole.ALUNO ||
-            curso.status === CursoStatus.PUBLICADO,
+            !actor ||
+            actor.role === UserRole.ADMIN ||
+            curso.status === CursoStatus.PUBLICADO ||
+            (actor.role === UserRole.PROFESSOR &&
+              curso.id_instrutor === actor.userId),
         ),
     };
   }

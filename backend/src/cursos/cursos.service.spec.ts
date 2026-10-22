@@ -7,7 +7,7 @@ import {
 import { DataSource, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.interface';
 import { UserRole } from '../auth/user-role.enum';
-import { Curso } from './curso.entity';
+import { Curso, CursoStatus } from './curso.entity';
 import { CursosService } from './cursos.service';
 import { Matricula } from '../jornada/matricula.entity';
 import { Aula } from './aula.entity';
@@ -28,6 +28,11 @@ describe('CursosService', () => {
     userId: '33333333-3333-4333-8333-333333333333',
     email: 'admin@example.com',
     role: UserRole.ADMIN,
+  };
+  const student: AuthenticatedUser = {
+    userId: '55555555-5555-4555-8555-555555555555',
+    email: 'aluno@example.com',
+    role: UserRole.ALUNO,
   };
   const course = (): Curso => ({
     id: '44444444-4444-4444-8444-444444444444',
@@ -172,6 +177,45 @@ describe('CursosService', () => {
     await expect(service.findOne(existingCourse.id)).resolves.toEqual(
       existingCourse,
     );
+  });
+
+  it('limita a leitura do aluno a cursos publicados', async () => {
+    repository.find.mockResolvedValue([]);
+    repository.findOneBy.mockResolvedValue(null);
+
+    await service.findAll(student);
+    expect(repository.find).toHaveBeenCalledWith({
+      where: { status: CursoStatus.PUBLICADO },
+      order: { nome: 'ASC' },
+    });
+    await expect(service.findOne(course().id, student)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(repository.findOneBy).toHaveBeenCalledWith({
+      id: course().id,
+      status: CursoStatus.PUBLICADO,
+    });
+  });
+
+  it('permite ao professor ver publicados e próprios rascunhos, mas não rascunhos alheios', async () => {
+    repository.find.mockResolvedValue([]);
+    repository.findOneBy.mockResolvedValue(null);
+
+    await service.findAll(owner);
+    expect(repository.find).toHaveBeenCalledWith({
+      where: [
+        { status: CursoStatus.PUBLICADO },
+        { id_instrutor: owner.userId },
+      ],
+      order: { nome: 'ASC' },
+    });
+    await expect(service.findOne(course().id, owner)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(repository.findOneBy).toHaveBeenCalledWith([
+      { id: course().id, status: CursoStatus.PUBLICADO },
+      { id: course().id, id_instrutor: owner.userId },
+    ]);
   });
 
   it('retorna 404 quando o curso não existe', async () => {

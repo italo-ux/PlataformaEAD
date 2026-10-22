@@ -51,7 +51,8 @@ export class AulasService {
     return this.aulasRepository.save(aula);
   }
 
-  findAll(cursoId: string) {
+  async findAll(cursoId: string, actor: AuthenticatedUser) {
+    await this.cursosService.findOne(cursoId, actor);
     return this.aulasRepository.find({
       where: { curso: { id: cursoId } },
       order: { ordem: 'ASC', titulo: 'ASC' },

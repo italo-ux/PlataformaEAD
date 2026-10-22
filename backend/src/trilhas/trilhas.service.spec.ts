@@ -1,5 +1,6 @@
 import { Repository } from 'typeorm';
-import { Curso } from '../cursos/curso.entity';
+import { Curso, CursoStatus } from '../cursos/curso.entity';
+import { UserRole } from '../auth/user-role.enum';
 import { TrilhaCurso } from './trilha-curso.entity';
 import { Trilha } from './trilha.entity';
 import { TrilhasService } from './trilhas.service';
@@ -92,6 +93,54 @@ describe('TrilhasService', () => {
       course.id,
       secondCourse.id,
     ]);
+  });
+
+  it('oculta rascunhos alheios dentro das trilhas para professor e aluno', async () => {
+    const context = setup();
+    const ownDraft = {
+      ...course,
+      id: 'own',
+      status: CursoStatus.RASCUNHO,
+      id_instrutor: 'professor-id',
+    };
+    const otherDraft = {
+      ...course,
+      id: 'other',
+      status: CursoStatus.RASCUNHO,
+      id_instrutor: 'other-id',
+    };
+    const published = {
+      ...course,
+      id: 'published',
+      status: CursoStatus.PUBLICADO,
+      id_instrutor: 'other-id',
+    };
+    context.trilhasRepository.find.mockResolvedValue([
+      {
+        ...trail,
+        cursos: [ownDraft, otherDraft, published].map((item, index) => ({
+          ordem: index + 1,
+          curso: item,
+        })),
+      },
+    ]);
+
+    const professorResult = await context.service.findAll({
+      userId: 'professor-id',
+      email: 'professor@example.com',
+      role: UserRole.PROFESSOR,
+    });
+    expect(professorResult[0].cursos.map(({ id }) => id)).toEqual([
+      'own',
+      'published',
+    ]);
+
+    const studentResult = await context.service.findAll({
+      userId: 'student-id',
+      email: 'student@example.com',
+      role: UserRole.ALUNO,
+    });
+    expect(studentResult[0].cursos.map(({ id }) => id)).toEqual(['published']);
   });
 
   it('removes course links before deleting a trail', async () => {
