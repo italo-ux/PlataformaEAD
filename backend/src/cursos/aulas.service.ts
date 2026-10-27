@@ -1,18 +1,30 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.interface';
-import { Aula } from './aula.entity';
+import { UserRole } from '../auth/user-role.enum';
+import { Aula, AulaTipo } from './aula.entity';
+import {
+  AlternativaQuestionario,
+  PerguntaQuestionario,
+  Questionario,
+} from './questionario.entity';
 import { CursosService } from './cursos.service';
 import { CreateAulaDto } from './dto/create-aula.dto';
 import { UpdateAulaDto } from './dto/update-aula.dto';
 import { Matricula } from '../jornada/matricula.entity';
 import { extractYoutubeVideoId } from './youtube-video.util';
+import { QUIZ_MAX_ATTEMPTS, QUIZ_PASS_PERCENTAGE } from './quiz-policy';
+import { Curso, CursoStatus } from './curso.entity';
+import { YoutubeVideoValidationService } from './youtube-video-validation.service';
+import { AulaPdf } from './aula-pdf.entity';
+import { parsePdfAttachment } from './pdf-attachment.util';
 
 @Injectable()
 export class AulasService {
@@ -22,6 +34,8 @@ export class AulasService {
     @InjectRepository(Matricula)
     private readonly matriculasRepository: Repository<Matricula>,
     private readonly cursosService: CursosService,
+    private readonly dataSource?: DataSource,
+    private readonly youtubeValidation?: YoutubeVideoValidationService,
   ) {}
 
   async create(
@@ -30,40 +44,153 @@ export class AulasService {
     actor: AuthenticatedUser,
   ) {
     const curso = await this.cursosService.findManageable(cursoId, actor);
+    this.ensureCourseIsDraft(curso);
     await this.ensureCourseStructureIsEditable(cursoId);
 
     const ordem =
-      createAulaDto.ordem ??
       (await this.aulasRepository.count({
         where: { curso: { id: cursoId } },
       })) + 1;
-    const videoId = this.requireYoutubeVideoId(createAulaDto.url_video);
-    const aula = this.aulasRepository.create({
-      ...createAulaDto,
-      ordem,
-      curso,
-      id_instrutor: curso.id_instrutor,
-      youtube_video_id: videoId,
-      duracao_minutos: Math.ceil(createAulaDto.duracao_segundos / 60),
-      youtube_embeddable: null,
-      youtube_validado_em: null,
+    const tipo = createAulaDto.tipo ?? AulaTipo.VIDEO;
+    this.validateContent(tipo, createAulaDto);
+    const pdf =
+      tipo === AulaTipo.PDF
+        ? parsePdfAttachment(createAulaDto.pdf_arquivo!)
+        : null;
+    if (tipo === AulaTipo.VIDEO) {
+      const duration = createAulaDto.duracao_segundos!;
+      const aula = this.aulasRepository.create({
+        ...createAulaDto,
+        tipo,
+        ordem,
+        curso,
+        id_instrutor: curso.id_instrutor,
+        youtube_video_id: this.requireYoutubeVideoId(createAulaDto.url_video!),
+        duracao_minutos: Math.ceil(duration / 60),
+        youtube_embeddable: null,
+        youtube_validado_em: null,
+        youtube_proxima_validacao_em: null,
+      });
+      return this.aulasRepository.save(aula);
+    }
+    return this.dataSource!.transaction(async (manager) => {
+      const questionarioInput = createAulaDto.questionario;
+      const lessonInput = { ...createAulaDto };
+      delete lessonInput.questionario;
+      delete lessonInput.pdf_arquivo;
+      const aula = await manager.save(
+        manager.create(Aula, {
+          ...lessonInput,
+          tipo,
+          url_video: null,
+          ordem,
+          curso,
+          id_instrutor: curso.id_instrutor,
+          youtube_video_id: null,
+          duracao_minutos: null,
+          duracao_segundos: null,
+          youtube_embeddable: null,
+          youtube_validado_em: null,
+          youtube_proxima_validacao_em: null,
+        }),
+      );
+      if (tipo === AulaTipo.QUESTIONARIO && questionarioInput) {
+        await this.saveQuestionario(manager, aula, questionarioInput);
+      }
+      if (pdf) {
+        await manager.save(
+          manager.create(AulaPdf, { id_aula: aula.id, ...pdf }),
+        );
+      }
+      return this.findOneWith(manager.getRepository(Aula), cursoId, aula.id);
     });
-    return this.aulasRepository.save(aula);
   }
 
-  findAll(cursoId: string) {
+  async findAll(cursoId: string, actor: AuthenticatedUser) {
+    await this.cursosService.findOne(cursoId, actor);
     return this.aulasRepository.find({
+      where: { curso: { id: cursoId } },
+      relations: {
+        questionario: { perguntas: { alternativas: true } },
+        pdf_anexo: true,
+      },
+      order: { ordem: 'ASC', titulo: 'ASC' },
+    });
+  }
+
+  async reorder(
+    cursoId: string,
+    lessonIds: string[],
+    actor: AuthenticatedUser,
+  ) {
+    const curso = await this.cursosService.findManageable(cursoId, actor);
+    this.ensureCourseIsDraft(curso);
+    await this.ensureCourseStructureIsEditable(cursoId);
+    const lessons = await this.aulasRepository.find({
       where: { curso: { id: cursoId } },
       order: { ordem: 'ASC', titulo: 'ASC' },
     });
+    if (
+      lessonIds.length !== lessons.length ||
+      lessons.some((lesson) => !lessonIds.includes(lesson.id))
+    ) {
+      throw new BadRequestException(
+        'A nova ordem deve conter todas as aulas do curso uma única vez.',
+      );
+    }
+    const byId = new Map(lessons.map((lesson) => [lesson.id, lesson]));
+    await this.aulasRepository.save(
+      lessonIds.map((id, index) => ({ ...byId.get(id)!, ordem: index + 1 })),
+    );
+    return this.findAll(cursoId, actor);
   }
 
   async findOne(cursoId: string, aulaId: string) {
     const aula = await this.aulasRepository.findOne({
       where: { id: aulaId, curso: { id: cursoId } },
+      relations: {
+        questionario: { perguntas: { alternativas: true } },
+        pdf_anexo: true,
+      },
     });
     if (!aula) throw new NotFoundException('Aula não encontrada');
     return aula;
+  }
+
+  async getPdf(cursoId: string, aulaId: string, actor: AuthenticatedUser) {
+    if (actor.role === UserRole.ALUNO) {
+      await this.cursosService.findOne(cursoId, actor);
+      const enrollment = await this.matriculasRepository.findOne({
+        where: { id_usuario: actor.userId, id_curso: cursoId },
+        relations: { aulas: true },
+      });
+      if (!enrollment) {
+        throw new ForbiddenException('Inicie o curso para acessar o PDF.');
+      }
+      const progress = [...enrollment.aulas].sort(
+        (left, right) => left.ordem_snapshot - right.ordem_snapshot,
+      );
+      const index = progress.findIndex((item) => item.id_aula === aulaId);
+      if (index < 0) throw new NotFoundException('Aula não encontrada.');
+      if (index > 0 && !progress[index - 1].concluida) {
+        throw new ForbiddenException('Conclua a aula anterior primeiro.');
+      }
+    } else {
+      await this.cursosService.findManageable(cursoId, actor);
+    }
+    const lesson = await this.aulasRepository.findOneBy({
+      id: aulaId,
+      curso: { id: cursoId },
+      tipo: AulaTipo.PDF,
+    });
+    if (!lesson) throw new NotFoundException('Aula em PDF não encontrada.');
+    const pdf = await this.dataSource!.getRepository(AulaPdf)
+      .createQueryBuilder('pdf')
+      .addSelect('pdf.conteudo')
+      .where('pdf.id_aula = :aulaId', { aulaId })
+      .getOne();
+    if (!pdf) throw new NotFoundException('PDF não encontrado.');
+    return pdf;
   }
 
   async update(
@@ -72,10 +199,14 @@ export class AulasService {
     updateAulaDto: UpdateAulaDto,
     actor: AuthenticatedUser,
   ) {
-    await this.cursosService.findManageable(cursoId, actor);
+    const curso = await this.cursosService.findManageable(cursoId, actor);
+    this.ensureCourseIsDraft(curso);
     await this.ensureCourseStructureIsEditable(cursoId);
     const aula = await this.findOne(cursoId, aulaId);
+    const tipo = updateAulaDto.tipo ?? aula.tipo ?? AulaTipo.VIDEO;
+    const existingPdf = tipo === AulaTipo.PDF && Boolean(aula.pdf_anexo);
     if (
+      tipo === AulaTipo.VIDEO &&
       updateAulaDto.url_video &&
       updateAulaDto.duracao_segundos === undefined
     ) {
@@ -83,30 +214,162 @@ export class AulasService {
         'Informe a duração em segundos ao alterar o vídeo.',
       );
     }
+    if (
+      updateAulaDto.tipo !== undefined ||
+      updateAulaDto.url_video !== undefined ||
+      updateAulaDto.duracao_segundos !== undefined ||
+      updateAulaDto.questionario !== undefined ||
+      updateAulaDto.pdf_arquivo !== undefined
+    ) {
+      this.validateContent(
+        tipo,
+        {
+          url_video:
+            tipo === AulaTipo.VIDEO
+              ? (updateAulaDto.url_video ?? aula.url_video)
+              : updateAulaDto.url_video,
+          duracao_segundos:
+            tipo === AulaTipo.VIDEO
+              ? (updateAulaDto.duracao_segundos ?? aula.duracao_segundos)
+              : updateAulaDto.duracao_segundos,
+          questionario:
+            updateAulaDto.questionario ??
+            (tipo === AulaTipo.QUESTIONARIO ? aula.questionario : null),
+          pdf_arquivo: updateAulaDto.pdf_arquivo,
+        },
+        existingPdf,
+      );
+    }
+    if (tipo === AulaTipo.PDF && !existingPdf && !updateAulaDto.pdf_arquivo) {
+      throw new BadRequestException('Anexe um PDF para esta aula.');
+    }
+    const pdf = updateAulaDto.pdf_arquivo
+      ? parsePdfAttachment(updateAulaDto.pdf_arquivo)
+      : null;
     const duration = updateAulaDto.duracao_segundos ?? aula.duracao_segundos;
-    const videoId = updateAulaDto.url_video
-      ? this.requireYoutubeVideoId(updateAulaDto.url_video)
-      : aula.youtube_video_id;
-    return this.aulasRepository.save(
-      this.aulasRepository.merge(aula, updateAulaDto, {
-        youtube_video_id: videoId,
-        ...(duration
-          ? {
-              duracao_minutos: Math.ceil(duration / 60),
-            }
-          : {}),
-        ...(updateAulaDto.url_video
-          ? { youtube_embeddable: null, youtube_validado_em: null }
-          : {}),
-      }),
-    );
+    const videoId =
+      tipo === AulaTipo.VIDEO && updateAulaDto.url_video
+        ? this.requireYoutubeVideoId(updateAulaDto.url_video)
+        : tipo === AulaTipo.VIDEO
+          ? aula.youtube_video_id
+          : null;
+    if (
+      tipo === AulaTipo.VIDEO &&
+      aula.tipo === AulaTipo.VIDEO &&
+      !updateAulaDto.questionario &&
+      !updateAulaDto.pdf_arquivo
+    ) {
+      return this.aulasRepository.save(
+        this.aulasRepository.merge(aula, updateAulaDto, {
+          tipo,
+          youtube_video_id: videoId,
+          ...(duration ? { duracao_minutos: Math.ceil(duration / 60) } : {}),
+          ...(updateAulaDto.url_video
+            ? {
+                youtube_embeddable: null,
+                youtube_validado_em: null,
+                youtube_proxima_validacao_em: null,
+              }
+            : {}),
+        }),
+      );
+    }
+    return this.dataSource!.transaction(async (manager) => {
+      const questionarioInput = updateAulaDto.questionario;
+      const lessonInput = { ...updateAulaDto };
+      delete lessonInput.questionario;
+      delete lessonInput.pdf_arquivo;
+      const saved = await manager.save(
+        manager.getRepository(Aula).merge(aula, lessonInput, {
+          tipo,
+          url_video:
+            tipo === AulaTipo.VIDEO
+              ? (lessonInput.url_video ?? aula.url_video)
+              : null,
+          youtube_video_id: videoId,
+          duracao_segundos: tipo === AulaTipo.VIDEO ? duration : null,
+          duracao_minutos:
+            tipo === AulaTipo.VIDEO && duration
+              ? Math.ceil(duration / 60)
+              : null,
+          ...(tipo !== AulaTipo.VIDEO || lessonInput.url_video
+            ? {
+                youtube_embeddable: null,
+                youtube_validado_em: null,
+                youtube_proxima_validacao_em: null,
+              }
+            : {}),
+        }),
+      );
+      if (questionarioInput) {
+        if (aula.questionario)
+          await manager.delete(Questionario, aula.questionario.id);
+        await this.saveQuestionario(manager, saved, questionarioInput);
+      } else if (tipo !== AulaTipo.QUESTIONARIO && aula.questionario) {
+        await manager.delete(Questionario, aula.questionario.id);
+      }
+      if (tipo !== AulaTipo.PDF && aula.pdf_anexo) {
+        await manager.delete(AulaPdf, aula.id);
+      } else if (pdf) {
+        await manager
+          .getRepository(AulaPdf)
+          .save({ id_aula: saved.id, ...pdf });
+      }
+      return this.findOneWith(manager.getRepository(Aula), cursoId, saved.id);
+    });
   }
 
   async remove(cursoId: string, aulaId: string, actor: AuthenticatedUser) {
-    await this.cursosService.findManageable(cursoId, actor);
+    const curso = await this.cursosService.findManageable(cursoId, actor);
+    this.ensureCourseIsDraft(curso);
     await this.ensureCourseStructureIsEditable(cursoId);
     const aula = await this.findOne(cursoId, aulaId);
     await this.aulasRepository.remove(aula);
+  }
+
+  async repairUnavailableVideo(
+    cursoId: string,
+    aulaId: string,
+    videoUrl: string,
+    actor: AuthenticatedUser,
+  ) {
+    const curso = await this.cursosService.findManageable(cursoId, actor);
+    if (curso.status !== CursoStatus.PUBLICADO) {
+      throw new ConflictException(
+        'Use a edição normal enquanto o curso estiver em rascunho.',
+      );
+    }
+
+    const aula = await this.findOne(cursoId, aulaId);
+    if (aula.tipo !== AulaTipo.VIDEO || aula.youtube_embeddable !== false) {
+      throw new ConflictException(
+        'Somente vídeos indisponíveis de cursos publicados podem ser reparados.',
+      );
+    }
+
+    const videoId = this.requireYoutubeVideoId(videoUrl);
+    const available = await this.youtubeValidation!.validateVideo(videoId);
+    if (!available) {
+      throw new ConflictException(
+        'O novo vídeo foi removido, é privado ou não permite incorporação.',
+      );
+    }
+
+    aula.url_video = videoUrl;
+    aula.youtube_video_id = videoId;
+    aula.youtube_embeddable = true;
+    aula.youtube_validado_em = new Date();
+    aula.youtube_proxima_validacao_em =
+      this.youtubeValidation!.nextValidationAt(aula.youtube_validado_em);
+    return this.aulasRepository.save(aula);
+  }
+
+  private ensureCourseIsDraft(course: Curso) {
+    if (course.status !== CursoStatus.RASCUNHO) {
+      throw new ConflictException(
+        'Cursos publicados não podem ser editados. Se um vídeo estiver indisponível, altere somente a URL pelo modo de reparo.',
+      );
+    }
   }
 
   private async ensureCourseStructureIsEditable(courseId: string) {
@@ -125,5 +388,110 @@ export class AulasService {
       );
     }
     return videoId;
+  }
+
+  private validateContent(
+    tipo: AulaTipo,
+    input: {
+      url_video?: string | null;
+      duracao_segundos?: number | null;
+      questionario?: CreateAulaDto['questionario'] | Questionario | null;
+      pdf_arquivo?: CreateAulaDto['pdf_arquivo'];
+    },
+    hasExistingPdf = false,
+  ) {
+    if (tipo !== AulaTipo.PDF && input.pdf_arquivo) {
+      throw new BadRequestException('O anexo PDF exige uma aula do tipo PDF.');
+    }
+    if (tipo === AulaTipo.VIDEO) {
+      if (input.pdf_arquivo || input.questionario) {
+        throw new BadRequestException(
+          'Conteúdo incompatível com aula em vídeo.',
+        );
+      }
+      if (!input.url_video || !input.duracao_segundos) {
+        throw new BadRequestException(
+          'A aula em vídeo exige URL do YouTube e duração.',
+        );
+      }
+      this.requireYoutubeVideoId(input.url_video);
+      return;
+    }
+    if (tipo === AulaTipo.PDF) {
+      if (input.questionario || input.url_video || input.duracao_segundos) {
+        throw new BadRequestException('Conteúdo incompatível com aula em PDF.');
+      }
+      if (!input.pdf_arquivo && !hasExistingPdf) {
+        throw new BadRequestException('Anexe um PDF para esta aula.');
+      }
+      return;
+    }
+    if (tipo !== AulaTipo.QUESTIONARIO || !input.questionario) {
+      throw new BadRequestException(
+        'O tipo de conteúdo informado ainda não está disponível.',
+      );
+    }
+    if (input.url_video || input.duracao_segundos) {
+      throw new BadRequestException(
+        'Conteúdo de vídeo incompatível com questionário.',
+      );
+    }
+    for (const [index, pergunta] of input.questionario.perguntas.entries()) {
+      if (pergunta.alternativas.filter((item) => item.correta).length !== 1) {
+        throw new BadRequestException(
+          `A pergunta ${index + 1} deve possuir exatamente uma alternativa correta.`,
+        );
+      }
+    }
+  }
+
+  private async saveQuestionario(
+    manager: import('typeorm').EntityManager,
+    aula: Aula,
+    input: NonNullable<CreateAulaDto['questionario']>,
+  ) {
+    const questionario = await manager.save(
+      manager.create(Questionario, {
+        id_aula: aula.id,
+        nota_minima: QUIZ_PASS_PERCENTAGE,
+        max_tentativas: QUIZ_MAX_ATTEMPTS,
+        pontos_base: input.pontos_base ?? 0,
+      }),
+    );
+    for (const [questionIndex, questionInput] of input.perguntas.entries()) {
+      const pergunta = await manager.save(
+        manager.create(PerguntaQuestionario, {
+          id_questionario: questionario.id,
+          enunciado: questionInput.enunciado.trim(),
+          ordem: questionIndex + 1,
+          pontos: questionInput.pontos,
+        }),
+      );
+      await manager.save(
+        AlternativaQuestionario,
+        questionInput.alternativas.map((alternative, alternativeIndex) =>
+          manager.create(AlternativaQuestionario, {
+            id_pergunta: pergunta.id,
+            texto: alternative.texto.trim(),
+            ordem: alternativeIndex + 1,
+            correta: alternative.correta,
+          }),
+        ),
+      );
+    }
+  }
+
+  private async findOneWith(
+    repository: Repository<Aula>,
+    cursoId: string,
+    aulaId: string,
+  ) {
+    return repository.findOneOrFail({
+      where: { id: aulaId, curso: { id: cursoId } },
+      relations: {
+        questionario: { perguntas: { alternativas: true } },
+        pdf_anexo: true,
+      },
+    });
   }
 }

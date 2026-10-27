@@ -11,6 +11,21 @@ export interface JourneyLesson {
   duracao_segundos: number | null;
   ordem: number;
   url_video: string | null;
+  pdf_nome_arquivo?: string | null;
+  tipo: "video" | "pdf" | "link" | "imagem" | "questionario";
+  questionario: {
+    id: string;
+    nota_minima: number;
+    max_tentativas: number | null;
+    pontos_base: number;
+    perguntas: Array<{
+      id: string;
+      enunciado: string;
+      ordem: number;
+      pontos: number;
+      alternativas: Array<{ id: string; texto: string; ordem: number }>;
+    }>;
+  } | null;
   status: LessonJourneyStatus;
   percentual: number;
   posicao_segundos: number;
@@ -85,6 +100,24 @@ export interface PlaybackUpdate {
   proxima_aula_id: string | null;
 }
 
+export interface QuizResult {
+  tentativa_id: string;
+  numero: number;
+  acertos: number;
+  total_perguntas: number;
+  percentual: number;
+  aprovado: boolean;
+  pontos_obtidos: number;
+  tentativas_restantes: number;
+  gabarito_disponivel: boolean;
+  respostas: Array<{
+    pergunta_id: string;
+    alternativa_selecionada_id: string;
+    alternativa_correta_id: string | null;
+    correta: boolean;
+  }>;
+}
+
 export class JourneyRequestError extends Error {
   readonly status: number;
 
@@ -121,6 +154,31 @@ const journeyService = {
     apiFetch("/usuarios/me/matriculas").then(read<EnrollmentSummary[]>),
   metrics: () =>
     apiFetch("/admin/metricas-jornada").then(read<JourneyMetrics>),
+  submitQuiz: (
+    courseId: string,
+    lessonId: string,
+    respostas: Array<{ pergunta_id: string; alternativa_id: string }>,
+  ) =>
+    apiFetch(`/cursos/${courseId}/aulas/${lessonId}/questionario/tentativas`, {
+      method: "POST",
+      body: JSON.stringify({ respostas }),
+    }).then(read<QuizResult>),
+  getQuizResult: (courseId: string, lessonId: string) =>
+    apiFetch(`/cursos/${courseId}/aulas/${lessonId}/questionario/tentativas`)
+      .then(read<QuizResult | null>),
+  getLessonPdf: async (courseId: string, lessonId: string) => {
+    const response = await apiFetch(`/cursos/${courseId}/aulas/${lessonId}/pdf`);
+    if (!response.ok) await read<never>(response);
+    return response.blob();
+  },
+  completePdfLesson: (courseId: string, lessonId: string) =>
+    apiFetch(`/cursos/${courseId}/aulas/${lessonId}/pdf/concluir`, {
+      method: "POST",
+    }).then(read<CourseJourney>),
+  validateVideo: (courseId: string, lessonId: string) =>
+    apiFetch(`/cursos/${courseId}/aulas/${lessonId}/validar-video`, {
+      method: "POST",
+    }).then(read<{ disponivel: boolean; validado_em: string | null; validacao_pendente: boolean }>),
   startPlayback: (
     courseId: string,
     lessonId: string,

@@ -1,6 +1,6 @@
 export type RankingScope = "nacional" | "municipal";
-export type AchievementFilter = "todas" | "conquistadas" | "bloqueadas";
-export type AchievementStatus = "conquistada" | "bloqueada";
+export type AchievementFilter = "todas" | "conquistadas" | "em_progresso" | "bloqueadas";
+export type AchievementStatus = "conquistada" | "em_progresso" | "bloqueada";
 
 export interface RankingParticipant {
   position: number;

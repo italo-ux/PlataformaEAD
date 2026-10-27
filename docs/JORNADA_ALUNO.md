@@ -3,9 +3,9 @@
 ## Regras de negócio
 
 - O catálogo do aluno contém apenas cursos com estado `publicado`.
-- Publicar exige carga horária positiva, URL válida do YouTube e duração
-  informada como `MM:SS` pela gestão para todas as aulas. O contrato HTTP recebe
-  o valor convertido em `duracao_segundos`.
+- Publicar exige carga horária positiva e ao menos uma aula. Aulas em vídeo
+  exigem URL válida do YouTube e duração informada como `MM:SS` pela gestão;
+  aulas PDF exigem anexo válido, e questionários exigem perguntas.
 - Apenas aluno verificado pode se matricular.
 - A matrícula é única por aluno/curso e o endpoint de criação é idempotente.
 - A primeira aula é liberada após a matrícula; cada aula seguinte depende da
@@ -16,7 +16,10 @@
   persistida no cadastro da aula.
   Avanços de até 2x são aceitos; saltos, rajadas e repetições não aumentam a
   cobertura.
-- A aula conclui ao atingir 90% da duração cadastrada.
+- A aula em vídeo conclui ao atingir 90% da duração cadastrada.
+- A aula PDF fica disponível apenas ao aluno matriculado quando sua vez chega.
+  Após abrir o documento, o aluno confirma a leitura para concluir a aula;
+  não há medição automática de páginas lidas.
 - A conclusão do curso e a criação de um único certificado ocorrem na mesma
   transação protegida por bloqueio pessimista da matrícula.
 - A URL de uma aula bloqueada não é retornada.
@@ -32,6 +35,8 @@
 | `POST` | `/cursos/:courseId/aulas/:lessonId/reproducao` | aluno | iniciar sessão segura |
 | `POST` | `/cursos/:courseId/aulas/:lessonId/reproducao/:sessionId/heartbeat` | aluno | registrar posição temporizada |
 | `POST` | `/cursos/:courseId/aulas/:lessonId/reproducao/:sessionId/encerrar` | aluno | salvar trecho final e encerrar |
+| `GET` | `/cursos/:courseId/aulas/:lessonId/pdf` | aluno matriculado com aula liberada; professor responsável; admin | visualizar ou baixar o anexo PDF |
+| `POST` | `/cursos/:courseId/aulas/:lessonId/pdf/concluir` | aluno matriculado com aula liberada | confirmar leitura e atualizar progresso |
 | `GET` | `/usuarios/me/certificados` | aluno | listar certificados |
 | `GET` | `/certificados/:id/pdf` | aluno proprietário | baixar PDF |
 | `GET` | `/certificados/validar/:codigo` | público | validar certificado |
@@ -57,6 +62,8 @@ fazem parte dessa resposta.
 - `progresso_aula`: snapshot de ordem, intervalos, duração cadastrada, orçamento
   temporal validado, posição e estado.
 - `sessao_reproducao`: sequência, posição e expiração de cada sessão do player.
+- `aula_pdfs`: arquivo de até 6 MiB em `BYTEA`, separado das consultas comuns;
+  removido automaticamente quando a aula é excluída.
 - `certificados`: dados congelados, código público e situação.
 - `usuario_curso`: legado; não é usado pela nova jornada.
 

@@ -122,7 +122,6 @@ export function GlobalFilters({
           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-11"
         >
           <option value="">Todos os cursos</option>
-          <option value="__none__">Nenhum curso (só trilhas)</option>
           {courses.map((c) => (
             <option key={c.id} value={c.id}>
               {c.nome}
@@ -142,7 +141,6 @@ export function GlobalFilters({
           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-11"
         >
           <option value="">Todas as trilhas</option>
-          <option value="__none__">Nenhuma trilha (só cursos)</option>
           {trilhas.map((t) => (
             <option key={t.id} value={t.id}>
               {t.nome}

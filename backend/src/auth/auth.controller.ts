@@ -1,9 +1,13 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { LoginDto } from './dto/login.dto';
-import { VerifyEmailDto } from './dto/verify-email.dto';
+import {
+  EmailDto,
+  LoginDto,
+  RegisterDto,
+  ResetPasswordDto,
+  VerifyEmailDto,
+} from './dto/auth.dto';
 
 @Controller('auth')
 @UseGuards(ThrottlerGuard)
@@ -27,11 +31,12 @@ export class AuthController {
   }
 
   @Post('login')
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto.email, loginDto.password);
+  async login(@Body() body: LoginDto) {
+    return this.authService.login(body.email, body.password);
   }
 
   // MÉTODO DE VERIFICAÇÃO
+
   @Post('verify')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   async verify(@Body() body: VerifyEmailDto) {

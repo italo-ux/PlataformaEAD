@@ -8,6 +8,7 @@ import {
   IsString,
   IsUrl,
   IsUUID,
+  Matches,
   MaxLength,
 } from 'class-validator';
 
@@ -37,6 +38,13 @@ export class CreateTrilhaDto {
   @IsString()
   @MaxLength(100)
   nivel?: string;
+
+  @IsOptional()
+  @Transform(trim)
+  @Matches(/^#[0-9A-Fa-f]{6}$/, {
+    message: 'cor_fundo deve ser uma cor hexadecimal válida.',
+  })
+  cor_fundo?: string;
 
   @IsOptional()
   @Type(() => String)

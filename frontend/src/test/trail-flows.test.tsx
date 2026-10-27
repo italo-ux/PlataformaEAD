@@ -18,6 +18,7 @@ const course: Curso = {
   carga_horaria: 10,
   categoria: "Tecnologia",
   nivel: "Iniciante",
+  ambiente_teste: false,
   id_instrutor: "22222222-2222-4222-8222-222222222222",
   status: "publicado",
 };
@@ -28,6 +29,7 @@ const trail: Trilha = {
   descricao: "Descrição da trilha",
   capa: null,
   nivel: "Iniciante",
+  cor_fundo: "#3f5fd8",
   cursos: [course],
 };
 
@@ -39,12 +41,18 @@ function LocationMarker() {
 beforeEach(() => {
   const entries = new Map<string, string>();
   const storage: Storage = {
-    get length() { return entries.size; },
+    get length() {
+      return entries.size;
+    },
     clear: () => entries.clear(),
     getItem: (key) => entries.get(key) ?? null,
     key: (index) => [...entries.keys()][index] ?? null,
-    removeItem: (key) => { entries.delete(key); },
-    setItem: (key, value) => { entries.set(key, String(value)); },
+    removeItem: (key) => {
+      entries.delete(key);
+    },
+    setItem: (key, value) => {
+      entries.set(key, String(value));
+    },
   };
   vi.stubGlobal("localStorage", storage);
   localStorage.setItem("token", "jwt-test-token");
@@ -69,7 +77,9 @@ describe("Real trail flows", () => {
   it("lets an administrator create a trail and link real courses", async () => {
     vi.spyOn(trailService, "listTrails").mockResolvedValue([]);
     vi.spyOn(courseService, "listCourses").mockResolvedValue([course]);
-    const create = vi.spyOn(trailService, "createTrail").mockResolvedValue(trail);
+    const create = vi
+      .spyOn(trailService, "createTrail")
+      .mockResolvedValue(trail);
     render(<AdminTrailManagement />);
 
     const user = userEvent.setup();
@@ -84,10 +94,13 @@ describe("Real trail flows", () => {
         descricao: trail.descricao,
         capa: undefined,
         nivel: undefined,
+        cor_fundo: "#3f5fd8",
         courseIds: [course.id],
       }),
     );
-    expect(await screen.findByText(`Trilha ${trail.nome} criada com sucesso.`)).toBeTruthy();
+    expect(
+      await screen.findByText(`Trilha ${trail.nome} criada com sucesso.`),
+    ).toBeTruthy();
   });
 
   it("loads a trail from the API and opens its real course UUID", async () => {
@@ -101,7 +114,9 @@ describe("Real trail flows", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole("heading", { name: trail.nome })).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: trail.nome }),
+    ).toBeTruthy();
     const user = userEvent.setup();
     await user.click(screen.getByRole("heading", { name: course.nome }));
     expect(await screen.findByText(`/courses/${course.id}`)).toBeTruthy();

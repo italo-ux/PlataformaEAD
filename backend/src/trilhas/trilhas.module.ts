@@ -6,9 +6,14 @@ import { TrilhaCurso } from './trilha-curso.entity';
 import { Trilha } from './trilha.entity';
 import { TrilhasController } from './trilhas.controller';
 import { TrilhasService } from './trilhas.service';
+import { UsuarioTrilha } from './usuario-trilha.entity';
+import { CursosModule } from '../cursos/cursos.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Trilha, TrilhaCurso, Curso])],
+  imports: [
+    CursosModule,
+    TypeOrmModule.forFeature([Trilha, TrilhaCurso, Curso, UsuarioTrilha]),
+  ],
   controllers: [TrilhasController],
   providers: [TrilhasService, RolesGuard],
 })

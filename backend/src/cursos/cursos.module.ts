@@ -4,15 +4,43 @@ import { Curso } from './curso.entity';
 import { CursosController } from './cursos.controller';
 import { CursosService } from './cursos.service';
 import { Aula } from './aula.entity';
+import { AulaPdf } from './aula-pdf.entity';
 import { AulasController } from './aulas.controller';
 import { AulasService } from './aulas.service';
 import { RolesGuard } from '../auth/roles.guard';
 import { Matricula } from '../jornada/matricula.entity';
+import {
+  AlternativaQuestionario,
+  PerguntaQuestionario,
+  Questionario,
+  RespostaQuestionario,
+  TentativaQuestionario,
+} from './questionario.entity';
+import { YoutubeVideoValidationService } from './youtube-video-validation.service';
+import { CertificadosModule } from '../certificados/certificados.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Curso, Aula, Matricula])],
+  imports: [
+    CertificadosModule,
+    TypeOrmModule.forFeature([
+      Curso,
+      Aula,
+      AulaPdf,
+      Matricula,
+      Questionario,
+      PerguntaQuestionario,
+      AlternativaQuestionario,
+      TentativaQuestionario,
+      RespostaQuestionario,
+    ]),
+  ],
   controllers: [CursosController, AulasController],
-  providers: [CursosService, AulasService, RolesGuard],
-  exports: [CursosService],
+  providers: [
+    CursosService,
+    AulasService,
+    YoutubeVideoValidationService,
+    RolesGuard,
+  ],
+  exports: [CursosService, YoutubeVideoValidationService],
 })
 export class CursosModule {}

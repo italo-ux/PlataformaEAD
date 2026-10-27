@@ -11,6 +11,9 @@ npm run dev
 
 Configure `VITE_API_URL` em `frontend/.env.local`; o padrão é
 `http://localhost:3000`. Variáveis `VITE_*` são públicas no bundle.
+Para exibir a checkbox **Ambiente de teste** em um build de produção de
+homologação, configure `VITE_ENABLE_TEST_COURSES=true` e habilite também
+`ALLOW_TEST_COURSE_BYPASS=true` no backend.
 
 ## Sessão e privacidade
 
