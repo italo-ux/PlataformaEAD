@@ -20,6 +20,8 @@ import { CursosController } from '../src/cursos/cursos.controller';
 import { CursosService } from '../src/cursos/cursos.service';
 import { Matricula } from '../src/jornada/matricula.entity';
 import { DataSource } from 'typeorm';
+import { YoutubeVideoValidationService } from '../src/cursos/youtube-video-validation.service';
+import { CertificateIssuanceService } from '../src/certificados/certificate-issuance.service';
 
 const testSecret = 'e2e-test-secret';
 const courseId = '11111111-1111-4111-8111-111111111111';
@@ -51,19 +53,46 @@ describe('Cursos authorization (e2e)', () => {
       else courses.push(course);
       return Promise.resolve(course);
     }),
-    find: jest.fn(({ where }: { where?: { status?: CursoStatus } } = {}) =>
-      Promise.resolve(
-        courses
-          .filter((course) => !where?.status || course.status === where.status)
-          .sort((a, b) => a.nome.localeCompare(b.nome)),
-      ),
+    find: jest.fn(
+      ({
+        where,
+      }: {
+        where?:
+          | { status?: CursoStatus; id_instrutor?: string }
+          | Array<{ status?: CursoStatus; id_instrutor?: string }>;
+      } = {}) =>
+        Promise.resolve(
+          courses
+            .filter((course) => {
+              if (!where) return true;
+              const conditions = Array.isArray(where) ? where : [where];
+              return conditions.some(
+                (condition) =>
+                  (!condition.status || course.status === condition.status) &&
+                  (!condition.id_instrutor ||
+                    course.id_instrutor === condition.id_instrutor),
+              );
+            })
+            .sort((a, b) => a.nome.localeCompare(b.nome)),
+        ),
     ),
-    findOneBy: jest.fn(({ id, status }: { id: string; status?: CursoStatus }) =>
-      Promise.resolve(
-        courses.find(
-          (course) => course.id === id && (!status || course.status === status),
-        ) ?? null,
-      ),
+    findOneBy: jest.fn(
+      (
+        where:
+          | { id: string; status?: CursoStatus; id_instrutor?: string }
+          | Array<{ id: string; status?: CursoStatus; id_instrutor?: string }>,
+      ) =>
+        Promise.resolve(
+          courses.find((course) =>
+            (Array.isArray(where) ? where : [where]).some(
+              (condition) =>
+                course.id === condition.id &&
+                (!condition.status || course.status === condition.status) &&
+                (!condition.id_instrutor ||
+                  course.id_instrutor === condition.id_instrutor),
+            ),
+          ) ?? null,
+        ),
     ),
     merge: jest.fn((course: Curso, data: Partial<Curso>) =>
       Object.assign(course, data),
@@ -139,8 +168,16 @@ describe('Cursos authorization (e2e)', () => {
         Promise.resolve(work(transactionManager)),
     ),
   };
+  const youtubeValidation = {
+    validateVideo: jest.fn().mockResolvedValue(true),
+    getCachedAvailability: jest.fn().mockResolvedValue(new Map()),
+    nextValidationAt: jest.fn(
+      (date: Date) => new Date(date.getTime() + 15 * 60_000),
+    ),
+  };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
     courses = [];
     lessons = [];
     const module = await Test.createTestingModule({
@@ -148,6 +185,14 @@ describe('Cursos authorization (e2e)', () => {
       providers: [
         CursosService,
         AulasService,
+        {
+          provide: CertificateIssuanceService,
+          useValue: { issue: jest.fn().mockResolvedValue({}) },
+        },
+        {
+          provide: YoutubeVideoValidationService,
+          useValue: youtubeValidation,
+        },
         RolesGuard,
         { provide: DataSource, useValue: dataSource },
         { provide: getRepositoryToken(Curso), useValue: repository },
@@ -253,6 +298,7 @@ describe('Cursos authorization (e2e)', () => {
       .get(`/cursos/${courseId}`)
       .set(authorization(professorId, UserRole.PROFESSOR))
       .expect(200);
+    expect(youtubeValidation.validateVideo).not.toHaveBeenCalled();
     await request(app.getHttpServer())
       .patch(`/cursos/${courseId}`)
       .set(authorization(professorId, UserRole.PROFESSOR))
@@ -275,6 +321,42 @@ describe('Cursos authorization (e2e)', () => {
       .expect(401);
   });
 
+  it('consulta o estado persistido de curso publicado sem chamar o YouTube', async () => {
+    await createOwnedCourse();
+    courses[0].status = CursoStatus.PUBLICADO;
+    youtubeValidation.getCachedAvailability.mockResolvedValue(
+      new Map([
+        [
+          courseId,
+          {
+            available: false,
+            pendingValidation: false,
+            unavailableLessons: [
+              { id: lessonId, titulo: 'Vídeo indisponível' },
+            ],
+          },
+        ],
+      ]),
+    );
+
+    await request(app.getHttpServer())
+      .get('/cursos')
+      .set(authorization(studentId, UserRole.ALUNO))
+      .expect(200)
+      .expect(({ body }) => expect(body).toEqual([]));
+    await request(app.getHttpServer())
+      .get(`/cursos/${courseId}`)
+      .set(authorization(professorId, UserRole.PROFESSOR))
+      .expect(200)
+      .expect(({ body }) =>
+        expect(body).toMatchObject({
+          conteudo_indisponivel: true,
+          status_conteudo: 'indisponivel',
+        }),
+      );
+    expect(youtubeValidation.validateVideo).not.toHaveBeenCalled();
+  });
+
   it('bloqueia aluno autenticado', async () => {
     await request(app.getHttpServer())
       .post('/cursos')
@@ -285,6 +367,19 @@ describe('Cursos authorization (e2e)', () => {
 
   it('bloqueia outro professor e permite que o administrador gerencie cursos', async () => {
     await createOwnedCourse();
+    await request(app.getHttpServer())
+      .get(`/cursos/${courseId}`)
+      .set(authorization(otherProfessorId, UserRole.PROFESSOR))
+      .expect(404);
+    await request(app.getHttpServer())
+      .get('/cursos')
+      .set(authorization(otherProfessorId, UserRole.PROFESSOR))
+      .expect(200)
+      .expect(({ body }) => expect(body).toEqual([]));
+    await request(app.getHttpServer())
+      .get(`/cursos/${courseId}/aulas`)
+      .set(authorization(otherProfessorId, UserRole.PROFESSOR))
+      .expect(404);
     await request(app.getHttpServer())
       .patch(`/cursos/${courseId}`)
       .set(authorization(otherProfessorId, UserRole.PROFESSOR))

@@ -4,13 +4,14 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module'; //importa o módulo de autentificação
 import { TypeOrmModule } from '@nestjs/typeorm'; //integra o TypeORM ao NestJS, permitindo conexão com banco de dados
 import { User } from './auth/user.entity'; //entidade que representa o banco de dados
-import { ConfigModule } from '@nestjs/config';
 import { CursosModule } from './cursos/cursos.module';
 import { Curso } from './cursos/curso.entity';
 import { Aula } from './cursos/aula.entity';
+import { AulaPdf } from './cursos/aula-pdf.entity';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { Trilha } from './trilhas/trilha.entity';
 import { TrilhaCurso } from './trilhas/trilha-curso.entity';
+import { UsuarioTrilha } from './trilhas/usuario-trilha.entity';
 import { TrilhasModule } from './trilhas/trilhas.module';
 import { Address } from './auth/address.entity';
 import { Matricula } from './jornada/matricula.entity';
@@ -18,41 +19,58 @@ import { ProgressoAula } from './jornada/progresso-aula.entity';
 import { JornadaModule } from './jornada/jornada.module';
 import { Certificado } from './certificados/certificado.entity';
 import { CertificadosModule } from './certificados/certificados.module';
+import {
+  CertificateTemplate,
+  CertificateTemplateAsset,
+} from './certificados/certificate-template.entity';
+import { CertificateSnapshotImage } from './certificados/certificate-snapshot-image.entity';
 import { PlaybackSession } from './jornada/playback-session.entity';
 import { APP_FILTER } from '@nestjs/core';
 import { ApiExceptionFilter } from './common/api-exception.filter';
+import {
+  AlternativaQuestionario,
+  PerguntaQuestionario,
+  Questionario,
+  RespostaQuestionario,
+  TentativaQuestionario,
+} from './cursos/questionario.entity';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      username: 'postgres',
-      password: '',
-      database: 'plataforma_ead',
-      entities: [User],
-      synchronize: true, // cria/atualiza tabelas automaticamente em dev
-    }),
-    AuthModule,
       host: process.env.DB_HOST ?? 'localhost',
       port: Number(process.env.DB_PORT ?? 5432),
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASSWORD ?? '',
       database: process.env.DB_NAME ?? 'plataforma_ead',
+      ssl:
+        process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+      extra: {
+        max: Number(process.env.DB_POOL_MAX ?? 5),
+      },
       entities: [
         User,
         Address,
         Curso,
         Aula,
+        AulaPdf,
         Trilha,
         TrilhaCurso,
+        UsuarioTrilha,
         Matricula,
         ProgressoAula,
         Certificado,
+        CertificateTemplate,
+        CertificateTemplateAsset,
+        CertificateSnapshotImage,
         PlaybackSession,
+        Questionario,
+        PerguntaQuestionario,
+        AlternativaQuestionario,
+        TentativaQuestionario,
+        RespostaQuestionario,
       ],
       synchronize: process.env.DB_SYNCHRONIZE === 'true',
     }),
@@ -62,6 +80,7 @@ import { ApiExceptionFilter } from './common/api-exception.filter';
     TrilhasModule,
     JornadaModule,
     CertificadosModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

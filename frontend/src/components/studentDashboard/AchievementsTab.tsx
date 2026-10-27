@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Trophy, Lock } from "lucide-react";
+import { Trophy, Lock, Hourglass } from "lucide-react";
 import { studentDashboardService } from "../../services/studentDashboardService";
 import type { AchievementFilter, AchievementsResponse } from "../../types/studentDashboard";
 import { AchievementCard } from "./AchievementCard";
@@ -8,7 +8,8 @@ function EmptyStateMessage({ filter }: { filter: AchievementFilter }) {
   const messages: Record<AchievementFilter, string> = {
     todas: "Nenhuma conquista disponível no momento.",
     conquistadas: "Complete cursos e atividades para desbloquear conquistas.",
-    bloqueadas: "Parabéns! Você já conquistou todas as conquistas disponíveis.",
+    em_progresso: "Nenhuma conquista em progresso no momento.",
+    bloqueadas: "Nenhuma conquista bloqueada no momento.",
   };
   return (
     <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
@@ -21,7 +22,7 @@ function EmptyStateMessage({ filter }: { filter: AchievementFilter }) {
 function SkeletonGrid() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {[...Array(6)].map((_, i) => (
+      {[...Array(3)].map((_, i) => (
         <div key={i} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 animate-pulse">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 rounded-xl bg-slate-200" />
@@ -85,6 +86,7 @@ export function AchievementsTab() {
   const filterLabels: Record<AchievementFilter, { label: string; icon: React.ComponentType<{ size?: number }> }> = {
     todas: { label: "Todas", icon: Trophy },
     conquistadas: { label: "Conquistadas", icon: Trophy },
+    em_progresso: { label: "Em progresso", icon: Hourglass },
     bloqueadas: { label: "Bloqueadas", icon: Lock },
   };
 
@@ -99,7 +101,7 @@ export function AchievementsTab() {
 
       {/* Filtros - SEMPRE visíveis */}
       <div className="flex flex-wrap gap-2 overflow-x-auto pb-2" role="tablist" aria-label="Filtrar conquistas">
-        {(["todas", "conquistadas", "bloqueadas"] as AchievementFilter[]).map((f) => {
+        {(["todas", "conquistadas", "em_progresso", "bloqueadas"] as AchievementFilter[]).map((f) => {
           const Icon = filterLabels[f].icon;
           return (
             <button

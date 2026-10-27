@@ -24,6 +24,12 @@ EXCEPTION
     WHEN duplicate_object THEN NULL;
 END $$;
 
+DO $$ BEGIN
+    CREATE TYPE aula_tipo AS ENUM ('video', 'pdf', 'link', 'imagem', 'questionario');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
 -- Tabela: Usuários
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -61,6 +67,7 @@ CREATE TABLE IF NOT EXISTS trilhas (
     descricao TEXT,
     capa VARCHAR(255),
     nivel VARCHAR(100),
+    cor_fundo VARCHAR(7) NOT NULL DEFAULT '#3f5fd8',
     id_programa UUID,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -76,6 +83,8 @@ CREATE TABLE IF NOT EXISTS cursos (
     carga_horaria INTEGER,
     categoria VARCHAR(255),
     nivel VARCHAR(100),
+    cor_fundo VARCHAR(7) NOT NULL DEFAULT '#3f5fd8',
+    ambiente_teste BOOLEAN NOT NULL DEFAULT FALSE,
     status curso_status NOT NULL DEFAULT 'rascunho',
     publicado_em TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -89,6 +98,7 @@ CREATE TABLE IF NOT EXISTS aulas (
     id_instrutor UUID NOT NULL,
     titulo VARCHAR(255) NOT NULL,
     descricao TEXT,
+    tipo aula_tipo NOT NULL DEFAULT 'video',
     url_video VARCHAR(500),
     ordem INTEGER,
     duracao INTERVAL,
@@ -97,11 +107,59 @@ CREATE TABLE IF NOT EXISTS aulas (
     duracao_segundos INTEGER,
     youtube_embeddable BOOLEAN,
     youtube_validado_em TIMESTAMPTZ,
+    youtube_proxima_validacao_em TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (id_curso) REFERENCES cursos(id) ON DELETE CASCADE,
     FOREIGN KEY (id_instrutor) REFERENCES users(id) ON DELETE RESTRICT
 );
+
+CREATE INDEX IF NOT EXISTS idx_aulas_youtube_proxima_validacao
+  ON aulas (youtube_proxima_validacao_em, id)
+  WHERE tipo = 'video'
+    AND youtube_video_id IS NOT NULL
+    AND youtube_proxima_validacao_em IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS aula_pdfs (
+    id_aula UUID PRIMARY KEY REFERENCES aulas(id) ON DELETE CASCADE,
+    nome_arquivo VARCHAR(255) NOT NULL,
+    tamanho_bytes INTEGER NOT NULL CHECK (tamanho_bytes > 0 AND tamanho_bytes <= 6291456),
+    conteudo BYTEA NOT NULL CHECK (octet_length(conteudo) = tamanho_bytes)
+);
+
+CREATE TABLE IF NOT EXISTS questionarios (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_aula UUID NOT NULL UNIQUE,
+    nota_minima NUMERIC(5,2) NOT NULL DEFAULT 70 CHECK (nota_minima = 70),
+    max_tentativas INTEGER NOT NULL DEFAULT 3 CHECK (max_tentativas = 3),
+    pontos_base INTEGER NOT NULL DEFAULT 0 CHECK (pontos_base >= 0),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    FOREIGN KEY (id_aula) REFERENCES aulas(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS perguntas_questionario (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_questionario UUID NOT NULL,
+    enunciado TEXT NOT NULL,
+    ordem INTEGER NOT NULL,
+    pontos INTEGER NOT NULL DEFAULT 1 CHECK (pontos > 0),
+    UNIQUE (id_questionario, ordem),
+    FOREIGN KEY (id_questionario) REFERENCES questionarios(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS alternativas_questionario (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_pergunta UUID NOT NULL,
+    texto TEXT NOT NULL,
+    ordem INTEGER NOT NULL,
+    correta BOOLEAN NOT NULL DEFAULT FALSE,
+    UNIQUE (id_pergunta, ordem),
+    FOREIGN KEY (id_pergunta) REFERENCES perguntas_questionario(id) ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_alternativa_correta_por_pergunta
+    ON alternativas_questionario(id_pergunta) WHERE correta = TRUE;
 
 CREATE TABLE IF NOT EXISTS matricula (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -143,6 +201,36 @@ CREATE TABLE IF NOT EXISTS progresso_aula (
     FOREIGN KEY (id_aula) REFERENCES aulas(id) ON DELETE RESTRICT
 );
 
+CREATE TABLE IF NOT EXISTS tentativas_questionario (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_questionario UUID NOT NULL,
+    id_matricula UUID NOT NULL,
+    numero INTEGER NOT NULL,
+    acertos INTEGER NOT NULL,
+    total_perguntas INTEGER NOT NULL,
+    pontos_obtidos INTEGER NOT NULL DEFAULT 0,
+    pontos_possiveis INTEGER NOT NULL DEFAULT 0,
+    percentual NUMERIC(5,2) NOT NULL CHECK (percentual BETWEEN 0 AND 100),
+    aprovado BOOLEAN NOT NULL,
+    concluida_em TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (id_questionario, id_matricula, numero),
+    FOREIGN KEY (id_questionario) REFERENCES questionarios(id) ON DELETE RESTRICT,
+    FOREIGN KEY (id_matricula) REFERENCES matricula(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS respostas_questionario (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_tentativa UUID NOT NULL,
+    id_pergunta UUID NOT NULL,
+    id_alternativa UUID NOT NULL,
+    correta BOOLEAN NOT NULL,
+    pontos_obtidos INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (id_tentativa, id_pergunta),
+    FOREIGN KEY (id_tentativa) REFERENCES tentativas_questionario(id) ON DELETE CASCADE,
+    FOREIGN KEY (id_pergunta) REFERENCES perguntas_questionario(id) ON DELETE RESTRICT,
+    FOREIGN KEY (id_alternativa) REFERENCES alternativas_questionario(id) ON DELETE RESTRICT
+);
+
 CREATE TABLE IF NOT EXISTS sessao_reproducao (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     id_progresso_aula UUID NOT NULL,
@@ -174,8 +262,87 @@ CREATE TABLE IF NOT EXISTS certificados (
     concluido_em TIMESTAMPTZ NOT NULL,
     status certificado_status NOT NULL DEFAULT 'valido',
     emitido_em TIMESTAMPTZ DEFAULT NOW(),
+    modelo_snapshot JSONB,
     FOREIGN KEY (id_matricula) REFERENCES matricula(id) ON DELETE RESTRICT
 );
+
+CREATE TABLE IF NOT EXISTS modelos_certificado (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    client_reference VARCHAR(100) UNIQUE,
+    name VARCHAR(120) NOT NULL,
+    eyebrow VARCHAR(180) NOT NULL,
+    title VARCHAR(180) NOT NULL,
+    body VARCHAR(1000) NOT NULL,
+    signature VARCHAR(180) NOT NULL,
+    primary_color CHAR(7) NOT NULL,
+    accent_color CHAR(7) NOT NULL,
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CHECK (primary_color ~ '^#[0-9A-Fa-f]{6}$'),
+    CHECK (accent_color ~ '^#[0-9A-Fa-f]{6}$')
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_modelo_certificado_padrao
+    ON modelos_certificado (is_default) WHERE is_default = TRUE;
+
+CREATE TABLE IF NOT EXISTS modelo_certificado_imagens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_modelo UUID NOT NULL REFERENCES modelos_certificado(id) ON DELETE CASCADE,
+    kind VARCHAR(20) NOT NULL CHECK (kind IN ('logo', 'signature')),
+    name VARCHAR(255) NOT NULL,
+    png_data BYTEA NOT NULL,
+    identification VARCHAR(150),
+    ordem INTEGER NOT NULL,
+    UNIQUE (id_modelo, kind, ordem),
+    CHECK (
+      octet_length(png_data) BETWEEN 1 AND 1048576
+      AND substring(png_data FROM 1 FOR 8) = decode('89504e470d0a1a0a', 'hex')
+    ),
+    CHECK (
+      (kind = 'logo' AND identification IS NULL)
+      OR (kind = 'signature' AND length(btrim(identification)) > 0)
+    )
+);
+
+CREATE TABLE IF NOT EXISTS certificado_imagens_snapshot (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_certificado UUID NOT NULL REFERENCES certificados(id) ON DELETE CASCADE,
+    kind VARCHAR(20) NOT NULL CHECK (kind IN ('logo', 'signature')),
+    name VARCHAR(255) NOT NULL,
+    png_data BYTEA NOT NULL,
+    identification VARCHAR(150),
+    ordem INTEGER NOT NULL,
+    UNIQUE (id_certificado, kind, ordem),
+    CHECK (
+      octet_length(png_data) BETWEEN 1 AND 1048576
+      AND substring(png_data FROM 1 FOR 8) = decode('89504e470d0a1a0a', 'hex')
+    ),
+    CHECK (
+      (kind = 'logo' AND identification IS NULL)
+      OR (kind = 'signature' AND length(btrim(identification)) > 0)
+    )
+);
+
+INSERT INTO modelos_certificado (
+    id, client_reference, name, eyebrow, title, body, signature,
+    primary_color, accent_color, is_default
+) VALUES
+    ('c0000000-0000-4000-8000-000000000001', 'institucional-azul',
+     'Institucional azul', 'Plataforma EAD Inovação Barueri',
+     'Certificado de conclusão',
+     'Certificamos que {aluno} concluiu o curso {curso}.',
+     'Inovação Barueri', '#2563EB', '#172033', TRUE),
+    ('c0000000-0000-4000-8000-000000000002', 'conquista-verde',
+     'Conquista', 'Formação e desenvolvimento', 'Certificado',
+     'Concedido a {aluno} pela conclusão do curso {curso}.',
+     'Coordenação pedagógica', '#059669', '#134E4A', FALSE),
+    ('c0000000-0000-4000-8000-000000000003', 'essencial-violeta',
+     'Essencial', 'Conhecimento que transforma',
+     'Certificado de participação',
+     'Reconhecemos a participação de {aluno} no curso {curso}.',
+     'Equipe de formação', '#7C3AED', '#312E81', FALSE)
+ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS usuario_curso (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

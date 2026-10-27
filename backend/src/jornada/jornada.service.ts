@@ -10,8 +10,10 @@ import { AuthenticatedUser } from '../auth/authenticated-user.interface';
 import { UserRole } from '../auth/user-role.enum';
 import { User } from '../auth/user.entity';
 import { Certificado } from '../certificados/certificado.entity';
-import { Aula } from '../cursos/aula.entity';
-import { Curso, CursoStatus } from '../cursos/curso.entity';
+import { CertificateIssuanceService } from '../certificados/certificate-issuance.service';
+import { Aula, AulaTipo } from '../cursos/aula.entity';
+import { AulaPdf } from '../cursos/aula-pdf.entity';
+import { CursosService } from '../cursos/cursos.service';
 import { Matricula } from './matricula.entity';
 import { ProgressoAula } from './progresso-aula.entity';
 
@@ -21,8 +23,6 @@ export class JornadaService {
     private readonly dataSource: DataSource,
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-    @InjectRepository(Curso)
-    private readonly coursesRepository: Repository<Curso>,
     @InjectRepository(Aula)
     private readonly lessonsRepository: Repository<Aula>,
     @InjectRepository(Matricula)
@@ -31,6 +31,8 @@ export class JornadaService {
     private readonly lessonProgressRepository: Repository<ProgressoAula>,
     @InjectRepository(Certificado)
     private readonly certificatesRepository: Repository<Certificado>,
+    private readonly cursosService: CursosService,
+    private readonly certificateIssuance: CertificateIssuanceService,
   ) {}
 
   async enroll(courseId: string, actor: AuthenticatedUser) {
@@ -47,27 +49,34 @@ export class JornadaService {
     });
     if (existing) return this.getJourney(courseId, actor);
 
-    const course = await this.requirePublishedCourse(courseId);
+    const course = await this.cursosService.findOne(courseId, actor);
     if (!course.carga_horaria || course.carga_horaria <= 0) {
       throw new ConflictException(
         'O curso ainda não está pronto para matrícula.',
       );
     }
+    const courseHours = course.carga_horaria;
     const lessons = await this.listCourseLessons(courseId);
     if (lessons.length === 0) {
       throw new ConflictException('O curso ainda não possui aulas.');
     }
 
+    const completeImmediately =
+      course.ambiente_teste && process.env.ALLOW_TEST_COURSE_BYPASS === 'true';
+
     try {
       await this.dataSource.transaction(async (manager) => {
+        const completedAt = completeImmediately ? new Date() : null;
         const enrollment = await manager.save(
           manager.create(Matricula, {
             id_usuario: actor.userId,
             id_curso: courseId,
-            progresso: 0,
-            conclusao: false,
-            concluido_em: null,
-            ultima_aula_id: lessons[0].id,
+            progresso: completeImmediately ? 100 : 0,
+            conclusao: completeImmediately,
+            concluido_em: completedAt,
+            ultima_aula_id: completeImmediately
+              ? lessons.at(-1)!.id
+              : lessons[0].id,
             segundos_estudados: 0,
           }),
         );
@@ -81,13 +90,22 @@ export class JornadaService {
               intervalos_assistidos: [],
               duracao_segundos: lesson.duracao_segundos,
               posicao_segundos: 0,
-              percentual: 0,
+              percentual: completeImmediately ? 100 : 0,
               tempo_reproducao_validado_segundos: 0,
-              concluida: false,
-              concluida_em: null,
+              concluida: completeImmediately,
+              concluida_em: completedAt,
             }),
           ),
         );
+        if (completeImmediately) {
+          await this.certificateIssuance.issue(manager, {
+            enrollmentId: enrollment.id,
+            studentName: user.name,
+            courseName: course.nome,
+            courseHours,
+            completedAt: completedAt!,
+          });
+        }
       });
     } catch (error) {
       if (
@@ -102,25 +120,39 @@ export class JornadaService {
     return this.getJourney(courseId, actor);
   }
 
-  async listEnrollments(userId: string) {
+  async listEnrollments(actor: AuthenticatedUser) {
     const enrollments = await this.enrollmentsRepository.find({
-      where: { id_usuario: userId },
+      where: { id_usuario: actor.userId },
       relations: { curso: true, aulas: true },
       order: { updated_at: 'DESC' },
     });
-    return enrollments.map((enrollment) => ({
-      id: enrollment.id,
-      progresso: Number(enrollment.progresso),
-      conclusao: enrollment.conclusao,
-      concluido_em: enrollment.concluido_em,
-      ultima_aula_id: enrollment.ultima_aula_id,
-      segundos_estudados: enrollment.segundos_estudados,
-      data_matricula: enrollment.data_matricula,
-      aulas_concluidas: enrollment.aulas.filter((item) => item.concluida)
-        .length,
-      total_aulas: enrollment.aulas.length,
-      curso: enrollment.curso,
-    }));
+    const summaries = await Promise.all(
+      enrollments.map(async (enrollment) => {
+        try {
+          const course = await this.cursosService.findOne(
+            enrollment.id_curso,
+            actor,
+          );
+          return {
+            id: enrollment.id,
+            progresso: Number(enrollment.progresso),
+            conclusao: enrollment.conclusao,
+            concluido_em: enrollment.concluido_em,
+            ultima_aula_id: enrollment.ultima_aula_id,
+            segundos_estudados: enrollment.segundos_estudados,
+            data_matricula: enrollment.data_matricula,
+            aulas_concluidas: enrollment.aulas.filter((item) => item.concluida)
+              .length,
+            total_aulas: enrollment.aulas.length,
+            curso: course,
+          };
+        } catch (error) {
+          if (error instanceof NotFoundException) return null;
+          throw error;
+        }
+      }),
+    );
+    return summaries.filter((summary) => summary !== null);
   }
 
   async metrics() {
@@ -144,10 +176,7 @@ export class JornadaService {
   }
 
   async getJourney(courseId: string, actor: AuthenticatedUser) {
-    const course =
-      actor.role === UserRole.ALUNO
-        ? await this.requirePublishedCourse(courseId)
-        : await this.requireCourse(courseId);
+    const course = await this.cursosService.findOne(courseId, actor);
     const lessons = await this.listCourseLessons(courseId);
 
     if (actor.role !== UserRole.ALUNO) {
@@ -156,7 +185,7 @@ export class JornadaService {
         matricula: null,
         modo: 'preview',
         aulas: lessons.map((lesson) => ({
-          ...lesson,
+          ...this.lessonPayload(lesson, true),
           status: 'disponivel',
           percentual: 0,
           posicao_segundos: 0,
@@ -166,7 +195,14 @@ export class JornadaService {
 
     const enrollment = await this.enrollmentsRepository.findOne({
       where: { id_usuario: actor.userId, id_curso: courseId },
-      relations: { aulas: { aula: true } },
+      relations: {
+        aulas: {
+          aula: {
+            questionario: { perguntas: { alternativas: true } },
+            pdf_anexo: true,
+          },
+        },
+      },
     });
     if (!enrollment) {
       return {
@@ -174,13 +210,7 @@ export class JornadaService {
         matricula: null,
         modo: 'aluno',
         aulas: lessons.map((lesson) => ({
-          id: lesson.id,
-          titulo: lesson.titulo,
-          descricao: lesson.descricao,
-          duracao_minutos: lesson.duracao_minutos,
-          duracao_segundos: lesson.duracao_segundos,
-          ordem: lesson.ordem,
-          url_video: null,
+          ...this.lessonPayload(lesson, false),
           status: 'bloqueada',
           percentual: 0,
           posicao_segundos: 0,
@@ -216,13 +246,8 @@ export class JornadaService {
             ? 'disponivel'
             : 'bloqueada';
         return {
-          id: item.aula.id,
-          titulo: item.aula.titulo,
-          descricao: item.aula.descricao,
-          duracao_minutos: item.aula.duracao_minutos,
-          duracao_segundos: item.aula.duracao_segundos,
+          ...this.lessonPayload(item.aula, unlocked || item.concluida),
           ordem: item.ordem_snapshot,
-          url_video: unlocked || item.concluida ? item.aula.url_video : null,
           status,
           percentual: Number(item.percentual),
           posicao_segundos: item.posicao_segundos,
@@ -231,26 +256,132 @@ export class JornadaService {
     };
   }
 
+  async completePdfLesson(
+    courseId: string,
+    lessonId: string,
+    actor: AuthenticatedUser,
+  ) {
+    await this.cursosService.findOne(courseId, actor);
+    await this.dataSource.transaction(async (manager) => {
+      const enrollmentRepository = manager.getRepository(Matricula);
+      const locked = await enrollmentRepository.findOne({
+        where: { id_usuario: actor.userId, id_curso: courseId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!locked)
+        throw new ForbiddenException(
+          'Inicie o curso antes de concluir a aula.',
+        );
+      const enrollment = await enrollmentRepository.findOne({
+        where: { id: locked.id },
+        relations: { curso: true, usuario: true, aulas: { aula: true } },
+      });
+      if (!enrollment) throw new NotFoundException('Matrícula não encontrada.');
+      const progress = [...enrollment.aulas].sort(
+        (left, right) => left.ordem_snapshot - right.ordem_snapshot,
+      );
+      const index = progress.findIndex((item) => item.id_aula === lessonId);
+      if (index < 0)
+        throw new NotFoundException('Aula não encontrada na matrícula.');
+      if (index > 0 && !progress[index - 1].concluida) {
+        throw new ForbiddenException('Conclua a aula anterior primeiro.');
+      }
+      const current = progress[index];
+      if (current.aula.tipo !== AulaTipo.PDF) {
+        throw new ConflictException('Esta aula não contém um PDF.');
+      }
+      if (
+        !(await manager.getRepository(AulaPdf).existsBy({ id_aula: lessonId }))
+      ) {
+        throw new NotFoundException('PDF não encontrado.');
+      }
+      if (current.concluida) return;
+
+      current.percentual = 100;
+      current.concluida = true;
+      current.concluida_em = new Date();
+      await manager.save(current);
+      enrollment.progresso = Math.round(
+        progress.reduce((total, item) => total + Number(item.percentual), 0) /
+          progress.length,
+      );
+      enrollment.ultima_aula_id =
+        progress.find((item) => !item.concluida)?.id_aula ?? lessonId;
+      const allCompleted = progress.every((item) => item.concluida);
+      if (allCompleted && !enrollment.conclusao) {
+        enrollment.conclusao = true;
+        enrollment.concluido_em = new Date();
+      }
+      await manager.save(enrollment);
+      if (allCompleted && enrollment.concluido_em) {
+        if (
+          !(await manager
+            .getRepository(Certificado)
+            .existsBy({ id_matricula: enrollment.id }))
+        ) {
+          await this.certificateIssuance.issue(manager, {
+            enrollmentId: enrollment.id,
+            studentName: enrollment.usuario.name,
+            courseName: enrollment.curso.nome,
+            courseHours: enrollment.curso.carga_horaria ?? 0,
+            completedAt: enrollment.concluido_em,
+          });
+        }
+      }
+    });
+    return this.getJourney(courseId, actor);
+  }
+
   private listCourseLessons(courseId: string) {
     return this.lessonsRepository.find({
       where: { curso: { id: courseId } },
+      relations: {
+        questionario: { perguntas: { alternativas: true } },
+        pdf_anexo: true,
+      },
       order: { ordem: 'ASC', titulo: 'ASC' },
     });
   }
 
-  private async requireCourse(courseId: string) {
-    const course = await this.coursesRepository.findOneBy({ id: courseId });
-    if (!course) throw new NotFoundException('Curso não encontrado.');
-    return course;
-  }
-
-  private async requirePublishedCourse(courseId: string) {
-    const course = await this.coursesRepository.findOneBy({
-      id: courseId,
-      status: CursoStatus.PUBLICADO,
-    });
-    if (!course) throw new NotFoundException('Curso publicado não encontrado.');
-    return course;
+  private lessonPayload(lesson: Aula, unlocked: boolean) {
+    return {
+      id: lesson.id,
+      titulo: lesson.titulo,
+      descricao: lesson.descricao,
+      tipo: lesson.tipo,
+      duracao_minutos: lesson.duracao_minutos,
+      duracao_segundos: lesson.duracao_segundos,
+      ordem: lesson.ordem,
+      url_video: unlocked ? lesson.url_video : null,
+      pdf_nome_arquivo:
+        unlocked && lesson.tipo === AulaTipo.PDF
+          ? (lesson.pdf_anexo?.nome_arquivo ?? null)
+          : null,
+      questionario:
+        unlocked && lesson.questionario
+          ? {
+              id: lesson.questionario.id,
+              nota_minima: Number(lesson.questionario.nota_minima),
+              max_tentativas: lesson.questionario.max_tentativas,
+              pontos_base: lesson.questionario.pontos_base,
+              perguntas: [...lesson.questionario.perguntas]
+                .sort((a, b) => a.ordem - b.ordem)
+                .map((pergunta) => ({
+                  id: pergunta.id,
+                  enunciado: pergunta.enunciado,
+                  ordem: pergunta.ordem,
+                  pontos: pergunta.pontos,
+                  alternativas: [...pergunta.alternativas]
+                    .sort((a, b) => a.ordem - b.ordem)
+                    .map((alternativa) => ({
+                      id: alternativa.id,
+                      texto: alternativa.texto,
+                      ordem: alternativa.ordem,
+                    })),
+                })),
+            }
+          : null,
+    };
   }
 
   private certificateSummary(certificate: Certificado) {

@@ -8,9 +8,14 @@ export interface Curso {
   carga_horaria: number | null;
   categoria: string | null;
   nivel: string | null;
+  ambiente_teste: boolean;
   id_instrutor: string;
   status: "rascunho" | "publicado";
   publicado_em?: string | null;
+  conteudo_indisponivel?: boolean;
+  validacao_pendente?: boolean;
+  status_conteudo?: "disponivel" | "indisponivel" | "validacao_pendente";
+  videos_indisponiveis?: Array<{ id: string; titulo: string }>;
 }
 
 export interface CursoInput {
@@ -20,27 +25,58 @@ export interface CursoInput {
   carga_horaria?: number;
   categoria?: string;
   nivel?: string;
+  ambiente_teste?: boolean;
 }
 
 export interface Aula {
   id: string;
   titulo: string;
   descricao: string | null;
-  url_video: string;
+  tipo: AulaTipo;
+  url_video: string | null;
   duracao_minutos: number | null;
   duracao_segundos: number | null;
   youtube_video_id: string | null;
   youtube_embeddable: boolean | null;
   youtube_validado_em: string | null;
   ordem: number;
+  questionario: Questionario | null;
+  pdf_anexo?: { nome_arquivo: string; tamanho_bytes: number } | null;
+}
+
+export type AulaTipo = "video" | "pdf" | "link" | "imagem" | "questionario";
+
+export interface AlternativaQuestionario {
+  id?: string;
+  texto: string;
+  ordem?: number;
+  correta: boolean;
+}
+
+export interface PerguntaQuestionario {
+  id?: string;
+  enunciado: string;
+  ordem?: number;
+  pontos: number;
+  alternativas: AlternativaQuestionario[];
+}
+
+export interface Questionario {
+  id?: string;
+  nota_minima: number;
+  max_tentativas: number;
+  pontos_base?: number;
+  perguntas: PerguntaQuestionario[];
 }
 
 export interface AulaInput {
   titulo: string;
   descricao?: string;
-  url_video: string;
-  duracao_segundos: number;
-  ordem?: number;
+  tipo?: AulaTipo;
+  url_video?: string;
+  duracao_segundos?: number;
+  questionario?: Questionario;
+  pdf_arquivo?: { nome_arquivo: string; dados_base64: string };
 }
 
 function getErrorMessage(data: unknown, fallback: string) {
@@ -87,9 +123,19 @@ const courseService = {
       method: "PATCH",
       body: JSON.stringify(aula),
     }),
+  repairLessonVideo: (courseId: string, lessonId: string, urlVideo: string) =>
+    request<Aula>(`/cursos/${courseId}/aulas/${lessonId}/reparar-video`, {
+      method: "PATCH",
+      body: JSON.stringify({ url_video: urlVideo }),
+    }),
   deleteLesson: (courseId: string, lessonId: string) =>
     request<void>(`/cursos/${courseId}/aulas/${lessonId}`, {
       method: "DELETE",
+    }),
+  reorderLessons: (courseId: string, lessonIds: string[]) =>
+    request<Aula[]>(`/cursos/${courseId}/aulas/ordem`, {
+      method: "PATCH",
+      body: JSON.stringify({ aula_ids: lessonIds }),
     }),
 };
 

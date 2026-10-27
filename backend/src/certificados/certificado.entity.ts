@@ -3,10 +3,13 @@ import {
   CreateDateColumn,
   Entity,
   JoinColumn,
+  OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Matricula } from '../jornada/matricula.entity';
+import type { CertificateTemplateSnapshot } from './certificate-template.types';
+import { CertificateSnapshotImage } from './certificate-snapshot-image.entity';
 
 export enum CertificadoStatus {
   VALIDO = 'valido',
@@ -47,7 +50,13 @@ export class Certificado {
   @CreateDateColumn({ type: 'timestamptz' })
   emitido_em!: Date;
 
+  @Column({ type: 'jsonb', nullable: true })
+  modelo_snapshot!: CertificateTemplateSnapshot | null;
+
   @OneToOne(() => Matricula, { nullable: false, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'id_matricula' })
   matricula!: Matricula;
+
+  @OneToMany(() => CertificateSnapshotImage, (image) => image.certificate)
+  snapshot_images!: CertificateSnapshotImage[];
 }

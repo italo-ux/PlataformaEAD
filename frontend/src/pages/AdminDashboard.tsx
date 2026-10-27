@@ -41,32 +41,18 @@ export default function AdminDashboard() {
     setLoading(true);
     setError("");
     try {
-      const [
-        overviewData,
-        ufData,
-        growthData,
-        courseTrackData,
-        funnelData,
-        certData,
-        coursesData,
-        trilhasData,
-      ] = await Promise.all([
-        dashboardService.getOverview(filters),
-        dashboardService.getUfDistribution(filters),
-        dashboardService.getGrowthSeries(filters, growthGranularity),
-        dashboardService.getCourseTrackPerformance(filters),
-        dashboardService.getLearningFunnel(filters),
-        dashboardService.getCertificatesOverTime(filters, certGranularity),
+      const [summary, coursesData, trilhasData] = await Promise.all([
+        dashboardService.getSummary(filters, growthGranularity, certGranularity),
         courseService.listCourses(),
         trailService.listTrails(),
       ]);
 
-      setOverview(overviewData);
-      setUfDistribution(ufData);
-      setGrowthSeries(growthData);
-      setCourseTrackPerformance(courseTrackData);
-      setLearningFunnel(funnelData);
-      setCertificatesOverTime(certData);
+      setOverview(summary.overview);
+      setUfDistribution(summary.ufDistribution);
+      setGrowthSeries(summary.growthSeries);
+      setCourseTrackPerformance(summary.courseTrackPerformance);
+      setLearningFunnel(summary.learningFunnel);
+      setCertificatesOverTime(summary.certificatesOverTime);
       setCourses(coursesData);
       setTrilhas(trilhasData);
     } catch (err) {
@@ -86,8 +72,6 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     loadData();
-    const timeout = setTimeout(() => setLoading(false), 10000);
-    return () => clearTimeout(timeout);
   }, [loadData]);
 
   const handleUfClick = (uf: string) => {
@@ -96,50 +80,50 @@ export default function AdminDashboard() {
   };
 
   const handleExportCsv = () => {
-    // TODO: Substituir por chamada ao endpoint /admin/dashboard/export quando backend estiver pronto
-    // Por ora, gera CSV com os dados já carregados no estado
-    const csvLines: string[] = [];
-    
-    // Cabeçalho
-    csvLines.push("secao,metrica,valor,detalhes");
-    
+    const csvLines = ["secao,metrica,valor,detalhes"];
+    const csvCell = (value: string | number) =>
+      `"${String(value).replaceAll('"', '""')}"`;
+    const addRow = (section: string, metric: string, value: string | number, details: string) => {
+      csvLines.push([section, metric, value, details].map(csvCell).join(","));
+    };
+
     // Visão geral
     if (overview) {
-      csvLines.push(`visao_geral,alunos_cadastrados,${overview.alunosCadastrados},total no período`);
-      csvLines.push(`visao_geral,alunos_ativos,${overview.alunosAtivos},total no período`);
-      csvLines.push(`visao_geral,matriculas_iniciadas,${overview.matriculasIniciadas},total no período`);
-      csvLines.push(`visao_geral,taxa_conclusao,${overview.taxaConclusao.toFixed(1)}%,percentual`);
-      csvLines.push(`visao_geral,certificados_emitidos,${overview.certificadosEmitidos},total no período`);
+      addRow("visao_geral", "alunos_cadastrados", overview.alunosCadastrados, "total no período");
+      addRow("visao_geral", "alunos_ativos", overview.alunosAtivos, "total no período");
+      addRow("visao_geral", "matriculas_iniciadas", overview.matriculasIniciadas, "total no período");
+      addRow("visao_geral", "taxa_conclusao", overview.taxaConclusao.toFixed(1), "percentual");
+      addRow("visao_geral", "certificados_emitidos", overview.certificadosEmitidos, "total no período");
     }
-    
+
     // Distribuição UF
     ufDistribution.forEach((uf) => {
-      csvLines.push(`uf_distribuicao,${uf.uf},${uf.alunos},${uf.participacao.toFixed(2)}%`);
+      addRow("uf_distribuicao", uf.uf, uf.alunos, `${uf.participacao.toFixed(2)}%`);
     });
-    
+
     // Crescimento
     growthSeries.forEach((g) => {
-      csvLines.push(`crescimento,${g.periodo},${g.novosAlunos},novos alunos`);
-      csvLines.push(`crescimento,${g.periodo},${g.totalAcumulado},total acumulado`);
+      addRow("crescimento", g.periodo, g.novosAlunos, "novos alunos");
+      addRow("crescimento", g.periodo, g.totalAcumulado, "total acumulado");
     });
-    
+
     // Cursos/Trilhas
     courseTrackPerformance.forEach((c) => {
-      csvLines.push(`cursos_trilhas,${c.tipo},${c.nome},${c.matriculas},matriculas`);
-      csvLines.push(`cursos_trilhas,${c.tipo},${c.nome},${c.progressoMedio.toFixed(1)}%,progresso_medio`);
-      csvLines.push(`cursos_trilhas,${c.tipo},${c.nome},${c.taxaConclusao.toFixed(1)}%,taxa_conclusao`);
-      csvLines.push(`cursos_trilhas,${c.tipo},${c.nome},${c.alunosAtivos},alunos_ativos`);
+      addRow("cursos_trilhas", `${c.tipo}: ${c.nome}`, c.matriculas, "matrículas");
+      addRow("cursos_trilhas", `${c.tipo}: ${c.nome}`, c.progressoMedio.toFixed(1), "progresso médio (%)");
+      addRow("cursos_trilhas", `${c.tipo}: ${c.nome}`, c.taxaConclusao.toFixed(1), "taxa de conclusão (%)");
+      addRow("cursos_trilhas", `${c.tipo}: ${c.nome}`, c.alunosAtivos, "alunos ativos");
     });
-    
+
     // Funil
     learningFunnel.forEach((f) => {
-      csvLines.push(`funil,${f.etapa},${f.quantidade},${f.percentual.toFixed(1)}%`);
+      addRow("funil", f.etapa, f.quantidade, `${f.percentual.toFixed(1)}%`);
     });
-    
+
     // Certificados
     certificatesOverTime.forEach((c) => {
-      csvLines.push(`certificados,${c.periodo},${c.certificados},emitidos no período`);
-      csvLines.push(`certificados,${c.periodo},${c.totalAcumulado},total acumulado`);
+      addRow("certificados", c.periodo, c.certificados, "emitidos no período");
+      addRow("certificados", c.periodo, c.totalAcumulado, "total acumulado");
     });
 
     const csvContent = csvLines.join("\n");
@@ -153,6 +137,7 @@ export default function AdminDashboard() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const kpiCards = useMemo(() => {
@@ -187,13 +172,13 @@ export default function AdminDashboard() {
     ];
   }, [overview]);
 
-  if (!user || (user.role !== "admin" && user.profileType !== "funcionario")) {
+  if (!user || user.role !== "admin") {
     return (
       <div className="min-h-screen bg-[#f6f9ff] flex items-center justify-center">
         <div className="text-center p-8">
           <h1 className="text-2xl font-bold text-[#25304a]">Acesso restrito</h1>
           <p className="mt-2 text-slate-600">
-            Esta área é destinada apenas a administradores e funcionários da instituição.
+            Esta área é destinada apenas a administradores.
           </p>
         </div>
       </div>
@@ -220,7 +205,8 @@ export default function AdminDashboard() {
             <button
               type="button"
               onClick={handleExportCsv}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              disabled={loading || !overview}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Download size={16} /> Exportar CSV
             </button>

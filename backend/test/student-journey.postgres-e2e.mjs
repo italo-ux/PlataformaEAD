@@ -29,6 +29,7 @@ const admin = new Client({
 });
 const previousDatabase = process.env.DB_NAME;
 const previousSecret = process.env.JWT_SECRET;
+const previousTestCourseBypass = process.env.ALLOW_TEST_COURSE_BYPASS;
 let databaseCreated = false;
 let app;
 let frontend;
@@ -60,7 +61,9 @@ async function startFrontend(apiUrl) {
   const url = 'http://127.0.0.1:' + port;
   for (let attempt = 0; attempt < 40; attempt += 1) {
     if (child.exitCode !== null) {
-      throw new Error('Frontend encerrou durante a inicialização:\n' + logs.join(''));
+      throw new Error(
+        'Frontend encerrou durante a inicialização:\n' + logs.join(''),
+      );
     }
     try {
       const response = await fetch(url);
@@ -128,12 +131,45 @@ try {
        RETURNING id`,
       [passwordHash],
     );
+    const otherProfessor = await database.query(
+      `INSERT INTO users
+       (name, email, password_hash, is_verified, role, cpf)
+       VALUES ('Outro professor E2E', 'outro-professor-e2e@example.com', $1, TRUE, 'professor', '12345678903')
+       RETURNING id`,
+      [passwordHash],
+    );
+    await database.query(
+      `INSERT INTO users (name, email, password_hash, is_verified, role, cpf)
+       VALUES ('Admin E2E', 'admin-e2e@example.com', $1, TRUE, 'admin', '12345678902')`,
+      [passwordHash],
+    );
+    await database.query(
+      `INSERT INTO endereco (id_usuario, cep, cidade, uf)
+       VALUES ($1, '01001000', 'São Paulo', 'SP')`,
+      [student.rows[0].id],
+    );
     const course = await database.query(
       `INSERT INTO cursos
        (id_instrutor, nome, carga_horaria, status, publicado_em)
        VALUES ($1, 'Curso E2E', 4, 'publicado', NOW())
        RETURNING id`,
       [professor.rows[0].id],
+    );
+    const hiddenDraft = await database.query(
+      `INSERT INTO cursos (id_instrutor, nome, status)
+       VALUES ($1, 'Rascunho reservado', 'rascunho') RETURNING id`,
+      [otherProfessor.rows[0].id],
+    );
+    const trail = await database.query(
+      `INSERT INTO trilhas (nome) VALUES ('Trilha E2E') RETURNING id`,
+    );
+    await database.query(
+      `INSERT INTO trilha_curso (id_trilha, id_curso) VALUES ($1, $2)`,
+      [trail.rows[0].id, course.rows[0].id],
+    );
+    await database.query(
+      `INSERT INTO trilha_curso (id_trilha, id_curso, ordem) VALUES ($1, $2, 2)`,
+      [trail.rows[0].id, hiddenDraft.rows[0].id],
     );
     const lessons = await database.query(
       `INSERT INTO aulas
@@ -147,9 +183,26 @@ try {
        RETURNING id, ordem`,
       [course.rows[0].id, professor.rows[0].id],
     );
+    const testCourse = await database.query(
+      `INSERT INTO cursos
+       (id_instrutor, nome, carga_horaria, status, publicado_em, ambiente_teste)
+       VALUES ($1, 'Curso rápido E2E', 1, 'publicado', NOW(), TRUE)
+       RETURNING id`,
+      [professor.rows[0].id],
+    );
+    await database.query(
+      `INSERT INTO aulas
+       (id_curso, id_instrutor, titulo, url_video, ordem, duracao_minutos,
+        youtube_video_id, duracao_segundos, youtube_embeddable, youtube_validado_em)
+       VALUES
+         ($1, $2, 'Aula rápida', 'https://youtu.be/dQw4w9WgXcQ', 1, 1,
+          'dQw4w9WgXcQ', 10, TRUE, NOW())`,
+      [testCourse.rows[0].id, professor.rows[0].id],
+    );
 
     process.env.DB_NAME = testDatabaseName;
     process.env.JWT_SECRET = 'student-journey-postgres-e2e-secret';
+    process.env.ALLOW_TEST_COURSE_BYPASS = 'true';
     const loaded = await import('../dist/app.module.js');
     const AppModule = loaded.AppModule ?? loaded.default?.AppModule;
     app = await NestFactory.create(AppModule, { logger: ['error'] });
@@ -191,6 +244,60 @@ try {
     );
     assert.equal(me.id, student.rows[0].id);
     assert.equal(me.role, 'aluno');
+    const studentCatalog = await expectJson(
+      baseUrl,
+      '/cursos',
+      { headers: authorization },
+      200,
+    );
+    assert.equal(studentCatalog.some((item) => item.id === hiddenDraft.rows[0].id), false);
+    const studentTrails = await expectJson(
+      baseUrl,
+      '/trilhas',
+      { headers: authorization },
+      200,
+    );
+    assert.equal(studentTrails[0].cursos.some((item) => item.id === hiddenDraft.rows[0].id), false);
+
+    const professorLogin = await expectJson(
+      baseUrl,
+      '/auth/login',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'professor-e2e@example.com', password }),
+      },
+      201,
+    );
+    const professorHeaders = {
+      Authorization: 'Bearer ' + professorLogin.access_token,
+    };
+    const professorCatalog = await expectJson(
+      baseUrl,
+      '/cursos',
+      { headers: professorHeaders },
+      200,
+    );
+    assert.equal(professorCatalog.some((item) => item.id === hiddenDraft.rows[0].id), false);
+    const professorTrails = await expectJson(
+      baseUrl,
+      '/trilhas',
+      { headers: professorHeaders },
+      200,
+    );
+    assert.equal(professorTrails[0].cursos.some((item) => item.id === hiddenDraft.rows[0].id), false);
+    await expectJson(
+      baseUrl,
+      '/cursos/' + hiddenDraft.rows[0].id,
+      { headers: professorHeaders },
+      404,
+    );
+    await expectJson(
+      baseUrl,
+      '/cursos/' + hiddenDraft.rows[0].id + '/aulas',
+      { headers: professorHeaders },
+      404,
+    );
 
     const enrollmentRoute = '/cursos/' + course.rows[0].id + '/matricula';
     const firstEnrollment = await expectJson(
@@ -224,7 +331,13 @@ try {
         },
         201,
       );
-    const heartbeat = (lessonId, sessionId, sequence, position, state = 'playing') => ({
+    const heartbeat = (
+      lessonId,
+      sessionId,
+      sequence,
+      position,
+      state = 'playing',
+    ) => ({
       method: 'POST',
       headers: authorization,
       body: JSON.stringify({
@@ -381,8 +494,61 @@ try {
     assert.equal(pdfResponse.headers.get('content-type'), 'application/pdf');
     const pdf = Buffer.from(await pdfResponse.arrayBuffer());
     assert.equal(pdf.subarray(0, 4).toString(), '%PDF');
+    const quickCompletion = await expectJson(
+      baseUrl,
+      '/cursos/' + testCourse.rows[0].id + '/matricula',
+      { method: 'POST', headers: authorization },
+      201,
+    );
+    assert.equal(quickCompletion.matricula.progresso, 100);
+    assert.equal(quickCompletion.matricula.conclusao, true);
+    assert.equal(quickCompletion.matricula.segundos_estudados, 0);
+    assert(
+      quickCompletion.aulas.every((lesson) => lesson.status === 'concluida'),
+    );
+    assert(quickCompletion.certificado);
+
+    const updatedCertificateCount = await database.query(
+      'SELECT COUNT(*)::int AS count FROM certificados',
+    );
+    assert.equal(updatedCertificateCount.rows[0].count, 2);
+    const adminLogin = await expectJson(
+      baseUrl,
+      '/auth/login',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'admin-e2e@example.com', password }),
+      },
+      201,
+    );
+    const adminAuthorization = { Authorization: 'Bearer ' + adminLogin.access_token };
+    await expectJson(baseUrl, '/admin/dashboard/resumo', { headers: authorization }, 403);
+    const summary = await expectJson(
+      baseUrl, '/admin/dashboard/resumo', { headers: adminAuthorization }, 200,
+    );
+    assert.equal(summary.overview.alunosCadastrados, 1);
+    assert.equal(summary.overview.matriculasIniciadas, 2);
+    assert.equal(summary.overview.taxaConclusao, 100);
+    assert.equal(summary.overview.certificadosEmitidos, 2);
+    assert.equal(summary.ufDistribution[0].uf, 'SP');
+    assert.equal(summary.courseTrackPerformance.length, 3);
+    assert.equal(summary.learningFunnel[3].quantidade, 2);
+    assert.equal(summary.certificatesOverTime.reduce((total, row) => total + row.certificados, 0), 2);
+    const filtered = await expectJson(
+      baseUrl, '/admin/dashboard/resumo?uf=RJ', { headers: adminAuthorization }, 200,
+    );
+    assert.equal(filtered.overview.matriculasIniciadas, 0);
+    await expectJson(
+      baseUrl, '/admin/dashboard/resumo?periodoInicio=2026-12-31&periodoFim=2026-01-01',
+      { headers: adminAuthorization }, 400,
+    );
+    await expectJson(
+      baseUrl, '/admin/dashboard/resumo?cursoId=nao-e-uuid',
+      { headers: adminAuthorization }, 400,
+    );
     console.log(
-      'Projeto executado: frontend e backend online; login, matrícula, antifraude temporal, sequência, 90%, certificado e PDF validados.',
+      'Projeto executado: jornada, curso de teste, certificados, PDF e dashboard administrativo validados.',
     );
   } finally {
     if (frontend && frontend.exitCode === null) {
@@ -401,6 +567,11 @@ try {
   else process.env.DB_NAME = previousDatabase;
   if (previousSecret === undefined) delete process.env.JWT_SECRET;
   else process.env.JWT_SECRET = previousSecret;
+  if (previousTestCourseBypass === undefined) {
+    delete process.env.ALLOW_TEST_COURSE_BYPASS;
+  } else {
+    process.env.ALLOW_TEST_COURSE_BYPASS = previousTestCourseBypass;
+  }
   if (databaseCreated) {
     await admin.query(
       'DROP DATABASE IF EXISTS ' + quotedDatabase + ' WITH (FORCE)',

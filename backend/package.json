@@ -19,7 +19,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:postgres": "node test/postgres-migrations.integration.mjs",
-    "test:journey:e2e": "npm run build && node test/student-journey.postgres-e2e.mjs"
+    "test:journey:e2e": "npm run build && node test/student-journey.postgres-e2e.mjs",
+    "test:pdf:e2e": "npm run build && node test/pdf-lesson.postgres-e2e.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

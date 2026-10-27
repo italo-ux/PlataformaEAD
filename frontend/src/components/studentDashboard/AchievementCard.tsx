@@ -53,6 +53,7 @@ export function AchievementCard({
   );
 
   const isConquered = achievement.status === "conquistada";
+  const isInProgress = achievement.status === "em_progresso";
   const progressPercent = achievement.progress
     ? Math.min(100, Math.max(0, Math.round((achievement.progress.current / Math.max(1, achievement.progress.target)) * 100)))
     : null;
@@ -62,7 +63,9 @@ export function AchievementCard({
       className={`rounded-2xl border transition-all duration-200 ${
         isConquered
           ? "bg-amber-50 border-amber-200"
-          : "bg-slate-50 border-slate-200 grayscale"
+          : isInProgress
+            ? "bg-blue-50 border-blue-200"
+            : "bg-slate-50 border-slate-200 grayscale"
       } ${isExpanded ? "ring-2 ring-blue-500 ring-offset-2" : ""}`}
     >
       <button
@@ -76,7 +79,9 @@ export function AchievementCard({
             className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center ${
               isConquered
                 ? "bg-amber-100 text-amber-500"
-                : "bg-slate-100 text-slate-400"
+                : isInProgress
+                  ? "bg-blue-100 text-blue-600"
+                  : "bg-slate-100 text-slate-400"
             }`}
           >
             <Icon size={24} />
@@ -88,10 +93,12 @@ export function AchievementCard({
                 className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                   isConquered
                     ? "bg-amber-100 text-amber-700"
-                    : "bg-slate-100 text-slate-600"
+                    : isInProgress
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-slate-100 text-slate-600"
                 }`}
               >
-                {isConquered ? "Conquistada" : "Bloqueada"}
+                {isConquered ? "Conquistada" : isInProgress ? "Em progresso" : "Bloqueada"}
               </span>
             </div>
             <p className="mt-1.5 text-sm text-slate-700 line-clamp-2">{achievement.description}</p>
@@ -100,7 +107,7 @@ export function AchievementCard({
                 Conquistada em {achievement.acquiredAt ? formatDate(achievement.acquiredAt) : "Data não registrada"}
               </p>
             )}
-            {!isConquered && progressPercent !== null && (
+            {isInProgress && progressPercent !== null && (
               <div className="mt-3">
                 <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
                   <span>Progresso</span>
@@ -108,7 +115,7 @@ export function AchievementCard({
                 </div>
                 <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-slate-400 rounded-full transition-all duration-300"
+                    className="h-full bg-blue-500 rounded-full transition-all duration-300"
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
@@ -137,13 +144,13 @@ export function AchievementCard({
               </div>
               <p className="text-sm text-slate-700 mt-1">{achievement.unlockCondition}</p>
             </div>
-            {!isConquered && achievement.progress && (
+            {isInProgress && achievement.progress && (
               <div>
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Progresso atual</p>
                 <div className="mt-1 flex items-center gap-2">
                   <div className="flex-1 h-3 bg-slate-200 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-slate-400 rounded-full transition-all duration-300"
+                      className="h-full bg-blue-500 rounded-full transition-all duration-300"
                       style={{ width: `${progressPercent}%` }}
                     />
                   </div>

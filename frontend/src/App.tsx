@@ -6,7 +6,7 @@ import FeedbackPage from "./pages/FeedbackPage";
 import DashboardAluno from "./pages/DashboardAluno";
 import LoginPage from "./pages/LoginPage";
 import ProfilePage from "./pages/ProfilePage";
-import  {ProfessorCourseCreatePage } from "./pages/ProfessorCourseCreatePage";
+import ProfessorCourseCreatePage from "./pages/ProfessorCourseCreatePage";
 import RegisterPage from "./pages/RegisterPage";
 import TrailPage from "./pages/TrailPage";
 import UserHome from "./pages/userHome";
@@ -17,6 +17,7 @@ import VerifyEmailPage from "./pages/VerifyEmailPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import { AuthProvider } from "./context/AuthContext";
 import CertificateValidationPage from "./pages/CertificateValidationPage";
+import CertificateTemplatesPage from "./pages/CertificateTemplatesPage";
 
 function App() {
   return (
@@ -61,8 +62,9 @@ function App() {
             element={<ProfessorCourseCreatePage />}
           />
         </Route>
-        <Route element={<ProtectedRoute allowedRoles={["admin"]} allowedProfileTypes={["funcionario"]} />}>
+        <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
           <Route path="/admin/estatisticas" element={<AdminDashboard />} />
+          <Route path="/certificados" element={<CertificateTemplatesPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

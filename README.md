@@ -1,8 +1,8 @@
 # Plataforma EAD
 
 Aplicação de ensino com React, NestJS e PostgreSQL. A jornada principal do
-aluno é persistida: login, matrícula, aulas sequenciais, retomada de vídeo,
-conclusão e certificado PDF verificável.
+aluno é persistida: login, matrícula, aulas sequenciais em vídeo, PDF ou
+questionário, conclusão e certificado PDF verificável.
 
 ## Estrutura
 
@@ -10,6 +10,7 @@ conclusão e certificado PDF verificável.
 - `backend/`: NestJS, TypeORM, JWT e geração de PDF/QR Code.
 - `backend/database/migrations/`: migrations SQL aditivas, executadas em ordem.
 - `docs/JORNADA_ALUNO.md`: regras de negócio e contratos HTTP da jornada.
+- `docs/README_ESCALABILIDADE.md`: coordenação e operação da revalidação de vídeos.
 
 ## Pré-requisitos
 
@@ -22,8 +23,9 @@ conclusão e certificado PDF verificável.
 1. Copie `.env.example` para `backend/.env` e preencha banco, JWT e SMTP.
 2. Crie o banco configurado em `DB_NAME`.
 3. Faça backup se o banco já contiver dados.
-4. Aplique, em ordem, os scripts de `backend/database/migrations/` com
-   `ON_ERROR_STOP=1`. A migration 7 aborta se encontrar matrículas duplicadas.
+4. Em um banco vazio, aplique as migrations **1 a 17 em ordem numérica**, com
+   `ON_ERROR_STOP=1`, seguindo o [guia do banco](backend/database/README.md).
+   Em um banco existente, aplique somente as pendentes e pare no primeiro erro.
 5. Instale e execute cada aplicação:
 
 ```bash
@@ -48,7 +50,22 @@ endereço.
 - Professor: cria o curso em rascunho, cadastra as aulas, publica e usa a
   pré-visualização sem gerar progresso.
 - Administrador: gerencia conteúdo/equipe e consulta as métricas reais de
-  matrículas, aulas, cursos concluídos e certificados.
+  matrículas, aulas, cursos concluídos e certificados. Também gerencia os
+  modelos persistentes usados nas próximas emissões.
+
+### Modelos de certificado
+
+A tela administrativa `/certificados` lista, cria, edita e define o modelo
+padrão através da API. Logos e assinaturas PNG são persistidos em `BYTEA` no
+PostgreSQL, com limite de 1 MiB por arquivo e até quatro itens de cada tipo.
+Na primeira abertura, os modelos antigos da chave local
+`ead.certificate.templates` são enviados ao endpoint idempotente de
+sincronização; a chave local não é apagada e registros já importados não são
+sobrescritos.
+
+Cada nova emissão copia para o certificado um snapshot JSON do modelo e cópias
+binárias das imagens. Assim, editar um modelo não altera PDFs já emitidos.
+Certificados anteriores à migration 15 continuam usando o layout legado.
 
 Uma aula conclui com 90% de cobertura única do vídeo. Temporariamente, a duração
 é informada como `MM:SS` pelo professor ou administrador; o frontend a converte
@@ -58,6 +75,22 @@ backend deriva os intervalos de heartbeats temporizados, aceita reprodução at�
 contam duas vezes. Depois da primeira matrícula, a estrutura de
 aulas e a exclusão do curso ficam bloqueadas; mudanças estruturais futuras
 devem usar uma nova versão do curso.
+
+### Cursos de teste
+
+Em desenvolvimento ou homologação, habilite as duas variáveis abaixo para
+mostrar a opção **Ambiente de teste** no formulário e autorizar o atalho no
+backend:
+
+```dotenv
+ALLOW_TEST_COURSE_BYPASS=true
+VITE_ENABLE_TEST_COURSES=true
+```
+
+`ALLOW_TEST_COURSE_BYPASS` deve ficar `false` em produção. Quando um aluno
+inicia um curso marcado como teste, a matrícula e todas as aulas são concluídas
+com 100%, sem contabilizar tempo assistido, e o certificado é emitido na mesma
+transação. O modo não pode ser alterado depois da primeira matrícula.
 
 ## Verificação
 
@@ -84,12 +117,20 @@ login, matrícula, aulas sequenciais, conclusão concorrente, PDF e validação.
 
 1. Execute `npm run test:postgres` em desenvolvimento.
 2. Faça backup do banco de homologação.
-3. Rode o diagnóstico de duplicidade descrito em
-   `backend/database/README.md`.
-4. Aplique a migration 7 em homologação com parada em qualquer erro.
+3. Identifique as migrations já aplicadas e rode os diagnósticos de duplicidade
+   e propriedade descritos no [guia do banco](backend/database/README.md).
+4. Aplique todas as migrations pendentes até a 17 em homologação, em ordem
+   numérica, interrompendo a sequência em qualquer erro.
 5. A migration 8 retorna cursos antigos sem ID e duração cadastrados para
    rascunho. Revise a URL e informe a duração de cada aula antes de republicar.
-6. Faça o fluxo completo com um curso piloto.
-7. Só então repita o procedimento em produção.
+6. A migration 14 fixa a aprovação dos questionários existentes em 70% e três
+   tentativas. Faça o fluxo completo com um curso piloto, incluindo questionário
+   e certificado.
+7. A migration 15 cria os modelos persistentes e os snapshots imutáveis dos
+   certificados; confirme que existe exatamente um modelo padrão.
+8. A migration 16 agenda a revalidação de vídeos. Antes de iniciar o backend,
+   confira o modo de conexão exigido no [guia de escalabilidade](docs/README_ESCALABILIDADE.md).
+9. A migration 17 cria a tabela separada de anexos PDF das aulas (até 6 MiB).
+10. Só então repita o procedimento em produção.
 
 Mantenha `DB_SYNCHRONIZE=false` fora de bancos descartáveis.

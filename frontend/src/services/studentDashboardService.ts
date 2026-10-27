@@ -10,6 +10,7 @@ import { mockStudentDashboardService } from "../data/mocks/studentDashboardMock"
 type DataSource = "mock" | "api";
 
 const DATA_SOURCE: DataSource = (import.meta.env.VITE_STUDENT_DASHBOARD_DATA_SOURCE as DataSource) ?? "mock";
+export const studentDashboardUsesDemoData = DATA_SOURCE === "mock";
 
 if (!["mock", "api"].includes(DATA_SOURCE)) {
   throw new Error(`VITE_STUDENT_DASHBOARD_DATA_SOURCE inválido: "${DATA_SOURCE}". Use "mock" ou "api".`);
@@ -25,13 +26,13 @@ export class StudentDashboardApiError extends Error {
 
 /**
  * Contrato da API: GET /aluno/ranking
- * 
+ *
  * Query params:
  * - scope: "nacional" | "municipal" (obrigatório)
  * - municipality: string (obrigatório se scope === "municipal")
  * - currentUserId: string (opcional)
  * - currentUserName: string (opcional)
- * 
+ *
  * Response (RankingResponse):
  * {
  *   scope: "nacional" | "municipal",
@@ -41,7 +42,7 @@ export class StudentDashboardApiError extends Error {
  *   municipality?: string,
  *   municipalityRequired?: boolean
  * }
- * 
+ *
  * RankingParticipant:
  * {
  *   position: number,
@@ -61,7 +62,7 @@ const realService = {
     if (municipality) params.append("municipality", municipality);
     if (currentUserId) params.append("currentUserId", currentUserId);
     if (currentUserName) params.append("currentUserName", currentUserName);
-    
+
     const response = await apiFetch(`/aluno/ranking?${params.toString()}`);
     if (!response.ok) {
       throw new Error(
@@ -74,16 +75,16 @@ const realService = {
 
   /**
    * Contrato da API: GET /aluno/conquistas
-   * 
+   *
    * Query params:
-   * - filter: "todas" | "conquistadas" | "bloqueadas" (default: "todas")
-   * 
+   * - filter: "todas" | "conquistadas" | "em_progresso" | "bloqueadas" (default: "todas")
+   *
    * Response (AchievementsResponse):
    * {
    *   achievements: Achievement[],
    *   stats: { total: number; conquered: number; locked: number }
    * }
-   * 
+   *
    * Achievement:
    * {
    *   id: string,
@@ -91,7 +92,7 @@ const realService = {
    *   description: string,
    *   unlockCondition: string,
    *   icon: string,
-   *   status: "conquistada" | "bloqueada",
+   *   status: "conquistada" | "em_progresso" | "bloqueada",
    *   acquiredAt?: string,      // ISO 8601
    *   progress?: { current: number; target: number }
    * }
@@ -115,8 +116,8 @@ const mockServiceWrapper = {
   getAchievements: (filter: AchievementFilter = "todas") => mockStudentDashboardService.getAchievements(filter),
 };
 
-export const studentDashboardService = DATA_SOURCE === "mock" 
-  ? mockServiceWrapper 
+export const studentDashboardService = DATA_SOURCE === "mock"
+  ? mockServiceWrapper
   : realService;
 
 export default studentDashboardService;
