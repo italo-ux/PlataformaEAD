@@ -108,6 +108,10 @@ Para validar a sequência em um PostgreSQL descartável, execute
 `npm run test:postgres` a partir de `backend/`. O comando exige permissão de
 `CREATE DATABASE`, cria e remove um banco temporário e não aplica migrations
 ao banco configurado em `DB_NAME`.
+Para verificar também o script RLS, use exclusivamente uma instância de teste
+descartável com as roles `anon`, `authenticated` e `plataformaead_app` já
+criadas, e execute o mesmo comando com `TEST_SUPABASE_RLS=true`. Essa opção
+aplica as políticas apenas ao banco temporário criado pelo teste.
 
 Antes da migration 7, diagnostique matrículas duplicadas:
 
@@ -268,9 +272,10 @@ DB_NAME=plataforma_ead
 DB_SYNCHRONIZE=false
 ```
 
-Mantenha `DB_SYNCHRONIZE=false` quando usar as migrations. O modo automático
-só deve ser habilitado explicitamente em um banco de desenvolvimento
-descartável.
+Mantenha `DB_SYNCHRONIZE=false`: o backend recusa iniciar com sincronização
+automática habilitada. Aplique as migrations também em bancos descartáveis.
+Quando `DB_SSL=true`, o certificado do servidor é verificado; configure
+`DB_SSL_CA` com a CA do provedor quando ela não for confiável pelo sistema.
 
 ## 📞 Suporte
 

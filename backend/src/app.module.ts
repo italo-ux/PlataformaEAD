@@ -28,6 +28,10 @@ import { PlaybackSession } from './jornada/playback-session.entity';
 import { APP_FILTER } from '@nestjs/core';
 import { ApiExceptionFilter } from './common/api-exception.filter';
 import {
+  databaseTlsConfig,
+  schemaSynchronizationEnabled,
+} from './common/runtime-policy';
+import {
   AlternativaQuestionario,
   PerguntaQuestionario,
   Questionario,
@@ -45,8 +49,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASSWORD ?? '',
       database: process.env.DB_NAME ?? 'plataforma_ead',
-      ssl:
-        process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+      ssl: databaseTlsConfig(),
       extra: {
         max: Number(process.env.DB_POOL_MAX ?? 5),
       },
@@ -72,7 +75,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
         TentativaQuestionario,
         RespostaQuestionario,
       ],
-      synchronize: process.env.DB_SYNCHRONIZE === 'true',
+      synchronize: schemaSynchronizationEnabled(),
     }),
     AuthModule,
     CursosModule,

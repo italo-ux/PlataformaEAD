@@ -10,6 +10,7 @@ import { AuthenticatedUser } from '../auth/authenticated-user.interface';
 import { Certificado } from '../certificados/certificado.entity';
 import { CertificateIssuanceService } from '../certificados/certificate-issuance.service';
 import { AulaTipo } from '../cursos/aula.entity';
+import { CursosService } from '../cursos/cursos.service';
 import { QUIZ_MAX_ATTEMPTS, QUIZ_PASS_PERCENTAGE } from '../cursos/quiz-policy';
 import {
   Questionario,
@@ -25,6 +26,7 @@ export class QuestionarioService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly certificateIssuance: CertificateIssuanceService,
+    private readonly cursosService: CursosService,
   ) {}
 
   async getLatestResult(
@@ -32,6 +34,7 @@ export class QuestionarioService {
     lessonId: string,
     actor: AuthenticatedUser,
   ) {
+    await this.cursosService.findOne(courseId, actor);
     const enrollment = await this.dataSource.getRepository(Matricula).findOne({
       where: { id_usuario: actor.userId, id_curso: courseId },
       relations: { aulas: true },
@@ -95,12 +98,13 @@ export class QuestionarioService {
     };
   }
 
-  submit(
+  async submit(
     courseId: string,
     lessonId: string,
     input: SubmitQuestionarioDto,
     actor: AuthenticatedUser,
   ) {
+    await this.cursosService.findOne(courseId, actor);
     return this.dataSource.transaction(async (manager) => {
       const enrollmentRepository = manager.getRepository(Matricula);
       const lockedEnrollment = await enrollmentRepository.findOne({
@@ -197,11 +201,10 @@ export class QuestionarioService {
         }
         return { question, selected, correct };
       });
-      const percentage =
-        possiblePoints > 0
-          ? Number(((earnedPoints / possiblePoints) * 100).toFixed(2))
-          : 0;
-      const approved = percentage >= QUIZ_PASS_PERCENTAGE;
+      const rawPercentage =
+        possiblePoints > 0 ? (earnedPoints / possiblePoints) * 100 : 0;
+      const percentage = Math.floor(rawPercentage * 100) / 100;
+      const approved = rawPercentage >= QUIZ_PASS_PERCENTAGE;
       const attempt = await manager.save(
         manager.create(TentativaQuestionario, {
           id_questionario: quiz.id,

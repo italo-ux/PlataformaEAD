@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.interface';
+import { isTestCourseBypassEnabled } from '../common/runtime-policy';
 import { UserRole } from '../auth/user-role.enum';
 import { Matricula } from '../jornada/matricula.entity';
 import { ProgressoAula } from '../jornada/progresso-aula.entity';
@@ -356,7 +357,7 @@ export class CursosService {
   }
 
   private assertTestCourseModeAllowed(enabled?: boolean) {
-    if (enabled && process.env.ALLOW_TEST_COURSE_BYPASS !== 'true') {
+    if (enabled && !isTestCourseBypassEnabled()) {
       throw new ForbiddenException(
         'O ambiente de teste está desabilitado nesta instalação.',
       );

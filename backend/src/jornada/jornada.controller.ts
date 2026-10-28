@@ -9,9 +9,11 @@ import {
   HttpCode,
   HttpStatus,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { Request } from 'express';
+import type { Response } from 'express';
 import { AuthenticatedUser } from '../auth/authenticated-user.interface';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -38,16 +40,22 @@ export class JornadaController {
 
   @Get('cursos/:courseId/aulas/:lessonId/questionario/tentativas')
   @Roles(UserRole.ALUNO)
-  getLatestQuestionarioResult(
+  async getLatestQuestionarioResult(
     @Param('courseId', new ParseUUIDPipe()) courseId: string,
     @Param('lessonId', new ParseUUIDPipe()) lessonId: string,
     @Req() request: Request & { user: AuthenticatedUser },
+    @Res({ passthrough: true }) response: Response,
   ) {
-    return this.questionarioService.getLatestResult(
+    const result = await this.questionarioService.getLatestResult(
       courseId,
       lessonId,
       request.user,
     );
+    if (!result) {
+      response.status(HttpStatus.NO_CONTENT);
+      return;
+    }
+    return result;
   }
 
   @Post('cursos/:courseId/aulas/:lessonId/questionario/tentativas')

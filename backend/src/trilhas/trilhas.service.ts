@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, QueryFailedError, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.interface';
 import { Curso } from '../cursos/curso.entity';
 import { CursosService } from '../cursos/cursos.service';
@@ -97,14 +97,27 @@ export class TrilhasService {
       id_trilha: id,
     });
     if (!existente) {
-      await this.seguimentosRepository.save(
-        this.seguimentosRepository.create({
-          id_usuario: actor.userId,
-          id_trilha: id,
-          progresso: 0,
-          concluida: false,
-        }),
-      );
+      try {
+        await this.seguimentosRepository.save(
+          this.seguimentosRepository.create({
+            id_usuario: actor.userId,
+            id_trilha: id,
+            progresso: 0,
+            concluida: false,
+          }),
+        );
+      } catch (error) {
+        const driverError =
+          error instanceof QueryFailedError
+            ? (error.driverError as { code?: string; constraint?: string })
+            : null;
+        if (
+          driverError?.code !== '23505' ||
+          driverError.constraint !== 'uq_usuario_trilha_usuario_trilha'
+        ) {
+          throw error;
+        }
+      }
     }
     return { seguindo: true };
   }

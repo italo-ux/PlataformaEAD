@@ -21,6 +21,8 @@ export class AuthService {
   private static readonly GENERIC_VERIFICATION_MESSAGE =
     'Se a conta estiver pendente, um novo código será enviado.';
   private static readonly RESET_CODE_TTL_MS = 15 * 60 * 1000;
+  private static readonly DUMMY_PASSWORD_HASH =
+    '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.';
 
   constructor(
     private jwtService: JwtService,
@@ -110,13 +112,9 @@ export class AuthService {
       where: { email: email.trim().toLowerCase() },
     });
 
-    // Primeiro: garante que o usuário existe no banco
-    if (!user) {
-      throw new UnauthorizedException('Usuário não encontrado');
-    }
-
     // Segundo: compara o código enviado com o código guardado no banco
     if (
+      !user ||
       user.is_verified ||
       !/^\d{6}$/.test(code) ||
       !user.verification_code ||
@@ -140,8 +138,12 @@ export class AuthService {
       where: { email: email.trim().toLowerCase() },
     });
 
-    if (!user) {
-      throw new UnauthorizedException('Usuário não encontrado');
+    const isMatch = await bcrypt.compare(
+      password,
+      user?.password_hash ?? AuthService.DUMMY_PASSWORD_HASH,
+    );
+    if (!user || !isMatch) {
+      throw new UnauthorizedException('E-mail ou senha inválidos');
     }
 
     // Bloqueia o login se o e-mail não tiver sido verificado ainda
@@ -149,13 +151,6 @@ export class AuthService {
       throw new UnauthorizedException(
         'Por favor, verifique seu e-mail antes de fazer login.',
       );
-    }
-
-    // Compara a senha digitada com o hash salvo no banco
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-
-    if (!isMatch) {
-      throw new UnauthorizedException('Senha inválida');
     }
 
     // Deu tudo certo! Gera o token JWT para o front-end

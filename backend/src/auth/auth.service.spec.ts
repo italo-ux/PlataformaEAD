@@ -336,6 +336,28 @@ describe('AuthService', () => {
     expect(sign).not.toHaveBeenCalled();
   });
 
+  it('uses the same login error for missing accounts and incorrect passwords', async () => {
+    repository.findOne
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(makeUser());
+    jest.mocked(bcrypt.compare).mockResolvedValue(false as never);
+    await expect(service.login('missing@example.com', 'wrong')).rejects.toThrow(
+      'E-mail ou senha inválidos',
+    );
+    await expect(service.login('user@example.com', 'wrong')).rejects.toThrow(
+      'E-mail ou senha inválidos',
+    );
+    expect(bcrypt.compare).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not disclose an unverified account when its password is incorrect', async () => {
+    repository.findOne.mockResolvedValue(makeUser({ is_verified: false }));
+    jest.mocked(bcrypt.compare).mockResolvedValue(false as never);
+    await expect(service.login('user@example.com', 'wrong')).rejects.toThrow(
+      'E-mail ou senha inválidos',
+    );
+  });
+
   it('does not reveal an unknown account when resending verification', async () => {
     repository.findOne.mockResolvedValue(null);
     await expect(

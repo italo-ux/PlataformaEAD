@@ -5,6 +5,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import bcrypt from 'bcrypt';
+import QRCode from 'qrcode';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Client } from 'pg';
@@ -258,6 +259,19 @@ try {
       200,
     );
     assert.equal(studentTrails[0].cursos.some((item) => item.id === hiddenDraft.rows[0].id), false);
+    const followRoute = '/trilhas/' + trail.rows[0].id + '/seguir';
+    const followed = await Promise.all([
+      expectJson(baseUrl, followRoute, { method: 'POST', headers: authorization }, 201),
+      expectJson(baseUrl, followRoute, { method: 'POST', headers: authorization }, 201),
+    ]);
+    assert(followed.every((item) => item.seguindo));
+    const followedRows = await database.query('SELECT COUNT(*)::int AS count FROM usuario_trilha WHERE id_usuario = $1 AND id_trilha = $2', [student.rows[0].id, trail.rows[0].id]);
+    assert.equal(followedRows.rows[0].count, 1);
+    const followedTrails = await expectJson(baseUrl, '/trilhas/seguidas', { headers: authorization }, 200);
+    assert(followedTrails.some((item) => item.id === trail.rows[0].id));
+    await expectJson(baseUrl, followRoute, { method: 'DELETE', headers: authorization }, 204);
+    const followStatus = await expectJson(baseUrl, '/trilhas/' + trail.rows[0].id + '/seguimento', { headers: authorization }, 200);
+    assert.equal(followStatus.seguindo, false);
 
     const professorLogin = await expectJson(
       baseUrl,
@@ -369,6 +383,13 @@ try {
     );
 
     const attackSession = await startPlayback(orderedLessons[0].id);
+    await database.query('UPDATE aulas SET youtube_embeddable = FALSE WHERE id = $1', [orderedLessons[0].id]);
+    await expectJson(baseUrl, lessonRoute(orderedLessons[0].id) + '/reproducao', {
+      method: 'POST', headers: authorization, body: JSON.stringify({ posicao_segundos: 0 }),
+    }, 404);
+    await expectJson(baseUrl, lessonRoute(orderedLessons[0].id) + '/reproducao/' + attackSession.id + '/heartbeat',
+      heartbeat(orderedLessons[0].id, attackSession.id, 1, 0), 404);
+    await database.query('UPDATE aulas SET youtube_embeddable = TRUE WHERE id = $1', [orderedLessons[0].id]);
     const burst = await expectJson(
       baseUrl,
       lessonRoute(orderedLessons[0].id) +
@@ -547,8 +568,193 @@ try {
       baseUrl, '/admin/dashboard/resumo?cursoId=nao-e-uuid',
       { headers: adminAuthorization }, 400,
     );
+
+    // Exercise authoring and grading through HTTP against the isolated database.
+    const professorJson = { ...professorHeaders, 'Content-Type': 'application/json' };
+    await expectJson(baseUrl, '/cursos', {
+      method: 'POST', headers: professorJson,
+      body: JSON.stringify({ nome: '   ', carga_horaria: 1 }),
+    }, 400);
+    const quizCourse = await expectJson(baseUrl, '/cursos', {
+      method: 'POST', headers: professorJson,
+      body: JSON.stringify({ nome: 'Questionário E2E', carga_horaria: 1 }),
+    }, 201);
+    const quizDefinition = {
+      nota_minima: 70, max_tentativas: 3, pontos_base: 0,
+      perguntas: [
+        { enunciado: 'Questão sete pontos', pontos: 7, alternativas: [
+          { texto: 'Correta', correta: true }, { texto: 'Incorreta', correta: false },
+        ] },
+        { enunciado: 'Questão três pontos', pontos: 3, alternativas: [
+          { texto: 'Correta', correta: true }, { texto: 'Incorreta', correta: false },
+        ] },
+      ],
+    };
+    const quizLessonsRoute = '/cursos/' + quizCourse.id + '/aulas';
+    await expectJson(baseUrl, quizLessonsRoute, {
+      method: 'POST', headers: professorJson,
+      body: JSON.stringify({ titulo: 'Vazio', tipo: 'questionario', questionario: { ...quizDefinition, perguntas: [] } }),
+    }, 400);
+    await expectJson(baseUrl, quizLessonsRoute, {
+      method: 'POST', headers: professorJson,
+      body: JSON.stringify({ titulo: 'Inválido', tipo: 'questionario', questionario: {
+        ...quizDefinition, perguntas: [{ ...quizDefinition.perguntas[0], enunciado: '   ' }],
+      } }),
+    }, 400);
+    await expectJson(baseUrl, quizLessonsRoute, {
+      method: 'POST', headers: professorJson,
+      body: JSON.stringify({ titulo: 'Inválido', tipo: 'questionario', questionario: {
+        ...quizDefinition, perguntas: [{ ...quizDefinition.perguntas[0], alternativas: [
+          { texto: '   ', correta: true }, { texto: 'Opção', correta: false },
+        ] }],
+      } }),
+    }, 400);
+    const quizLesson = await expectJson(baseUrl, quizLessonsRoute, {
+      method: 'POST', headers: professorJson,
+      body: JSON.stringify({ titulo: 'Questionário', tipo: 'questionario', questionario: quizDefinition }),
+    }, 201);
+    await expectJson(baseUrl, quizLessonsRoute + '/' + quizLesson.id, {
+      method: 'PATCH', headers: professorJson,
+      body: JSON.stringify({ titulo: 'Questionário editado', questionario: quizDefinition }),
+    }, 200);
+    await expectJson(baseUrl, '/cursos/' + quizCourse.id + '/publicar', {
+      method: 'POST', headers: professorHeaders,
+    }, 201);
+    // A second video is a test fixture to simulate later content unavailability.
+    const quizVideo = await database.query(
+      `INSERT INTO aulas (id_curso, id_instrutor, titulo, url_video, ordem, duracao_minutos,
+       youtube_video_id, duracao_segundos, youtube_embeddable, youtube_validado_em)
+       VALUES ($1, $2, 'Vídeo posterior', 'https://youtu.be/dQw4w9WgXcQ', 2, 1,
+       'dQw4w9WgXcQ', 10, TRUE, NOW()) RETURNING id`,
+      [quizCourse.id, professor.rows[0].id],
+    );
+    const quizJourney = await expectJson(baseUrl, '/cursos/' + quizCourse.id + '/matricula', {
+      method: 'POST', headers: authorization,
+    }, 201);
+    const quizQuestions = quizJourney.aulas[0].questionario.perguntas;
+    assert.equal(quizQuestions.length, 2);
+    assert(quizQuestions.every((question) => question.alternativas.every((item) => !('correta' in item))));
+    const quizRoute = '/cursos/' + quizCourse.id + '/aulas/' + quizLesson.id + '/questionario/tentativas';
+    const emptyResult = await fetch(baseUrl + quizRoute, { headers: authorization });
+    assert.equal(emptyResult.status, 204);
+    const wrongAnswers = { respostas: quizQuestions.map((question) => ({
+      pergunta_id: question.id, alternativa_id: question.alternativas[1].id,
+    })) };
+    const quizPost = (body) => ({ method: 'POST', headers: authorization, body: JSON.stringify(body) });
+    await database.query('UPDATE aulas SET youtube_embeddable = FALSE WHERE id = $1', [quizVideo.rows[0].id]);
+    await expectJson(baseUrl, quizRoute, { headers: authorization }, 404);
+    await expectJson(baseUrl, quizRoute, quizPost(wrongAnswers), 404);
+    await database.query('UPDATE aulas SET youtube_embeddable = TRUE WHERE id = $1', [quizVideo.rows[0].id]);
+    await expectJson(baseUrl, quizRoute, quizPost({ respostas: [wrongAnswers.respostas[0]] }), 400);
+    await expectJson(baseUrl, quizRoute, quizPost({ respostas: [
+      { pergunta_id: quizQuestions[0].id, alternativa_id: quizQuestions[1].alternativas[0].id },
+      wrongAnswers.respostas[1],
+    ] }), 400);
+    const attempts = await Promise.all([
+      expectJson(baseUrl, quizRoute, quizPost(wrongAnswers), 201),
+      expectJson(baseUrl, quizRoute, quizPost(wrongAnswers), 201),
+    ]);
+    assert.deepEqual(attempts.map((attempt) => attempt.numero).sort(), [1, 2]);
+    assert(attempts.every((attempt) => !attempt.gabarito_disponivel && attempt.respostas.length === 0));
+    const finalAttempt = await expectJson(baseUrl, quizRoute, quizPost(wrongAnswers), 201);
+    assert.equal(finalAttempt.numero, 3);
+    assert.equal(finalAttempt.gabarito_disponivel, true);
+    assert.equal(finalAttempt.respostas.length, 2);
+    await expectJson(baseUrl, quizRoute, quizPost(wrongAnswers), 409);
+    const persistedAttempt = await expectJson(baseUrl, quizRoute, { headers: authorization }, 200);
+    assert.equal(persistedAttempt.tentativa_id, finalAttempt.tentativa_id);
+    assert.equal(persistedAttempt.gabarito_disponivel, true);
+
+    await database.query(
+      `INSERT INTO users (name, email, password_hash, is_verified, role, cpf)
+       VALUES ('Segundo aluno E2E', 'segundo-aluno-e2e@example.com', $1, TRUE, 'aluno', '12345678904')`,
+      [passwordHash],
+    );
+    const secondLogin = await expectJson(baseUrl, '/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'segundo-aluno-e2e@example.com', password }),
+    }, 201);
+    const secondHeaders = { Authorization: 'Bearer ' + secondLogin.access_token, 'Content-Type': 'application/json' };
+    const secondJourney = await expectJson(baseUrl, '/cursos/' + quizCourse.id + '/matricula', {
+      method: 'POST', headers: secondHeaders,
+    }, 201);
+    const secondQuestions = secondJourney.aulas[0].questionario.perguntas;
+    const seventyPercent = await expectJson(baseUrl, quizRoute, {
+      method: 'POST', headers: secondHeaders,
+      body: JSON.stringify({ respostas: [
+        { pergunta_id: secondQuestions[0].id, alternativa_id: secondQuestions[0].alternativas[0].id },
+        { pergunta_id: secondQuestions[1].id, alternativa_id: secondQuestions[1].alternativas[1].id },
+      ] }),
+    }, 201);
+    assert.equal(seventyPercent.percentual, 70);
+    assert.equal(seventyPercent.aprovado, true);
+    const afterQuiz = await expectJson(baseUrl, '/cursos/' + quizCourse.id + '/jornada', { headers: secondHeaders }, 200);
+    assert.equal(afterQuiz.aulas[0].status, 'concluida');
+    assert.equal(afterQuiz.aulas[1].status, 'disponivel');
+
+    const adminJson = { ...adminAuthorization, 'Content-Type': 'application/json' };
+    const logo = await QRCode.toBuffer('imagem do modelo de teste', { type: 'png' });
+    const templateInput = {
+      name: 'Modelo E2E', eyebrow: 'Instituição', title: 'Título original',
+      body: '{aluno} concluiu {curso}.', signature: 'Coordenação',
+      primaryColor: '#112233', accentColor: '#445566',
+      logos: [{ name: 'logo.png', src: 'data:image/png;base64,' + logo.toString('base64') }],
+      signatures: [],
+    };
+    const template = await expectJson(baseUrl, '/admin/modelos-certificado', {
+      method: 'POST', headers: adminJson, body: JSON.stringify(templateInput),
+    }, 201);
+    await expectJson(baseUrl, '/admin/modelos-certificado/' + template.id + '/padrao', {
+      method: 'POST', headers: adminAuthorization,
+    }, 201);
+    const snapshotCourse = await database.query(
+      `INSERT INTO cursos (id_instrutor, nome, carga_horaria, status, publicado_em, ambiente_teste)
+       VALUES ($1, 'Curso de snapshot', 1, 'publicado', NOW(), TRUE) RETURNING id`,
+      [professor.rows[0].id],
+    );
+    await database.query(
+      `INSERT INTO aulas (id_curso, id_instrutor, titulo, url_video, ordem, duracao_minutos,
+       youtube_video_id, duracao_segundos, youtube_embeddable, youtube_validado_em)
+       VALUES ($1, $2, 'Vídeo', 'https://youtu.be/dQw4w9WgXcQ', 1, 1,
+       'dQw4w9WgXcQ', 10, TRUE, NOW())`,
+      [snapshotCourse.rows[0].id, professor.rows[0].id],
+    );
+    const snapshotEnrollment = await expectJson(baseUrl, '/cursos/' + snapshotCourse.rows[0].id + '/matricula', {
+      method: 'POST', headers: secondHeaders,
+    }, 201);
+    assert(snapshotEnrollment.certificado);
+    const snapshotId = snapshotEnrollment.certificado.id;
+    const beforeSnapshot = await database.query('SELECT modelo_snapshot FROM certificados WHERE id = $1', [snapshotId]);
+    const beforeImages = await database.query('SELECT png_data FROM certificado_imagens_snapshot WHERE id_certificado = $1', [snapshotId]);
+    assert.equal(beforeSnapshot.rows[0].modelo_snapshot.title, 'Título original');
+    assert.equal(beforeImages.rowCount, 1);
+    assert(beforeImages.rows[0].png_data.equals(logo));
+    await expectJson(baseUrl, '/admin/modelos-certificado/' + template.id, {
+      method: 'PATCH', headers: adminJson,
+      body: JSON.stringify({ ...templateInput, title: 'Título alterado', logos: [] }),
+    }, 200);
+    const afterSnapshot = await database.query('SELECT modelo_snapshot FROM certificados WHERE id = $1', [snapshotId]);
+    const afterImages = await database.query('SELECT png_data FROM certificado_imagens_snapshot WHERE id_certificado = $1', [snapshotId]);
+    assert.deepEqual(afterSnapshot.rows[0].modelo_snapshot, beforeSnapshot.rows[0].modelo_snapshot);
+    assert(afterImages.rows[0].png_data.equals(logo));
+    const snapshotPdf = await fetch(baseUrl + '/certificados/' + snapshotId + '/pdf', { headers: secondHeaders });
+    assert.equal(snapshotPdf.status, 200);
+    assert.equal(Buffer.from(await snapshotPdf.arrayBuffer()).subarray(0, 4).toString(), '%PDF');
+
+    const previousNodeEnv = process.env.NODE_ENV;
+    try {
+      process.env.NODE_ENV = 'production';
+      const productionEnrollment = await expectJson(baseUrl, '/cursos/' + testCourse.rows[0].id + '/matricula', {
+        method: 'POST', headers: secondHeaders,
+      }, 201);
+      assert.equal(productionEnrollment.matricula.conclusao, false);
+      assert.equal(productionEnrollment.matricula.progresso, 0);
+      assert.equal(productionEnrollment.certificado, null);
+    } finally {
+      process.env.NODE_ENV = previousNodeEnv;
+    }
     console.log(
-      'Projeto executado: jornada, curso de teste, certificados, PDF e dashboard administrativo validados.',
+      'Projeto executado: jornada, questionários, curso de teste, certificados, PDF e dashboard administrativo validados.',
     );
   } finally {
     if (frontend && frontend.exitCode === null) {

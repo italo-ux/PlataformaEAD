@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AlertTriangle, ArrowLeft, BookOpen, Clock3, PlusCircle, Search } from "lucide-react";
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
@@ -131,6 +131,7 @@ export default function CoursesPage() {
           )}
           <label className="mb-6 flex max-w-xl items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2">
             <Search size={18} className="text-slate-400" />
+            <span className="sr-only">Buscar cursos</span>
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -147,10 +148,10 @@ export default function CoursesPage() {
           {!loading && !error && (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {filteredCourses.map((course) => (
-                <article
+                <Link
                   key={course.id}
-                  onClick={() => navigate(`/courses/${course.id}`)}
-                  className="cursor-pointer overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+                  to={`/courses/${course.id}`}
+                  className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
                 >
                   <div className="h-40 bg-slate-200">
                     {course.url_foto ? (
@@ -195,7 +196,7 @@ export default function CoursesPage() {
                         : `${course.carga_horaria} horas`}
                     </p>
                   </div>
-                </article>
+                </Link>
               ))}
             </div>
           )}

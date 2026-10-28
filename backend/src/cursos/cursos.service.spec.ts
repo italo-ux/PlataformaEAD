@@ -151,6 +151,20 @@ describe('CursosService', () => {
     ).resolves.toEqual(createdCourse);
   });
 
+  it('rejeita a criação de curso de teste em produção mesmo com o bypass configurado', () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    process.env.ALLOW_TEST_COURSE_BYPASS = 'true';
+    try {
+      expect(() =>
+        service.create({ nome: 'Curso rápido', ambiente_teste: true }, owner),
+      ).toThrow(ForbiddenException);
+      expect(repository.save).not.toHaveBeenCalled();
+    } finally {
+      process.env.NODE_ENV = previousNodeEnv;
+    }
+  });
+
   it('não altera o modo de teste depois que houver matrícula', async () => {
     const existingCourse = course();
     repository.findOneBy.mockResolvedValue(existingCourse);

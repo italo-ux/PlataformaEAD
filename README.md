@@ -87,7 +87,8 @@ ALLOW_TEST_COURSE_BYPASS=true
 VITE_ENABLE_TEST_COURSES=true
 ```
 
-`ALLOW_TEST_COURSE_BYPASS` deve ficar `false` em produção. Quando um aluno
+O backend desabilita o atalho quando `NODE_ENV=production`, mesmo que
+`ALLOW_TEST_COURSE_BYPASS=true`; mantenha a variável em `false` em produção. Quando um aluno
 inicia um curso marcado como teste, a matrícula e todas as aulas são concluídas
 com 100%, sem contabilizar tempo assistido, e o certificado é emitido na mesma
 transação. O modo não pode ser alterado depois da primeira matrícula.
@@ -133,4 +134,5 @@ login, matrícula, aulas sequenciais, conclusão concorrente, PDF e validação.
 9. A migration 17 cria a tabela separada de anexos PDF das aulas (até 6 MiB).
 10. Só então repita o procedimento em produção.
 
-Mantenha `DB_SYNCHRONIZE=false` fora de bancos descartáveis.
+Mantenha `DB_SYNCHRONIZE=false`: o backend recusa a inicialização com a
+sincronização automática habilitada. Use as migrations também em testes.

@@ -11,6 +11,7 @@ import { AuthenticatedUser } from '../auth/authenticated-user.interface';
 import { CertificateIssuanceService } from '../certificados/certificate-issuance.service';
 import { EndPlaybackDto } from './dto/end-playback.dto';
 import { CursoStatus } from '../cursos/curso.entity';
+import { CursosService } from '../cursos/cursos.service';
 import { PlaybackHeartbeatDto } from './dto/playback-heartbeat.dto';
 import { StartPlaybackDto } from './dto/start-playback.dto';
 import { Matricula } from './matricula.entity';
@@ -40,6 +41,7 @@ export class PlaybackService {
     private readonly dataSource: DataSource,
     private readonly clock: ClockService,
     private readonly certificateIssuance: CertificateIssuanceService,
+    private readonly cursosService: CursosService,
   ) {}
 
   async start(
@@ -48,6 +50,7 @@ export class PlaybackService {
     input: StartPlaybackDto,
     actor: AuthenticatedUser,
   ) {
+    await this.cursosService.findOne(courseId, actor);
     return this.dataSource.transaction(async (manager) => {
       const enrollment = await this.loadEnrollment(
         manager,
@@ -147,7 +150,14 @@ export class PlaybackService {
     actor: AuthenticatedUser,
     close: boolean,
   ) {
+    await this.cursosService.findOne(courseId, actor);
     const result = await this.dataSource.transaction(async (manager) => {
+      // Keep the same lock order as start(): enrollment first, session second.
+      const enrollment = await this.loadEnrollment(
+        manager,
+        actor.userId,
+        courseId,
+      );
       const session = await manager
         .getRepository(PlaybackSession)
         .createQueryBuilder('sessao')
@@ -158,11 +168,6 @@ export class PlaybackService {
       if (!session)
         throw new NotFoundException('Sessão de reprodução não encontrada.');
 
-      const enrollment = await this.loadEnrollment(
-        manager,
-        actor.userId,
-        courseId,
-      );
       const progress = this.requireUnlockedProgress(enrollment, lessonId);
       if (session.id_progresso_aula !== progress.id) {
         this.logger.warn(

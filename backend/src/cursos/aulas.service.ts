@@ -55,7 +55,7 @@ export class AulasService {
     this.validateContent(tipo, createAulaDto);
     const pdf =
       tipo === AulaTipo.PDF
-        ? parsePdfAttachment(createAulaDto.pdf_arquivo!)
+        ? await parsePdfAttachment(createAulaDto.pdf_arquivo!)
         : null;
     if (tipo === AulaTipo.VIDEO) {
       const duration = createAulaDto.duracao_segundos!;
@@ -244,7 +244,7 @@ export class AulasService {
       throw new BadRequestException('Anexe um PDF para esta aula.');
     }
     const pdf = updateAulaDto.pdf_arquivo
-      ? parsePdfAttachment(updateAulaDto.pdf_arquivo)
+      ? await parsePdfAttachment(updateAulaDto.pdf_arquivo)
       : null;
     const duration = updateAulaDto.duracao_segundos ?? aula.duracao_segundos;
     const videoId =

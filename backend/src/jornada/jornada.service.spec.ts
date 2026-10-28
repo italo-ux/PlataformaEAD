@@ -25,12 +25,33 @@ describe('mergeWatchedRanges', () => {
     ]);
   });
 
+  it('não conta intervalos pequenos que não foram assistidos', () => {
+    expect(mergeWatchedRanges([[0, 40]], [40.2, 90])).toEqual([
+      [0, 40],
+      [40.2, 90],
+    ]);
+  });
+
   it('normalizes invalid negative boundaries without adding coverage', () => {
     expect(mergeWatchedRanges([], [-5, 4])).toEqual([[0, 4]]);
   });
 });
 
 describe('trusted progress policy', () => {
+  it('não conclui uma aula com cobertura ligeiramente inferior a 90%', () => {
+    const progress = {
+      intervalos_assistidos: [[0, 89.999]],
+      concluida: false,
+      concluida_em: null,
+    } as import('./progresso-aula.entity').ProgressoAula;
+    updateLessonCoverage(progress, 100, new Date());
+    expect(progress.percentual).toBe(89.99);
+    expect(progress.concluida).toBe(false);
+    progress.intervalos_assistidos = [[0, 90]];
+    updateLessonCoverage(progress, 100, new Date());
+    expect(progress.concluida).toBe(true);
+  });
+
   it('trims legacy ranges to the official duration and recalculates completion', () => {
     const progress = {
       intervalos_assistidos: trimWatchedRanges([[0, 120]], 100),

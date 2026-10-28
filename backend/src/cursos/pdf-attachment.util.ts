@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { PDFDocument } from 'pdf-lib';
 
 export const MAX_LESSON_PDF_BYTES = 6 * 1024 * 1024;
 
@@ -7,7 +8,7 @@ export interface PdfAttachmentInput {
   dados_base64: string;
 }
 
-export function parsePdfAttachment(input: PdfAttachmentInput) {
+export async function parsePdfAttachment(input: PdfAttachmentInput) {
   if (
     !input ||
     typeof input.nome_arquivo !== 'string' ||
@@ -47,6 +48,17 @@ export function parsePdfAttachment(input: PdfAttachmentInput) {
       .includes(Buffer.from('%%EOF'))
   ) {
     throw new BadRequestException('O arquivo enviado não é um PDF válido.');
+  }
+  try {
+    const document = await PDFDocument.load(bytes, {
+      throwOnInvalidObject: true,
+      updateMetadata: false,
+    });
+    if (document.getPageCount() < 1) throw new Error('PDF sem páginas');
+  } catch {
+    throw new BadRequestException(
+      'O PDF está inválido, incompleto ou protegido por senha.',
+    );
   }
   return { nome_arquivo: name, tamanho_bytes: bytes.length, conteudo: bytes };
 }

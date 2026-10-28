@@ -1,12 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import {
   ComposableMap,
   Geographies,
   Geography,
   ZoomableGroup,
-  type GeographyDatum,
-  type GeoJsonObject,
 } from "react-simple-maps";
+import type { GeoJsonObject } from "geojson";
 import type { UfDistributionItem } from "../../types/dashboard";
 import brazilGeoJson from "../../data/brazil-states.json";
 
@@ -101,16 +100,16 @@ export function BrazilMap({
           }}
         >
           <ZoomableGroup
-            center={[0, 0]}
+            center={[-51.9253, -14.235]}
             zoom={1}
             minZoom={1}
             maxZoom={8}
             style={{ width: "100%", height: "100%" }}
           >
-            <Geographies geography={brazilGeoJson as GeoJsonObject}>
+            <Geographies geography={brazilGeoJson as unknown as GeoJsonObject}>
               {({ geographies }) =>
-                geographies.map((geo: GeographyDatum) => {
-                  const uf = geo.properties.sigla ?? "";
+                geographies.map((geo) => {
+                  const uf = typeof geo.properties?.sigla === "string" ? geo.properties.sigla : "";
                   const ufData = ufDataMap.get(uf);
                   const alunos = ufData?.alunos ?? 0;
                   const participacao = ufData?.participacao ?? 0;
@@ -123,6 +122,15 @@ export function BrazilMap({
                       key={geo.rsmKey}
                       geography={geo}
                       onClick={() => uf && onUfClick(uf)}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Filtrar por ${ufData?.nome ?? uf}`}
+                      onKeyDown={(event) => {
+                        if ((event.key === "Enter" || event.key === " ") && uf) {
+                          event.preventDefault();
+                          onUfClick(uf);
+                        }
+                      }}
                       onMouseEnter={() =>
                         ufData && setHoveredUf({
                           uf: uf!,
@@ -133,23 +141,13 @@ export function BrazilMap({
                         })
                       }
                       onMouseLeave={() => setHoveredUf(null)}
+                      className="dashboard-map-geography"
                       style={{
-                        default: {
-                          fill: color,
-                          stroke: isSelected ? "#1e3a8a" : "#fff",
-                          strokeWidth: isSelected ? 3 : 0.5,
-                          transition: "fill 0.2s, stroke 0.2s, stroke-width 0.2s",
-                          filter: isSelected ? "drop-shadow(0 0 4px rgba(30, 58, 138, 0.5))" : "none",
-                        },
-                        hover: {
-                          fill: "#1e40af",
-                          stroke: "#fff",
-                          strokeWidth: 1.5,
-                        },
-                        pressed: {
-                          fill: "#1e3a8a",
-                        },
-                      }}
+                        "--state-fill": color,
+                        "--state-stroke": isSelected ? "#1e3a8a" : "#fff",
+                        "--state-stroke-width": isSelected ? 3 : 0.5,
+                        filter: isSelected ? "drop-shadow(0 0 4px rgba(30, 58, 138, 0.5))" : "none",
+                      } as CSSProperties}
                     />
                   );
                 })

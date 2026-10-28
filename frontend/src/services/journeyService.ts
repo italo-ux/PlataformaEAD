@@ -165,7 +165,7 @@ const journeyService = {
     }).then(read<QuizResult>),
   getQuizResult: (courseId: string, lessonId: string) =>
     apiFetch(`/cursos/${courseId}/aulas/${lessonId}/questionario/tentativas`)
-      .then(read<QuizResult | null>),
+      .then((response) => response.status === 204 ? null : read<QuizResult>(response)),
   getLessonPdf: async (courseId: string, lessonId: string) => {
     const response = await apiFetch(`/cursos/${courseId}/aulas/${lessonId}/pdf`);
     if (!response.ok) await read<never>(response);

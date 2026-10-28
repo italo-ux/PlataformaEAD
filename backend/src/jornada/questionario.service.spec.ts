@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/require-await */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/require-await, @typescript-eslint/unbound-method */
 import { DataSource } from 'typeorm';
 import { UserRole } from '../auth/user-role.enum';
 import { AulaTipo } from '../cursos/aula.entity';
@@ -9,6 +9,8 @@ import {
 import { Matricula } from './matricula.entity';
 import { QuestionarioService } from './questionario.service';
 import { CertificateIssuanceService } from '../certificados/certificate-issuance.service';
+import { CursosService } from '../cursos/cursos.service';
+import { NotFoundException } from '@nestjs/common';
 
 describe('QuestionarioService', () => {
   const actor = {
@@ -86,8 +88,17 @@ describe('QuestionarioService', () => {
     const certificateIssuance = {
       issue: jest.fn().mockResolvedValue({}),
     } as unknown as jest.Mocked<CertificateIssuanceService>;
+    const cursosService = {
+      findOne: jest.fn().mockResolvedValue({}),
+    } as unknown as jest.Mocked<CursosService>;
     return {
-      service: new QuestionarioService(dataSource, certificateIssuance),
+      service: new QuestionarioService(
+        dataSource,
+        certificateIssuance,
+        cursosService,
+      ),
+      cursosService,
+      dataSource,
       enrollmentRepository,
       attemptRepository,
       lessonProgress,
@@ -105,6 +116,28 @@ describe('QuestionarioService', () => {
         alternativa_id: questionTwo.alternativas[secondCorrect ? 0 : 1].id,
       },
     ],
+  });
+
+  it('rejeita consulta e envio quando o curso não está visível', async () => {
+    const context = setup(0);
+    context.cursosService.findOne.mockRejectedValue(new NotFoundException());
+    const courseId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    await expect(
+      context.service.getLatestResult(
+        courseId,
+        context.lessonProgress.id_aula,
+        actor,
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      context.service.submit(
+        courseId,
+        context.lessonProgress.id_aula,
+        answers(false, false),
+        actor,
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(context.dataSource.transaction).not.toHaveBeenCalled();
   });
 
   it('aprova com 70% e não revela o gabarito', async () => {
@@ -129,6 +162,28 @@ describe('QuestionarioService', () => {
     ).toBe(true);
     expect(result.respostas).toEqual([]);
     expect(context.lessonProgress.concluida).toBe(true);
+  });
+
+  it('não aprova uma nota ligeiramente inferior a 70%', async () => {
+    const originalOne = questionOne.pontos;
+    const originalTwo = questionTwo.pontos;
+    questionOne.pontos = 13999;
+    questionTwo.pontos = 6001;
+    try {
+      const context = setup(0);
+      const result = await context.service.submit(
+        'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        context.lessonProgress.id_aula,
+        answers(true, false),
+        actor,
+      );
+      expect(result.percentual).toBe(69.99);
+      expect(result.aprovado).toBe(false);
+      expect(context.lessonProgress.concluida).toBe(false);
+    } finally {
+      questionOne.pontos = originalOne;
+      questionTwo.pontos = originalTwo;
+    }
   });
 
   it('mantém o gabarito oculto enquanto ainda existem tentativas', async () => {

@@ -61,6 +61,34 @@ try {
       'Toda tabela pública criada pelas migrations deve constar no script de RLS.',
     );
 
+    if (process.env.TEST_SUPABASE_RLS === 'true') {
+      const roles = await testDatabase.query(
+        `SELECT rolname FROM pg_roles WHERE rolname IN ('anon', 'authenticated', 'plataformaead_app')`,
+      );
+      assert.equal(roles.rowCount, 3, 'As três roles de teste devem existir previamente.');
+      await testDatabase.query('GRANT USAGE ON SCHEMA public TO anon, authenticated, plataformaead_app');
+      await testDatabase.query('GRANT SELECT ON public.users TO anon, authenticated, plataformaead_app');
+      await testDatabase.query(rlsScript);
+      const policies = await testDatabase.query(
+        `SELECT relname, relrowsecurity, relforcerowsecurity
+         FROM pg_class JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace
+         WHERE nspname = 'public' AND relkind = 'r'`,
+      );
+      assert(policies.rows.every((table) => table.relrowsecurity && table.relforcerowsecurity));
+      const privileges = await testDatabase.query(
+        `SELECT has_table_privilege('anon', 'public.users', 'SELECT') AS anon,
+                has_table_privilege('authenticated', 'public.users', 'SELECT') AS authenticated,
+                has_table_privilege('plataformaead_app', 'public.users', 'SELECT') AS backend`,
+      );
+      assert.deepEqual(privileges.rows[0], { anon: false, authenticated: false, backend: true });
+      await testDatabase.query('SET ROLE plataformaead_app');
+      try {
+        await testDatabase.query('SELECT COUNT(*) FROM public.users');
+      } finally {
+        await testDatabase.query('RESET ROLE');
+      }
+    }
+
     const tables = await testDatabase.query(
       `SELECT table_name
        FROM information_schema.tables

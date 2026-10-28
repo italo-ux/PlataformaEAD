@@ -36,11 +36,13 @@
     "class-validator": "^0.15.1",
     "dotenv": "^17.4.2",
     "jsonwebtoken": "^9.0.3",
-    "nodemailer": "^9.0.3",
+    "nodemailer": "^10.2.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
+    "pdf-lib": "^1.17.1",
     "pdfkit": "^0.20.2",
     "pg": "^8.21.0",
+    "pngjs": "^5.0.0",
     "qrcode": "^1.5.4",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
@@ -78,7 +80,7 @@
     "typescript-eslint": "^8.20.0"
   },
   "overrides": {
-    "multer": "^2.4.0"
+    "multer": "^2.5.0"
   },
   "jest": {
     "moduleFileExtensions": [

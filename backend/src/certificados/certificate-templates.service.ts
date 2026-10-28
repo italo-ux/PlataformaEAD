@@ -5,6 +5,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
+import { inflateSync } from 'node:zlib';
+import { PNG } from 'pngjs';
 import {
   CertificateLogoDto,
   CertificateSignatureDto,
@@ -22,7 +24,6 @@ import {
 } from './certificate-template.types';
 
 const PNG_SIGNATURE = Buffer.from('89504e470d0a1a0a', 'hex');
-const PNG_IEND = Buffer.from('IEND', 'ascii');
 const MAX_IMAGE_BYTES = 1024 * 1024;
 const MAX_IMAGE_DIMENSION = 4096;
 const MAX_IMAGE_PIXELS = 16_777_216;
@@ -294,9 +295,37 @@ export class CertificateTemplatesService {
       height === 0 ||
       width > MAX_IMAGE_DIMENSION ||
       height > MAX_IMAGE_DIMENSION ||
-      width * height > MAX_IMAGE_PIXELS ||
-      data.indexOf(PNG_IEND, 24) < 0
+      width * height > MAX_IMAGE_PIXELS
     ) {
+      throw new BadRequestException(
+        'Cada imagem deve ser um PNG válido de até 1 MB.',
+      );
+    }
+    try {
+      // Bound decompression before decoding, including interlaced PNGs.
+      const imageChunks: Buffer[] = [];
+      let offset = PNG_SIGNATURE.length;
+      let sawEnd = false;
+      while (offset + 12 <= data.length) {
+        const size = data.readUInt32BE(offset);
+        const end = offset + 12 + size;
+        if (end > data.length) throw new Error('Truncated PNG chunk');
+        const kind = data.toString('ascii', offset + 4, offset + 8);
+        if (kind === 'IDAT')
+          imageChunks.push(data.subarray(offset + 8, offset + 8 + size));
+        offset = end;
+        if (kind === 'IEND') {
+          sawEnd = size === 0 && offset === data.length;
+          break;
+        }
+      }
+      if (!sawEnd || imageChunks.length === 0)
+        throw new Error('Incomplete PNG');
+      inflateSync(Buffer.concat(imageChunks), {
+        maxOutputLength: width * height * 8 + height * 8 + 1024,
+      });
+      PNG.sync.read(data, { checkCRC: true });
+    } catch {
       throw new BadRequestException(
         'Cada imagem deve ser um PNG válido de até 1 MB.',
       );

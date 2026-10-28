@@ -39,9 +39,19 @@ const lesson: JourneyLesson = {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("QuizLesson", () => {
+  it("permite a primeira tentativa quando a API retorna 204 sem resultado anterior", async () => {
+    vi.stubGlobal("localStorage", { getItem: () => null });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 204 }));
+    render(<QuizLesson courseId="course" lesson={lesson} isStudent canSubmit onCompleted={vi.fn()} />);
+
+    const button = await screen.findByRole("button", { name: "Finalizar questionário" });
+    await vi.waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+  });
+
   it("mantém o gabarito oculto antes da terceira tentativa", async () => {
     vi.spyOn(journeyService, "getQuizResult").mockResolvedValue(null);
     vi.spyOn(journeyService, "submitQuiz").mockResolvedValue({

@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsInt,
   IsArray,
@@ -10,6 +10,7 @@ import {
   IsString,
   IsUrl,
   MaxLength,
+  Max,
   Min,
   ArrayMinSize,
   ValidateNested,
@@ -27,12 +28,22 @@ const youtubeHosts = [
 ];
 
 export class AlternativaQuestionarioDto {
-  @IsString() @IsNotEmpty() texto!: string;
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @IsNotEmpty()
+  texto!: string;
   @IsBoolean() correta!: boolean;
 }
 
 export class PerguntaQuestionarioDto {
-  @IsString() @IsNotEmpty() enunciado!: string;
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @IsNotEmpty()
+  enunciado!: string;
   @Type(() => Number) @IsInt() @Min(1) pontos!: number;
   @IsArray()
   @ArrayMinSize(2)
@@ -69,8 +80,12 @@ export class PdfAttachmentDto {
 }
 
 export class CreateAulaDto {
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
   @IsNotEmpty()
+  @MaxLength(255)
   titulo!: string;
 
   @IsOptional()
@@ -90,12 +105,14 @@ export class CreateAulaDto {
     },
     { message: 'url_video deve ser uma URL válida do YouTube' },
   )
+  @MaxLength(500)
   url_video?: string;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(86400)
   duracao_segundos?: number;
 
   @IsOptional()

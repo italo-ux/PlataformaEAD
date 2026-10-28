@@ -24,7 +24,7 @@ export function mergeWatchedRanges(
   const merged: WatchedRange[] = [];
   for (const range of sorted) {
     const previous = merged.at(-1);
-    if (!previous || range[0] > previous[1] + 0.25) {
+    if (!previous || range[0] > previous[1]) {
       merged.push([...range]);
     } else {
       previous[1] = Math.max(previous[1], range[1]);
@@ -105,9 +105,9 @@ export function updateLessonCoverage(
   const uniqueSeconds = watchedSeconds(progress.intervalos_assistidos ?? []);
   progress.percentual = Math.min(
     100,
-    Math.round((uniqueSeconds / duration) * 10000) / 100,
+    Math.floor((uniqueSeconds / duration) * 10000) / 100,
   );
-  const completed = Number(progress.percentual) >= COMPLETION_THRESHOLD;
+  const completed = (uniqueSeconds / duration) * 100 >= COMPLETION_THRESHOLD;
   if (completed && !progress.concluida) progress.concluida_em = now;
   if (!completed) progress.concluida_em = null;
   progress.concluida = completed;

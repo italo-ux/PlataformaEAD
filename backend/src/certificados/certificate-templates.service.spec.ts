@@ -6,11 +6,10 @@ import {
 } from './certificate-template.entity';
 import { CertificateTemplatesService } from './certificate-templates.service';
 
-const png = Buffer.concat([
-  Buffer.from('89504e470d0a1a0a0000000d494844520000000100000001', 'hex'),
-  Buffer.alloc(16),
-  Buffer.from('49454e44', 'hex'),
-]);
+const png = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4AWP4DwQACfsD/c8LaHIAAAAASUVORK5CYII=',
+  'base64',
+);
 const dataUrl = `data:image/png;base64,${png.toString('base64')}`;
 const input = {
   name: 'Modelo seguro',
@@ -116,6 +115,43 @@ describe('CertificateTemplatesService', () => {
     );
     expect(Buffer.isBuffer(assets[0].png_data)).toBe(true);
     expect(assets[0].png_data.equals(png)).toBe(true);
+  });
+
+  it('rejeita arquivo truncado com assinatura e dimensões de PNG', () => {
+    const { service } = setup();
+    const fake = Buffer.concat([
+      Buffer.from('89504e470d0a1a0a0000000d494844520000000100000001', 'hex'),
+      Buffer.alloc(16),
+      Buffer.from('49454e44', 'hex'),
+    ]);
+    expect(() =>
+      service.create({
+        ...input,
+        logos: [
+          {
+            name: 'fake.png',
+            src: `data:image/png;base64,${fake.toString('base64')}`,
+          },
+        ],
+      }),
+    ).toThrow('PNG válido');
+  });
+
+  it('rejeita PNG com checksum corrompido', () => {
+    const { service } = setup();
+    const corrupted = Buffer.from(png);
+    corrupted[corrupted.length - 1] ^= 1;
+    expect(() =>
+      service.create({
+        ...input,
+        logos: [
+          {
+            name: 'corrompido.png',
+            src: `data:image/png;base64,${corrupted.toString('base64')}`,
+          },
+        ],
+      }),
+    ).toThrow('PNG válido');
   });
 
   it('troca o padrão sob lock transacional', async () => {

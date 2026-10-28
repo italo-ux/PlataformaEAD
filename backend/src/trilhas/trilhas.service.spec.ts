@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { Curso, CursoStatus } from '../cursos/curso.entity';
 import { UserRole } from '../auth/user-role.enum';
 import { TrilhaCurso } from './trilha-curso.entity';
@@ -89,6 +89,29 @@ describe('TrilhasService', () => {
       id_curso: course.id,
       ordem: 1,
     });
+  });
+
+  it('trata seguimentos simultâneos como uma única operação', async () => {
+    const context = setup();
+    context.trilhasRepository.findOneBy.mockResolvedValue(trail);
+    context.seguimentosRepository.findOneBy.mockResolvedValue(null);
+    context.seguimentosRepository.save.mockRejectedValue(
+      new QueryFailedError(
+        'INSERT',
+        [],
+        Object.assign(new Error('duplicate'), {
+          code: '23505',
+          constraint: 'uq_usuario_trilha_usuario_trilha',
+        }),
+      ),
+    );
+    await expect(
+      context.service.follow(trail.id, {
+        userId: 'aluno',
+        email: 'aluno@example.com',
+        role: UserRole.ALUNO,
+      }),
+    ).resolves.toEqual({ seguindo: true });
   });
 
   it('lists serialized trails with courses in their configured order', async () => {

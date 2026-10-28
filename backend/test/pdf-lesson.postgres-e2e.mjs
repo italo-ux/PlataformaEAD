@@ -99,6 +99,12 @@ try {
       titulo: 'Arquivo inválido', tipo: 'pdf',
       pdf_arquivo: { nome_arquivo: 'invalido.pdf', dados_base64: Buffer.from('não é PDF').toString('base64') },
     }, 400);
+    await request(baseUrl, lessonRoute, professor, 'POST', {
+      titulo: 'Arquivo truncado', tipo: 'pdf',
+      pdf_arquivo: { nome_arquivo: 'truncado.pdf', dados_base64: Buffer.from('%PDF-1.7\n%%EOF').toString('base64') },
+    }, 400);
+    const invalidCount = await database.query('SELECT count(*)::int AS total FROM aulas WHERE id_curso = $1', [course.id]);
+    assert.equal(invalidCount.rows[0].total, 0);
     const lesson = await request(baseUrl, lessonRoute, professor, 'POST', {
       titulo: 'Leia o material', tipo: 'pdf',
       pdf_arquivo: { nome_arquivo: 'aula.pdf', dados_base64: original.toString('base64') },

@@ -410,6 +410,16 @@ describe('Cursos authorization (e2e)', () => {
       .get('/cursos/id-invalido')
       .set(authorization(studentId, UserRole.ALUNO))
       .expect(400);
+    await request(app.getHttpServer())
+      .post('/cursos')
+      .set(authorization(professorId, UserRole.PROFESSOR))
+      .send({ nome: 'a'.repeat(256) })
+      .expect(400);
+    await request(app.getHttpServer())
+      .post(`/cursos/${courseId}/aulas`)
+      .set(authorization(professorId, UserRole.PROFESSOR))
+      .send({ ...lessonPayload, duracao_segundos: 86401 })
+      .expect(400);
   });
 
   it('retorna 404 para UUID válido inexistente', async () => {

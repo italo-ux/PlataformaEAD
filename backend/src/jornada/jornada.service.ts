@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.interface';
+import { isTestCourseBypassEnabled } from '../common/runtime-policy';
 import { UserRole } from '../auth/user-role.enum';
 import { User } from '../auth/user.entity';
 import { Certificado } from '../certificados/certificado.entity';
@@ -62,7 +63,7 @@ export class JornadaService {
     }
 
     const completeImmediately =
-      course.ambiente_teste && process.env.ALLOW_TEST_COURSE_BYPASS === 'true';
+      course.ambiente_teste && isTestCourseBypassEnabled();
 
     try {
       await this.dataSource.transaction(async (manager) => {
