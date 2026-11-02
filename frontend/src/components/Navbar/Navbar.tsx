@@ -4,7 +4,6 @@ import {
   FilePenLine,
   BarChart3,
   BookOpen,
-  ChevronDown,
   ChevronRight,
   Home,
   LogOut,
@@ -47,7 +46,13 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
-function AuthenticatedNavigation({ user }: { user: User }) {
+function AuthenticatedNavigation({
+  user,
+  hideTopbar,
+}: {
+  user: User;
+  hideTopbar: boolean;
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const [nextCourse, setNextCourse] = useState<EnrollmentSummary | null>(null);
@@ -106,7 +111,6 @@ function AuthenticatedNavigation({ user }: { user: User }) {
     () => localStorage.getItem("ead.sidebar.collapsed") === "true",
   );
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [adminCoursesOpen, setAdminCoursesOpen] = useState(true);
 
   useEffect(() => {
     document.body.classList.add("authenticated-layout");
@@ -147,7 +151,7 @@ function AuthenticatedNavigation({ user }: { user: User }) {
   const labelClass = collapsed ? "lg:sr-only" : "";
 
   return (
-    <div className="h-[72px]">
+    <div className={hideTopbar ? "h-0" : "h-[72px]"}>
       {mobileOpen && (
         <button
           type="button"
@@ -221,8 +225,9 @@ function AuthenticatedNavigation({ user }: { user: User }) {
             <nav className="nav-links mt-3 space-y-1.5">
               {mainItems.map((item) => {
                 const Icon = item.icon;
-                const isAdminCourses =
-                  item.to === "/courses" && user.role === "admin";
+                const canAddCourses =
+                  item.to === "/courses" &&
+                  (user.role === "admin" || user.role === "professor");
 
                 return (
                   <div key={item.to}>
@@ -232,60 +237,39 @@ function AuthenticatedNavigation({ user }: { user: User }) {
                         end={item.to === "/home"}
                         onClick={closeMobile}
                         className={({ isActive }) =>
-                          `${itemClass({ isActive })} ${isAdminCourses ? (collapsed ? "pr-11 lg:pr-3" : "pr-11") : ""}`
+                          `${itemClass({ isActive })} ${canAddCourses ? (collapsed ? "pr-11 lg:pr-3" : "pr-11") : ""}`
                         }
                         title={collapsed ? item.label : undefined}
                       >
                         <Icon size={20} className="shrink-0" />
                         <span className={labelClass}>{item.label}</span>
                       </NavLink>
-                      {isAdminCourses && (
+                      {canAddCourses && !collapsed && (
                         <button
                           type="button"
-                          onClick={() =>
-                            setAdminCoursesOpen((current) => !current)
-                          }
-                          className={`absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-300 transition hover:bg-white/10 hover:text-white ${collapsed ? "lg:hidden" : ""}`}
-                          aria-label={
-                            adminCoursesOpen
-                              ? "Fechar submenu de cursos"
-                              : "Abrir submenu de cursos"
-                          }
-                          aria-expanded={adminCoursesOpen}
-                          aria-controls="admin-courses-submenu"
+                          onClick={() => {
+                            closeMobile();
+                            navigate("/professor/cursos/novo");
+                          }}
+                          className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-300 transition hover:bg-white/10 hover:text-white"
+                          aria-label="Adicionar curso"
+                          title="Adicionar curso"
                         >
-                          <ChevronDown
-                            size={17}
-                            className={`transition-transform duration-200 ${adminCoursesOpen ? "rotate-180" : ""}`}
-                          />
+                          <PlusCircle size={18} />
                         </button>
                       )}
                     </div>
-                    {isAdminCourses && adminCoursesOpen && (
-                      <div
-                        id="admin-courses-submenu"
-                        className={collapsed ? "lg:hidden" : ""}
+                    {canAddCourses && collapsed && (
+                      <NavLink
+                        to="/professor/cursos/novo"
+                        onClick={closeMobile}
+                        className={`${itemClass({ isActive: false })} mt-1.5`}
+                        title="Adicionar curso"
+                        aria-label="Adicionar curso"
                       >
-                        <NavLink
-                          to="/professor/cursos/novo"
-                          onClick={closeMobile}
-                          className={({ isActive }) =>
-                            `group mt-1 flex min-h-10 items-center gap-2 rounded-r-xl border-l-2 px-3 text-xs font-semibold transition ${
-                              collapsed
-                                ? "lg:justify-center lg:border-l-0"
-                                : "ml-6 pl-4"
-                            } ${
-                              isActive
-                                ? "border-blue-300 bg-blue-500/20 text-blue-100"
-                                : "border-slate-600 text-slate-400 hover:border-blue-300 hover:bg-white/10 hover:text-white"
-                            }`
-                          }
-                          title={collapsed ? "Adicionar curso" : undefined}
-                        >
-                          <PlusCircle size={16} className="shrink-0" />
-                          <span className={labelClass}>Adicionar curso</span>
-                        </NavLink>
-                      </div>
+                        <PlusCircle size={20} className="shrink-0" />
+                        <span className={labelClass}>Adicionar curso</span>
+                      </NavLink>
                     )}
                   </div>
                 );
@@ -409,17 +393,6 @@ function AuthenticatedNavigation({ user }: { user: User }) {
                   <span className={labelClass}>Meu Desempenho</span>
                 </NavLink>
               )}
-              {user.role === "professor" && (
-                <NavLink
-                  to="/professor/cursos/novo"
-                  onClick={closeMobile}
-                  className={itemClass}
-                  title={collapsed ? "Adicionar curso" : undefined}
-                >
-                  <PlusCircle size={20} className="shrink-0" />
-                  <span className={labelClass}>Adicionar curso</span>
-                </NavLink>
-              )}
               {user.role === "admin" && (
                 <NavLink
                   to="/admin/estatisticas"
@@ -476,14 +449,6 @@ function AuthenticatedNavigation({ user }: { user: User }) {
                     ? "Organize seus próximos cursos"
                     : `${courseCount} cursos · ${draftCount ?? 0} rascunhos`}
                 </p>
-                <Link
-                  to="/professor/cursos/novo"
-                  onClick={closeMobile}
-                  className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-blue-300 hover:text-white"
-                >
-                  Criar curso
-                  <PlusCircle size={14} />
-                </Link>
               </>
             ) : (
               <p className="text-xs text-slate-400">
@@ -525,40 +490,54 @@ function AuthenticatedNavigation({ user }: { user: User }) {
         </div>
       </aside>
 
-      <header className="authenticated-topbar fixed right-0 top-0 z-30 h-[72px] border-b border-slate-200/80 bg-white/90 backdrop-blur-xl transition-[left] duration-300">
-        <div className="flex h-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setMobileOpen(true)}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 lg:hidden"
-              aria-label="Abrir menu lateral"
-            >
-              <Menu size={21} />
-            </button>
-
-          </div>
-
-          <Link
-            to="/perfil"
-            className="flex min-w-0 items-center gap-3 rounded-2xl px-2 py-1.5 transition hover:bg-slate-100"
+      {hideTopbar ? (
+        <div className="fixed right-4 top-4 z-30 lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
+            aria-label="Abrir menu lateral"
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-sm font-bold text-white shadow-md shadow-blue-200">
-              {getInitials(user.name)}
-            </span>
-            <span className="hidden min-w-0 sm:block">
-              <span className="block max-w-44 truncate text-sm font-bold text-[#25304a]">
-                {user.name}
-              </span>
-              <span className="block text-xs text-slate-500">{roleLabel}</span>
-            </span>
-            <ChevronRight
-              size={17}
-              className="hidden text-slate-400 sm:block"
-            />
-          </Link>
+            <Menu size={21} />
+          </button>
         </div>
-      </header>
+      ) : (
+        <header className="authenticated-topbar fixed right-0 top-0 z-30 h-[72px] border-b border-slate-200/80 bg-white/90 backdrop-blur-xl transition-[left] duration-300">
+          <div className="flex h-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setMobileOpen(true)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 lg:hidden"
+                aria-label="Abrir menu lateral"
+              >
+                <Menu size={21} />
+              </button>
+            </div>
+
+            <Link
+              to="/perfil"
+              className="flex min-w-0 items-center gap-3 rounded-2xl px-2 py-1.5 transition hover:bg-slate-100"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-sm font-bold text-white shadow-md shadow-blue-200">
+                {getInitials(user.name)}
+              </span>
+              <span className="hidden min-w-0 sm:block">
+                <span className="block max-w-44 truncate text-sm font-bold text-[#25304a]">
+                  {user.name}
+                </span>
+                <span className="block text-xs text-slate-500">
+                  {roleLabel}
+                </span>
+              </span>
+              <ChevronRight
+                size={17}
+                className="hidden text-slate-400 sm:block"
+              />
+            </Link>
+          </div>
+        </header>
+      )}
     </div>
   );
 }
@@ -649,14 +628,16 @@ function PublicNavigation({ hideLoginLink }: { hideLoginLink: boolean }) {
 }
 
 export default function Navbar({
+  hideAuthenticatedTopbar = true,
   hideLoginLink = false,
   user,
 }: {
+  hideAuthenticatedTopbar?: boolean;
   hideLoginLink?: boolean;
   user: User | null;
 }) {
   return user ? (
-    <AuthenticatedNavigation user={user} />
+    <AuthenticatedNavigation user={user} hideTopbar={hideAuthenticatedTopbar} />
   ) : (
     <PublicNavigation hideLoginLink={hideLoginLink} />
   );

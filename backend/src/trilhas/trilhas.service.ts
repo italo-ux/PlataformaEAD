@@ -165,6 +165,34 @@ export class TrilhasService {
     return this.findOne(trilha.id);
   }
 
+  async addCourse(trailId: string, courseId: string) {
+    const trail = await this.trilhasRepository.findOne({
+      where: { id: trailId },
+      relations: { cursos: true },
+    });
+    if (!trail) throw new NotFoundException('Trilha não encontrada');
+
+    const course = await this.cursosRepository.findOneBy({ id: courseId });
+    if (!course) throw new NotFoundException('Curso não encontrado');
+
+    const existingLink = (trail.cursos ?? []).find(
+      (link) => link.id_curso === courseId,
+    );
+    if (!existingLink) {
+      const nextOrder =
+        Math.max(0, ...(trail.cursos ?? []).map((link) => link.ordem ?? 0)) + 1;
+      await this.vinculosRepository.save(
+        this.vinculosRepository.create({
+          id_trilha: trailId,
+          id_curso: courseId,
+          ordem: nextOrder,
+        }),
+      );
+    }
+
+    return this.findOne(trailId);
+  }
+
   async remove(id: string) {
     const trilha = await this.trilhasRepository.findOneBy({ id });
     if (!trilha) throw new NotFoundException('Trilha não encontrada');

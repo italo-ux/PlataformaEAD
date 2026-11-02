@@ -88,6 +88,20 @@ export class JornadaController {
     );
   }
 
+  @Post('cursos/:courseId/aulas/:lessonId/video/concluir')
+  @Roles(UserRole.ALUNO)
+  completeVideoLesson(
+    @Param('courseId', new ParseUUIDPipe()) courseId: string,
+    @Param('lessonId', new ParseUUIDPipe()) lessonId: string,
+    @Req() request: Request & { user: AuthenticatedUser },
+  ) {
+    return this.jornadaService.completeVideoLesson(
+      courseId,
+      lessonId,
+      request.user,
+    );
+  }
+
   @Post('cursos/:courseId/aulas/:lessonId/validar-video')
   @Roles(UserRole.ALUNO, UserRole.PROFESSOR, UserRole.ADMIN)
   validateVideo(

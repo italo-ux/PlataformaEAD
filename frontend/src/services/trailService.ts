@@ -58,6 +58,11 @@ const trailService = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  addCourse: (trailId: string, courseId: string) =>
+    request<Trilha>(`/trilhas/${trailId}/cursos`, {
+      method: "POST",
+      body: JSON.stringify({ courseId }),
+    }),
   deleteTrail: (id: string) =>
     request<void>("/trilhas/" + id, { method: "DELETE" }),
 };

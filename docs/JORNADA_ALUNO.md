@@ -16,7 +16,8 @@
   persistida no cadastro da aula.
   Avanços de até 2x são aceitos; saltos, rajadas e repetições não aumentam a
   cobertura.
-- A aula em vídeo conclui ao atingir 90% da duração cadastrada.
+- A aula em vídeo conclui quando o aluno clica em **Próximo** abaixo do player;
+  o percentual reproduzido não bloqueia a conclusão.
 - A aula PDF fica disponível apenas ao aluno matriculado quando sua vez chega.
   Após abrir o documento, o aluno confirma a leitura para concluir a aula;
   não há medição automática de páginas lidas.

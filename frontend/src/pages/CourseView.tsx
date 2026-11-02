@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
+  ArrowRight,
   BookOpen,
   Check,
   CheckCircle2,
@@ -35,6 +36,7 @@ export default function CourseView() {
   const [currentLessonId, setCurrentLessonId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
+  const [completingVideo, setCompletingVideo] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
   const playerSectionRef = useRef<HTMLElement>(null);
@@ -103,6 +105,35 @@ export default function CourseView() {
       );
     } finally {
       setStarting(false);
+    }
+  };
+
+  const completeCurrentVideo = async () => {
+    if (!courseId || !currentLesson || currentLesson.tipo !== "video" || completingVideo) {
+      return;
+    }
+    setCompletingVideo(true);
+    setError("");
+    try {
+      const updated = await journeyService.completeVideoLesson(
+        courseId,
+        currentLesson.id,
+      );
+      setJourney(updated);
+      const nextLesson = updated.aulas.find(
+        (lesson) =>
+          lesson.id !== currentLesson.id && lesson.status === "disponivel",
+      );
+      setCurrentLessonId(nextLesson?.id ?? currentLesson.id);
+      window.dispatchEvent(new Event("ead.sidebar.refresh"));
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Não foi possível concluir a aula.",
+      );
+    } finally {
+      setCompletingVideo(false);
     }
   };
 
@@ -515,6 +546,24 @@ export default function CourseView() {
                       </div>
                     )}
                   </div>
+
+                  {currentLesson?.tipo === "video" &&
+                    currentLesson.status !== "concluida" &&
+                    user?.role === "aluno" &&
+                    journey.modo === "aluno" &&
+                    journey.matricula && (
+                      <div className="flex justify-end border-b border-slate-100 px-5 py-4 sm:px-6">
+                        <button
+                          type="button"
+                          onClick={() => void completeCurrentVideo()}
+                          disabled={completingVideo}
+                          className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700 disabled:cursor-wait disabled:opacity-60"
+                        >
+                          {completingVideo ? "Salvando..." : "Próximo"}
+                          {!completingVideo && <ArrowRight size={18} />}
+                        </button>
+                      </div>
+                    )}
 
                   {currentLesson && (
                     <div className="p-5 sm:p-7">

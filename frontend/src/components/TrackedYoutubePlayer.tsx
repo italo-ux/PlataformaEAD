@@ -199,7 +199,7 @@ export default function TrackedYoutubePlayer({
       <div ref={containerRef} className="h-full w-full" />
       {!ready && (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-950 text-sm font-semibold text-white">
-          Preparando vídeo e sessão segura...
+          Carregando vídeo...
         </div>
       )}
     </div>

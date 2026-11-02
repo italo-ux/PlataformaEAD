@@ -38,29 +38,30 @@ describe('mergeWatchedRanges', () => {
 });
 
 describe('trusted progress policy', () => {
-  it('não conclui uma aula com cobertura ligeiramente inferior a 90%', () => {
+  it('não conclui uma aula de vídeo pela cobertura assistida', () => {
     const progress = {
       intervalos_assistidos: [[0, 89.999]],
       concluida: false,
       concluida_em: null,
     } as import('./progresso-aula.entity').ProgressoAula;
-    updateLessonCoverage(progress, 100, new Date());
+    updateLessonCoverage(progress, 100);
     expect(progress.percentual).toBe(89.99);
     expect(progress.concluida).toBe(false);
     progress.intervalos_assistidos = [[0, 90]];
-    updateLessonCoverage(progress, 100, new Date());
-    expect(progress.concluida).toBe(true);
+    updateLessonCoverage(progress, 100);
+    expect(progress.concluida).toBe(false);
+    expect(progress.percentual).toBe(90);
   });
 
-  it('trims legacy ranges to the official duration and recalculates completion', () => {
+  it('trims legacy ranges without automatically completing the lesson', () => {
     const progress = {
       intervalos_assistidos: trimWatchedRanges([[0, 120]], 100),
       concluida: false,
       concluida_em: null,
     } as import('./progresso-aula.entity').ProgressoAula;
-    expect(updateLessonCoverage(progress, 100, new Date())).toBe(100);
-    expect(progress.percentual).toBe(100);
-    expect(progress.concluida).toBe(true);
+    expect(updateLessonCoverage(progress, 100)).toBe(100);
+    expect(progress.percentual).toBe(99);
+    expect(progress.concluida).toBe(false);
   });
 
   it('accepts continuous playback up to 2x and rejects faster advances', () => {

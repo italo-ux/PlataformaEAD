@@ -365,7 +365,6 @@ export default function UserHome() {
                     </p>
                     <p className="mt-5 text-xs font-medium text-slate-500">
                       {trail.cursos.length} {trail.cursos.length === 1 ? "curso" : "cursos"}
-                      {trail.nivel ? ` • ${trail.nivel}` : ""}
                     </p>
                   </div>
                 </article>

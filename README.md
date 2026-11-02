@@ -67,14 +67,7 @@ Cada nova emissão copia para o certificado um snapshot JSON do modelo e cópias
 binárias das imagens. Assim, editar um modelo não altera PDFs já emitidos.
 Certificados anteriores à migration 15 continuam usando o layout legado.
 
-Uma aula conclui com 90% de cobertura única do vídeo. Temporariamente, a duração
-é informada como `MM:SS` pelo professor ou administrador; o frontend a converte
-para segundos ao cadastrar a aula. O
-backend deriva os intervalos de heartbeats temporizados, aceita reprodução até
-2x e não aceita duração nem intervalos enviados pelo player do aluno. Repetições e intervalos sobrepostos não
-contam duas vezes. Depois da primeira matrícula, a estrutura de
-aulas e a exclusão do curso ficam bloqueadas; mudanças estruturais futuras
-devem usar uma nova versão do curso.
+Para concluir uma aula em vídeo, o aluno clica em **Próximo** abaixo do player; não há exigência de percentual assistido. A duração continua informada como `MM:SS` pelo professor ou administrador e é convertida para segundos no cadastro. Os heartbeats registram a reprodução, mas não concluem a aula. Depois da primeira matrícula, a estrutura de aulas e a exclusão do curso ficam bloqueadas; mudanças estruturais futuras devem usar uma nova versão do curso.
 
 ### Cursos de teste
 

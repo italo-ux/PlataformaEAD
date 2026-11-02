@@ -250,7 +250,7 @@ export class CursosService {
           item.intervalos_assistidos ?? [],
           duration,
         );
-        const uniqueSeconds = updateLessonCoverage(item, duration, new Date());
+        const uniqueSeconds = updateLessonCoverage(item, duration);
         item.tempo_reproducao_validado_segundos = uniqueSeconds / 2;
         item.posicao_segundos = Math.min(item.posicao_segundos, duration);
       }

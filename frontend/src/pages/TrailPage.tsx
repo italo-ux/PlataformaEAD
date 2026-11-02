@@ -7,11 +7,13 @@ import {
   BookmarkPlus,
   Clock3,
   Layers3,
+  Plus,
   Search,
 } from "lucide-react";
 import Footer from "../components/Footer/Footer";
 import Navbar from "../components/Navbar/Navbar";
 import journeyService from "../services/journeyService";
+import courseService, { type Curso } from "../services/courseService";
 import trailService, { type Trilha } from "../services/trailService";
 import { getAuthenticatedUser } from "../services/userService";
 
@@ -39,6 +41,13 @@ export default function TrailPage() {
   const [following, setFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [followError, setFollowError] = useState("");
+  const [showCoursePicker, setShowCoursePicker] = useState(false);
+  const [availableCourses, setAvailableCourses] = useState<Curso[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [addingCourse, setAddingCourse] = useState(false);
+  const [courseManagementError, setCourseManagementError] = useState("");
+  const [courseManagementMessage, setCourseManagementMessage] = useState("");
 
   useEffect(() => {
     if (!trailId) {
@@ -136,6 +145,49 @@ export default function TrailPage() {
     }
   };
 
+  const openCoursePicker = async () => {
+    setShowCoursePicker(true);
+    setCoursesLoading(true);
+    setCourseManagementError("");
+    setCourseManagementMessage("");
+    try {
+      const items = await courseService.listCourses();
+      const linkedIds = new Set((trail?.cursos ?? []).map(({ id }) => id));
+      const addable = items.filter(({ id }) => !linkedIds.has(id));
+      setAvailableCourses(addable);
+      setSelectedCourseId(addable[0]?.id ?? "");
+    } catch (reason: unknown) {
+      setCourseManagementError(
+        reason instanceof Error
+          ? reason.message
+          : "Não foi possível carregar os cursos.",
+      );
+    } finally {
+      setCoursesLoading(false);
+    }
+  };
+
+  const addSelectedCourse = async () => {
+    if (!trailId || !selectedCourseId || addingCourse) return;
+    setAddingCourse(true);
+    setCourseManagementError("");
+    setCourseManagementMessage("");
+    try {
+      const updated = await trailService.addCourse(trailId, selectedCourseId);
+      setTrail(updated);
+      setShowCoursePicker(false);
+      setCourseManagementMessage("Curso adicionado à trilha.");
+    } catch (reason: unknown) {
+      setCourseManagementError(
+        reason instanceof Error
+          ? reason.message
+          : "Não foi possível adicionar o curso à trilha.",
+      );
+    } finally {
+      setAddingCourse(false);
+    }
+  };
+
   const courses = useMemo(() => {
     const normalizedSearch = normalize(search.trim());
     return [...(trail?.cursos ?? [])]
@@ -212,7 +264,6 @@ export default function TrailPage() {
                   <p className="mt-4 text-sm font-bold text-blue-100">
                     {trail.cursos.length}{" "}
                     {trail.cursos.length === 1 ? "curso" : "cursos"}
-                    {trail.nivel ? ` • ${trail.nivel}` : ""}
                   </p>
                   {user?.role === "aluno" && (
                     <div className="mt-6">
@@ -258,6 +309,14 @@ export default function TrailPage() {
             </section>
 
             <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+              {courseManagementMessage && (
+                <p
+                  role="status"
+                  className="mb-5 rounded-md bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700"
+                >
+                  {courseManagementMessage}
+                </p>
+              )}
               <div className="mb-7 grid gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_220px]">
                 <label className="relative block">
                   <span className="mb-1 block text-xs font-bold text-slate-600">
@@ -299,6 +358,75 @@ export default function TrailPage() {
                       ? "Nenhum curso vinculado a esta trilha"
                       : "Nenhum curso encontrado"}
                   </p>
+                  {trail.cursos.length === 0 && user?.role === "admin" && (
+                    <div className="mt-5">
+                      {!showCoursePicker ? (
+                        <button
+                          type="button"
+                          onClick={openCoursePicker}
+                          className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-indigo-700"
+                        >
+                          <Plus size={18} /> Adicionar curso
+                        </button>
+                      ) : (
+                        <div className="mx-auto grid max-w-lg gap-3 text-left sm:grid-cols-[1fr_auto]">
+                          {coursesLoading ? (
+                            <p className="text-sm text-slate-600 sm:col-span-2">
+                              Carregando cursos...
+                            </p>
+                          ) : availableCourses.length === 0 ? (
+                            <p className="text-sm text-slate-600 sm:col-span-2">
+                              Não há cursos existentes disponíveis para adicionar.
+                            </p>
+                          ) : (
+                            <>
+                              <label className="grid gap-1 text-sm font-bold text-slate-700">
+                                Curso existente
+                                <select
+                                  value={selectedCourseId}
+                                  onChange={(event) =>
+                                    setSelectedCourseId(event.target.value)
+                                  }
+                                  className="h-11 rounded-md border border-slate-200 bg-white px-3 font-normal"
+                                >
+                                  {availableCourses.map((course) => (
+                                    <option key={course.id} value={course.id}>
+                                      {course.nome}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={addSelectedCourse}
+                                disabled={addingCourse || coursesLoading}
+                                className="self-end rounded-md bg-indigo-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-indigo-700 disabled:cursor-wait disabled:opacity-60"
+                              >
+                                {addingCourse ? "Adicionando..." : "Adicionar"}
+                              </button>
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setShowCoursePicker(false)}
+                            className="text-sm font-semibold text-slate-600 underline sm:col-span-2 sm:justify-self-center"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      )}
+                      {courseManagementError && (
+                        <p role="alert" className="mt-3 text-sm font-semibold text-red-700">
+                          {courseManagementError}
+                        </p>
+                      )}
+                      {courseManagementMessage && (
+                        <p role="status" className="mt-3 text-sm font-semibold text-emerald-700">
+                          {courseManagementMessage}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

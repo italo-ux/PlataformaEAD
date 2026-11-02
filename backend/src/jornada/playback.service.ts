@@ -265,7 +265,7 @@ export class PlaybackService {
       }
 
       progress.posicao_segundos = Math.round(currentPosition);
-      updateLessonCoverage(progress, duration, now);
+      updateLessonCoverage(progress, duration);
       session.sequencia = input.sequencia;
       session.ultima_posicao = currentPosition;
       session.ultimo_estado = input.estado;

@@ -460,8 +460,8 @@ export default function ProfilePage() {
       <Navbar user={user} />
 
       <main className="bg-white">
-        <div className="grid min-h-[calc(100vh-72px)] lg:grid-cols-[240px_minmax(0,1fr)]">
-          <aside className="border-b border-slate-200 bg-slate-50/90 p-5 lg:sticky lg:top-[72px] lg:h-[calc(100vh-72px)] lg:border-b-0 lg:border-r lg:p-6">
+        <div className="grid min-h-screen lg:grid-cols-[240px_minmax(0,1fr)]">
+          <aside className="border-b border-slate-200 bg-slate-50/90 p-5 lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:p-6">
             <p className="px-3 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
               Configurações
             </p>

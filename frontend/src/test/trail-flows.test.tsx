@@ -81,6 +81,7 @@ describe("Real trail flows", () => {
       .spyOn(trailService, "createTrail")
       .mockResolvedValue(trail);
     render(<AdminTrailManagement />);
+    expect(screen.queryByLabelText("Nível")).toBeNull();
 
     const user = userEvent.setup();
     await user.type(screen.getByLabelText("Nome da trilha"), trail.nome);
@@ -93,7 +94,6 @@ describe("Real trail flows", () => {
         nome: trail.nome,
         descricao: trail.descricao,
         capa: undefined,
-        nivel: undefined,
         cor_fundo: "#3f5fd8",
         courseIds: [course.id],
       }),

@@ -17,6 +17,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { UserRole } from '../auth/user-role.enum';
+import { AddCourseToTrailDto } from './dto/add-course-to-trail.dto';
 import { CreateTrilhaDto } from './dto/create-trilha.dto';
 import { TrilhasService } from './trilhas.service';
 
@@ -71,6 +72,15 @@ export class TrilhasController {
     @Req() request: Request & { user: AuthenticatedUser },
   ) {
     return this.trilhasService.findOne(id, request.user);
+  }
+
+  @Post(':id/cursos')
+  @Roles(UserRole.ADMIN)
+  addCourse(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() input: AddCourseToTrailDto,
+  ) {
+    return this.trilhasService.addCourse(id, input.courseId);
   }
 
   @Post()

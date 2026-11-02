@@ -7,7 +7,6 @@ const emptyForm = {
   nome: "",
   descricao: "",
   capa: "",
-  nivel: "",
   cor_fundo: "#3f5fd8",
   courseIds: [] as string[],
 };
@@ -60,7 +59,6 @@ export default function AdminTrailManagement({
         nome: form.nome.trim(),
         descricao: form.descricao.trim() || undefined,
         capa: form.capa.trim() || undefined,
-        nivel: form.nivel.trim() || undefined,
         cor_fundo: form.cor_fundo,
         courseIds: form.courseIds,
       });
@@ -138,21 +136,6 @@ export default function AdminTrailManagement({
                 setForm((current) => ({ ...current, nome: event.target.value }))
               }
               className="h-11 rounded-md border border-slate-200 px-3"
-            />
-          </label>
-          <label className="grid gap-2 text-sm font-bold text-slate-700">
-            Nível
-            <input
-              maxLength={100}
-              value={form.nivel}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  nivel: event.target.value,
-                }))
-              }
-              className="h-11 rounded-md border border-slate-200 px-3"
-              placeholder="Iniciante, intermediário..."
             />
           </label>
           <label className="grid gap-2 text-sm font-bold text-slate-700">

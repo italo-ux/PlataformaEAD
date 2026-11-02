@@ -333,6 +333,77 @@ export class JornadaService {
     return this.getJourney(courseId, actor);
   }
 
+  async completeVideoLesson(
+    courseId: string,
+    lessonId: string,
+    actor: AuthenticatedUser,
+  ) {
+    await this.cursosService.findOne(courseId, actor);
+    await this.dataSource.transaction(async (manager) => {
+      const enrollmentRepository = manager.getRepository(Matricula);
+      const locked = await enrollmentRepository.findOne({
+        where: { id_usuario: actor.userId, id_curso: courseId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!locked)
+        throw new ForbiddenException(
+          'Inicie o curso antes de concluir a aula.',
+        );
+      const enrollment = await enrollmentRepository.findOne({
+        where: { id: locked.id },
+        relations: { curso: true, usuario: true, aulas: { aula: true } },
+      });
+      if (!enrollment) throw new NotFoundException('Matrícula não encontrada.');
+      const progress = [...enrollment.aulas].sort(
+        (left, right) => left.ordem_snapshot - right.ordem_snapshot,
+      );
+      const index = progress.findIndex((item) => item.id_aula === lessonId);
+      if (index < 0)
+        throw new NotFoundException('Aula não encontrada na matrícula.');
+      if (index > 0 && !progress[index - 1].concluida) {
+        throw new ForbiddenException('Conclua a aula anterior primeiro.');
+      }
+      const current = progress[index];
+      if (current.aula.tipo !== AulaTipo.VIDEO) {
+        throw new ConflictException('Esta aula não é um vídeo.');
+      }
+      if (current.concluida) return;
+
+      current.percentual = 100;
+      current.concluida = true;
+      current.concluida_em = new Date();
+      await manager.save(current);
+      enrollment.progresso = Math.round(
+        progress.reduce((total, item) => total + Number(item.percentual), 0) /
+          progress.length,
+      );
+      enrollment.ultima_aula_id =
+        progress.find((item) => !item.concluida)?.id_aula ?? lessonId;
+      const allCompleted = progress.every((item) => item.concluida);
+      if (allCompleted && !enrollment.conclusao) {
+        enrollment.conclusao = true;
+        enrollment.concluido_em = new Date();
+      }
+      await manager.save(enrollment);
+      if (allCompleted && enrollment.concluido_em) {
+        if (
+          !(await manager
+            .getRepository(Certificado)
+            .existsBy({ id_matricula: enrollment.id }))
+        ) {
+          await this.certificateIssuance.issue(manager, {
+            enrollmentId: enrollment.id,
+            studentName: enrollment.usuario.name,
+            courseName: enrollment.curso.nome,
+            courseHours: enrollment.curso.carga_horaria ?? 0,
+            completedAt: enrollment.concluido_em,
+          });
+        }
+      }
+    });
+    return this.getJourney(courseId, actor);
+  }
+
   private listCourseLessons(courseId: string) {
     return this.lessonsRepository.find({
       where: { curso: { id: courseId } },

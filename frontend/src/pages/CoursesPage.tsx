@@ -75,9 +75,21 @@ export default function CoursesPage() {
       <Navbar user={user} />
       <main>
         <section className="bg-blue-600 text-white">
-          <div className="mx-auto flex max-w-7xl items-center gap-5 px-4 py-7 sm:px-6 lg:px-8">
-            <BookOpen size={34} />
-            <h1 className="text-2xl font-black sm:text-3xl">{title}</h1>
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-5 px-4 py-7 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-5">
+              <BookOpen size={34} />
+              <h1 className="text-2xl font-black sm:text-3xl">{title}</h1>
+            </div>
+            {canCreateCourses(user) && (
+              <button
+                type="button"
+                onClick={() => navigate("/professor/cursos/novo")}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/70 bg-white px-4 py-2.5 text-sm font-bold text-blue-700 shadow-sm transition hover:bg-blue-50"
+              >
+                <PlusCircle size={19} />
+                Novo curso
+              </button>
+            )}
           </div>
         </section>
         <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -90,16 +102,6 @@ export default function CoursesPage() {
               <ArrowLeft size={16} />
               Voltar para home
             </button>
-            {canCreateCourses(user) && (
-              <button
-                type="button"
-                onClick={() => navigate("/professor/cursos/novo")}
-                className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"
-              >
-                <PlusCircle size={18} />
-                Novo curso
-              </button>
-            )}
           </div>
           {user?.role === "professor" && (
             <div

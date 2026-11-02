@@ -1,6 +1,5 @@
 import { ProgressoAula, WatchedRange } from './progresso-aula.entity';
 
-export const COMPLETION_THRESHOLD = 90;
 export const MAX_PLAYBACK_RATE = 2;
 export const GLOBAL_JITTER_SECONDS = 1.5;
 
@@ -99,17 +98,17 @@ export function evaluatePlaybackAdvance(input: {
 export function updateLessonCoverage(
   progress: ProgressoAula,
   duration: number,
-  now: Date,
 ) {
   progress.duracao_segundos = duration;
   const uniqueSeconds = watchedSeconds(progress.intervalos_assistidos ?? []);
+  if (progress.concluida) {
+    progress.percentual = 100;
+    return uniqueSeconds;
+  }
   progress.percentual = Math.min(
-    100,
+    99,
     Math.floor((uniqueSeconds / duration) * 10000) / 100,
   );
-  const completed = (uniqueSeconds / duration) * 100 >= COMPLETION_THRESHOLD;
-  if (completed && !progress.concluida) progress.concluida_em = now;
-  if (!completed) progress.concluida_em = null;
-  progress.concluida = completed;
+  progress.concluida_em = null;
   return uniqueSeconds;
 }
