@@ -179,6 +179,10 @@ const journeyService = {
     apiFetch(`/cursos/${courseId}/aulas/${lessonId}/video/concluir`, {
       method: "POST",
     }).then(read<CourseJourney>),
+  completeMaterialLesson: (courseId: string, lessonId: string) =>
+    apiFetch(`/cursos/${courseId}/aulas/${lessonId}/material/concluir`, {
+      method: "POST",
+    }).then(read<CourseJourney>),
   validateVideo: (courseId: string, lessonId: string) =>
     apiFetch(`/cursos/${courseId}/aulas/${lessonId}/validar-video`, {
       method: "POST",

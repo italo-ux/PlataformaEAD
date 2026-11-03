@@ -170,6 +170,17 @@ export class CursosService {
         }
         return { lesson, videoId: null };
       }
+      if (lesson.tipo === AulaTipo.LINK || lesson.tipo === AulaTipo.IMAGEM) {
+        try {
+          const url = new URL(lesson.url_video ?? '');
+          if (!['http:', 'https:'].includes(url.protocol)) throw new Error();
+        } catch {
+          throw new ConflictException(
+            `Informe uma URL HTTP ou HTTPS válida para a aula "${lesson.titulo}" antes de publicar.`,
+          );
+        }
+        return { lesson, videoId: null };
+      }
       if (lesson.tipo !== AulaTipo.VIDEO) {
         throw new ConflictException(
           `O tipo da aula "${lesson.titulo}" ainda não está disponível.`,

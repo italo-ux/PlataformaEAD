@@ -19,14 +19,6 @@ import {
 import { AulaTipo } from '../aula.entity';
 import { QUIZ_MAX_ATTEMPTS, QUIZ_PASS_PERCENTAGE } from '../quiz-policy';
 
-const youtubeHosts = [
-  'youtube.com',
-  'www.youtube.com',
-  'm.youtube.com',
-  'youtu.be',
-  'www.youtu.be',
-];
-
 export class AlternativaQuestionarioDto {
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
@@ -97,14 +89,7 @@ export class CreateAulaDto {
   tipo?: AulaTipo;
 
   @IsOptional()
-  @IsUrl(
-    {
-      protocols: ['http', 'https'],
-      require_protocol: true,
-      host_whitelist: youtubeHosts,
-    },
-    { message: 'url_video deve ser uma URL válida do YouTube' },
-  )
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
   @MaxLength(500)
   url_video?: string;
 

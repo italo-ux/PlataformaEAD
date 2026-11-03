@@ -82,7 +82,10 @@ export class AulasService {
         manager.create(Aula, {
           ...lessonInput,
           tipo,
-          url_video: null,
+          url_video:
+            tipo === AulaTipo.LINK || tipo === AulaTipo.IMAGEM
+              ? createAulaDto.url_video
+              : null,
           ordem,
           curso,
           id_instrutor: curso.id_instrutor,
@@ -285,7 +288,9 @@ export class AulasService {
           url_video:
             tipo === AulaTipo.VIDEO
               ? (lessonInput.url_video ?? aula.url_video)
-              : null,
+              : tipo === AulaTipo.LINK || tipo === AulaTipo.IMAGEM
+                ? (lessonInput.url_video ?? aula.url_video)
+                : null,
           youtube_video_id: videoId,
           duracao_segundos: tipo === AulaTipo.VIDEO ? duration : null,
           duracao_minutos:
@@ -423,6 +428,20 @@ export class AulasService {
       }
       if (!input.pdf_arquivo && !hasExistingPdf) {
         throw new BadRequestException('Anexe um PDF para esta aula.');
+      }
+      return;
+    }
+    if (tipo === AulaTipo.LINK || tipo === AulaTipo.IMAGEM) {
+      if (!input.url_video || input.duracao_segundos || input.questionario) {
+        throw new BadRequestException(
+          `A aula do tipo ${tipo} exige uma URL e não aceita conteúdo de vídeo ou questionário.`,
+        );
+      }
+      try {
+        const url = new URL(input.url_video);
+        if (!['http:', 'https:'].includes(url.protocol)) throw new Error();
+      } catch {
+        throw new BadRequestException('Informe uma URL HTTP ou HTTPS válida.');
       }
       return;
     }

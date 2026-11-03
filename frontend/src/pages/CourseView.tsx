@@ -500,6 +500,14 @@ export default function CourseView() {
                         }
                         onCompleted={() => void loadJourney()}
                       />
+                    ) : currentLesson?.tipo === "imagem" && currentLesson.url_video ? (
+                      <div className="flex min-h-80 items-center justify-center bg-slate-950 p-4">
+                        <img src={currentLesson.url_video} alt={currentLesson.titulo} className="max-h-[70vh] max-w-full object-contain" />
+                      </div>
+                    ) : currentLesson?.tipo === "link" && currentLesson.url_video ? (
+                      <div className="flex aspect-video items-center justify-center bg-slate-50 p-8 text-center">
+                        <a href={currentLesson.url_video} target="_blank" rel="noreferrer" className="rounded-xl bg-blue-600 px-6 py-4 font-bold text-white hover:bg-blue-700">Abrir material da aula <ArrowRight className="ml-2 inline" size={18}/></a>
+                      </div>
                     ) : currentLesson?.url_video ? (
                       <TrackedYoutubePlayer
                         key={currentLesson.id}
@@ -547,7 +555,7 @@ export default function CourseView() {
                     )}
                   </div>
 
-                  {currentLesson?.tipo === "video" &&
+                  {(currentLesson?.tipo === "video" || currentLesson?.tipo === "link" || currentLesson?.tipo === "imagem") &&
                     currentLesson.status !== "concluida" &&
                     user?.role === "aluno" &&
                     journey.modo === "aluno" &&
@@ -555,7 +563,22 @@ export default function CourseView() {
                       <div className="flex justify-end border-b border-slate-100 px-5 py-4 sm:px-6">
                         <button
                           type="button"
-                          onClick={() => void completeCurrentVideo()}
+                          onClick={() => {
+                            if (currentLesson.tipo === "video") void completeCurrentVideo();
+                            else void (async () => {
+                              if (!courseId || completingVideo) return;
+                              setCompletingVideo(true); setError("");
+                              try {
+                                const updated = await journeyService.completeMaterialLesson(courseId, currentLesson.id);
+                                setJourney(updated);
+                                const nextLesson = updated.aulas.find((lesson) => lesson.id !== currentLesson.id && lesson.status === "disponivel");
+                                setCurrentLessonId(nextLesson?.id ?? currentLesson.id);
+                                window.dispatchEvent(new Event("ead.sidebar.refresh"));
+                              } catch (reason) {
+                                setError(reason instanceof Error ? reason.message : "Não foi possível concluir a aula.");
+                              } finally { setCompletingVideo(false); }
+                            })();
+                          }}
                           disabled={completingVideo}
                           className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700 disabled:cursor-wait disabled:opacity-60"
                         >

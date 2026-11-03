@@ -51,6 +51,9 @@ function toPayload(form: FormState): AulaInput {
     const duration = parseDigitalDuration(form.duracao);
     if (duration === null) throw new Error("Informe uma duração válida no formato MM:SS.");
     payload.url_video = form.url_video.trim(); payload.duracao_segundos = duration;
+  } else if (form.tipo === "link" || form.tipo === "imagem") {
+    if (!form.url_video.trim()) throw new Error("Informe a URL do conteúdo.");
+    payload.url_video = form.url_video.trim();
   } else if (form.tipo === "questionario") {
     if (!form.perguntas.length) throw new Error("Adicione ao menos uma pergunta.");
     form.perguntas.forEach((question, index) => {
@@ -238,7 +241,7 @@ export default function CourseLessonsEditor({
       <div className="mb-6 flex items-start justify-between gap-4"><div><p className="text-sm font-bold uppercase text-blue-600">Conteúdo do curso</p><h2 className="mt-1 text-2xl font-black text-[#25304a]">{editingId ? "Editar aula" : "Adicionar aula"}</h2></div>{editingId && <button type="button" onClick={reset} className="inline-flex items-center gap-1 text-sm font-bold text-slate-500"><X size={16}/> Cancelar edição</button>}</div>
       <p className="mb-3 text-sm font-bold text-[#25304a]">Tipo de conteúdo</p>
       <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">{([
-        ["video", "Vídeo", Video, false], ["pdf", "PDF", FileText, false], ["link", "Link", Link2, true], ["imagem", "Imagem", ImageIcon, true], ["questionario", "Questionário", ClipboardList, false],
+        ["video", "Vídeo", Video, false], ["pdf", "PDF", FileText, false], ["link", "Link", Link2, false], ["imagem", "Imagem", ImageIcon, false], ["questionario", "Questionário", ClipboardList, false],
       ] as const).map(([type, label, Icon, disabled]) => <button key={type} type="button" disabled={disabled} onClick={() => { setForm((current) => ({ ...current, tipo: type })); setError(""); setStatus(""); }} aria-pressed={form.tipo === type} className={`flex min-h-20 flex-col items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold ${form.tipo === type ? "border-2 border-blue-600 bg-blue-50 text-blue-700" : disabled ? "cursor-not-allowed border border-slate-200 bg-slate-50 text-slate-400" : "border border-slate-200 text-slate-600"}`}><Icon size={21}/>{label}{disabled && <span className="text-[10px] uppercase">Em breve</span>}</button>)}</div>
       {error && <p role="alert" className="mb-5 rounded-lg bg-red-100 p-4 text-sm font-semibold text-red-700">{error}</p>}{status && <p role="status" className="mb-5 rounded-lg bg-emerald-100 p-4 text-sm font-semibold text-emerald-700">{status}</p>}
       <label className="mb-5 block text-sm font-bold text-[#25304a]">{form.tipo === "questionario" ? "Título do questionário" : "Título da aula"}<input name="titulo" aria-label="Título da aula" value={form.titulo} onChange={change} className={fieldClass} required/></label>
@@ -251,7 +254,7 @@ export default function CourseLessonsEditor({
         <label className="block text-sm font-bold text-[#25304a]">Anexar PDF (até 6 MiB)<input type="file" accept=".pdf,application/pdf" aria-label="Anexar PDF" onChange={(event) => setForm((current) => ({ ...current, pdfFile: event.target.files?.[0] ?? null }))} className={fieldClass}/></label>
         {form.pdfName && !form.pdfFile && <p className="text-sm text-slate-600">PDF atual: {form.pdfName}. Selecione outro arquivo somente se quiser substituí-lo.</p>}
         {form.pdfFile && <p className="text-sm text-slate-600">Selecionado: {form.pdfFile.name}</p>}
-      </div> : <div className="space-y-5">
+      </div> : form.tipo === "link" || form.tipo === "imagem" ? <label className="block text-sm font-bold text-[#25304a]">{form.tipo === "link" ? "URL do link" : "URL da imagem"}<input name="url_video" type="url" value={form.url_video} onChange={change} className={fieldClass} required/></label> : <div className="space-y-5">
         <div className="grid gap-4 sm:grid-cols-3"><label className="text-sm font-bold text-[#25304a]">Nota mínima (%)<input aria-label="Nota mínima (%)" type="number" value={QUIZ_PASS_PERCENTAGE} readOnly className={`${fieldClass} bg-slate-100`}/></label><label className="text-sm font-bold text-[#25304a]">Máximo de tentativas<input aria-label="Máximo de tentativas" type="number" value={QUIZ_MAX_ATTEMPTS} readOnly className={`${fieldClass} bg-slate-100`}/></label><label className="text-sm font-bold text-[#25304a]">Pontos bônus<input name="pontos_base" type="number" min="0" value={form.pontos_base} onChange={change} className={fieldClass}/></label></div>
         {form.perguntas.map((question, qi) => <fieldset key={qi} className="rounded-2xl border border-slate-200 bg-slate-50 p-5"><div className="flex items-center justify-between"><legend className="font-black text-[#25304a]">Pergunta {qi + 1}</legend>{form.perguntas.length > 1 && <button type="button" onClick={() => setForm((current) => ({ ...current, perguntas: current.perguntas.filter((_, i) => i !== qi) }))} className="text-sm font-bold text-red-600">Remover pergunta</button>}</div>
           <label className="mt-4 block text-sm font-bold text-[#25304a]">Enunciado<textarea aria-label={`Enunciado da pergunta ${qi + 1}`} value={question.enunciado} onChange={(event) => updateQuestion(qi, { enunciado: event.target.value })} className={`${fieldClass} min-h-20`} required/></label>

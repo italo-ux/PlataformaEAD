@@ -337,6 +337,7 @@ export class JornadaService {
     courseId: string,
     lessonId: string,
     actor: AuthenticatedUser,
+    allowedTypes: AulaTipo[] = [AulaTipo.VIDEO],
   ) {
     await this.cursosService.findOne(courseId, actor);
     await this.dataSource.transaction(async (manager) => {
@@ -364,8 +365,8 @@ export class JornadaService {
         throw new ForbiddenException('Conclua a aula anterior primeiro.');
       }
       const current = progress[index];
-      if (current.aula.tipo !== AulaTipo.VIDEO) {
-        throw new ConflictException('Esta aula não é um vídeo.');
+      if (!allowedTypes.includes(current.aula.tipo)) {
+        throw new ConflictException('Tipo de aula incompatível com esta ação.');
       }
       if (current.concluida) return;
 
@@ -402,6 +403,15 @@ export class JornadaService {
       }
     });
     return this.getJourney(courseId, actor);
+  }
+
+  async completeMaterialLesson(
+    courseId: string,
+    lessonId: string,
+    actor: AuthenticatedUser,
+  ) {
+    // Reuse the established completion flow and its locking, sequencing, and certificate rules.
+    return this.completeVideoLesson(courseId, lessonId, actor, [AulaTipo.LINK, AulaTipo.IMAGEM]);
   }
 
   private listCourseLessons(courseId: string) {

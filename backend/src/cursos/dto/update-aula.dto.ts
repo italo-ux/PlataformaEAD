@@ -14,14 +14,6 @@ import {
 import { AulaTipo } from '../aula.entity';
 import { PdfAttachmentDto, QuestionarioDto } from './create-aula.dto';
 
-const youtubeHosts = [
-  'youtube.com',
-  'www.youtube.com',
-  'm.youtube.com',
-  'youtu.be',
-  'www.youtu.be',
-];
-
 export class UpdateAulaDto {
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
@@ -41,14 +33,7 @@ export class UpdateAulaDto {
   tipo?: AulaTipo;
 
   @IsOptional()
-  @IsUrl(
-    {
-      protocols: ['http', 'https'],
-      require_protocol: true,
-      host_whitelist: youtubeHosts,
-    },
-    { message: 'url_video deve ser uma URL válida do YouTube' },
-  )
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
   @MaxLength(500)
   url_video?: string;
 
